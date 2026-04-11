@@ -8,3 +8,7 @@ Enterprise-grade HR, Attendance, Leave, Payroll and Admin Management System for 
 - Backend: Node.js + Express + TypeScript
 - Database: MongoDB
 - Auth: JWT
+
+## Task Done
+
+- Employee
