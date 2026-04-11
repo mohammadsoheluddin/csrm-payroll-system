@@ -4,6 +4,8 @@ import protectedRoutes from "./protected.route";
 import authRoutes from "../modules/auth/auth.route";
 import userRoutes from "../modules/user/user.route";
 import employeeRoutes from "../modules/employee/employee.route";
+import departmentRoutes from "../modules/department/department.route";
+import branchRoutes from "../modules/branch/branch.route";
 
 const router = Router();
 
@@ -27,6 +29,14 @@ const moduleRoutes = [
   {
     path: "/employees",
     route: employeeRoutes,
+  },
+  {
+    path: "/departments",
+    route: departmentRoutes,
+  },
+  {
+    path: "/branches",
+    route: branchRoutes,
   },
 ];
 
