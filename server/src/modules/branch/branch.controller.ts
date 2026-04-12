@@ -1,9 +1,14 @@
 import { Request, Response } from "express";
+import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { BranchServices } from "./branch.service";
 
 const createBranch = catchAsync(async (req: Request, res: Response) => {
+  if (!req.body || Object.keys(req.body).length === 0) {
+    throw new AppError(400, "Request body is empty");
+  }
+
   const result = await BranchServices.createBranchIntoDB(req.body);
 
   sendResponse(res, {
@@ -15,7 +20,9 @@ const createBranch = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllBranches = catchAsync(async (req: Request, res: Response) => {
-  const result = await BranchServices.getAllBranchesFromDB();
+  const result = await BranchServices.getAllBranchesFromDB(
+    req.query.status as string,
+  );
 
   sendResponse(res, {
     statusCode: 200,
@@ -25,7 +32,24 @@ const getAllBranches = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getSingleBranch = catchAsync(async (req: Request, res: Response) => {
+  const result = await BranchServices.getSingleBranchFromDB(
+    req.params.id as string,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Branch retrieved successfully",
+    data: result,
+  });
+});
+
 const updateBranch = catchAsync(async (req: Request, res: Response) => {
+  if (!req.body || Object.keys(req.body).length === 0) {
+    throw new AppError(400, "Request body is empty");
+  }
+
   const result = await BranchServices.updateBranchIntoDB(
     req.params.id as string,
     req.body,
@@ -55,6 +79,7 @@ const deleteBranch = catchAsync(async (req: Request, res: Response) => {
 export const BranchControllers = {
   createBranch,
   getAllBranches,
+  getSingleBranch,
   updateBranch,
   deleteBranch,
 };

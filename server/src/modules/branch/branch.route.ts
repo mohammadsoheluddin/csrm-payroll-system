@@ -4,13 +4,34 @@ import { BranchControllers } from "./branch.controller";
 
 const router = Router();
 
-router.post("/", auth("admin", "superAdmin"), BranchControllers.createBranch);
+router.post(
+  "/",
+  auth("superAdmin", "admin", "hr"),
+  BranchControllers.createBranch,
+);
+
 router.get(
   "/",
-  auth("admin", "hr", "superAdmin"),
+  auth("superAdmin", "admin", "hr", "employee"),
   BranchControllers.getAllBranches,
 );
-router.patch("/:id", auth("admin"), BranchControllers.updateBranch);
-router.delete("/:id", auth("admin"), BranchControllers.deleteBranch);
+
+router.get(
+  "/:id",
+  auth("superAdmin", "admin", "hr", "employee"),
+  BranchControllers.getSingleBranch,
+);
+
+router.patch(
+  "/:id",
+  auth("superAdmin", "admin", "hr"),
+  BranchControllers.updateBranch,
+);
+
+router.delete(
+  "/:id",
+  auth("superAdmin", "admin"),
+  BranchControllers.deleteBranch,
+);
 
 export default router;

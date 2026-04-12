@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 export type TGender = "male" | "female" | "other";
 export type TEmployeeStatus = "active" | "inactive";
 
@@ -17,8 +19,8 @@ export interface TEmployee {
   dateOfBirth?: string;
   joiningDate: string;
   designation: string;
-  department: string;
-  branch: string;
+  department: Types.ObjectId;
+  branch: Types.ObjectId;
   basicSalary: number;
   status: TEmployeeStatus;
   isDeleted?: boolean;

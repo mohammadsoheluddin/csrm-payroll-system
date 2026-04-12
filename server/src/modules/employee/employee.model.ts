@@ -1,54 +1,103 @@
-import { Schema, model, Types } from "mongoose";
+import { Schema, model } from "mongoose";
 import { TEmployee } from "./employee.interface";
 
 const employeeNameSchema = new Schema(
   {
-    firstName: String,
-    middleName: String,
-    lastName: String,
+    firstName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    middleName: {
+      type: String,
+      trim: true,
+    },
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
   },
-  { _id: false },
+  {
+    _id: false,
+  },
 );
 
 const employeeSchema = new Schema<TEmployee>(
   {
-    employeeId: { type: String, required: true, unique: true },
-
-    name: { type: employeeNameSchema, required: true },
-
-    email: { type: String, required: true, unique: true },
-
-    phone: { type: String, required: true },
-
-    gender: { type: String, enum: ["male", "female", "other"] },
-
-    joiningDate: { type: String },
-
-    designation: { type: String },
-
+    employeeId: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    user: {
+      type: String,
+      trim: true,
+    },
+    name: {
+      type: employeeNameSchema,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other"],
+      required: true,
+    },
+    dateOfBirth: {
+      type: String,
+      trim: true,
+    },
+    joiningDate: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    designation: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     department: {
-      type: Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Department",
       required: true,
     },
-
     branch: {
-      type: Types.ObjectId,
+      type: Schema.Types.ObjectId,
       ref: "Branch",
       required: true,
     },
-
-    basicSalary: Number,
-
+    basicSalary: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
     status: {
       type: String,
       enum: ["active", "inactive"],
       default: "active",
     },
-
-    isDeleted: { type: Boolean, default: false },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
 const Employee = model<TEmployee>("Employee", employeeSchema);

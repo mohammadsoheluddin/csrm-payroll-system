@@ -1,21 +1,39 @@
 import AppError from "../../errors/AppError";
-import Branch from "./branch.model";
 import { TBranch } from "./branch.interface";
+import Branch from "./branch.model";
 
 const createBranchIntoDB = async (payload: TBranch) => {
-  const existing = await Branch.findOne({
+  const existingBranch = await Branch.findOne({
     $or: [{ name: payload.name }, { code: payload.code }],
   });
 
-  if (existing) {
-    throw new AppError(409, "Branch already exists");
+  if (existingBranch) {
+    throw new AppError(409, "Branch already exists with this name or code");
   }
 
-  return await Branch.create(payload);
+  const result = await Branch.create(payload);
+  return result;
 };
 
-const getAllBranchesFromDB = async () => {
-  return await Branch.find({ isDeleted: false });
+const getAllBranchesFromDB = async (status?: string) => {
+  const query: Record<string, unknown> = { isDeleted: false };
+
+  if (status) {
+    query.status = status;
+  }
+
+  const result = await Branch.find(query);
+  return result;
+};
+
+const getSingleBranchFromDB = async (id: string) => {
+  const result = await Branch.findOne({ _id: id, isDeleted: false });
+
+  if (!result) {
+    throw new AppError(404, "Branch not found");
+  }
+
+  return result;
 };
 
 const updateBranchIntoDB = async (id: string, payload: Partial<TBranch>) => {
@@ -25,19 +43,23 @@ const updateBranchIntoDB = async (id: string, payload: Partial<TBranch>) => {
     { new: true },
   );
 
-  if (!result) throw new AppError(404, "Branch not found");
+  if (!result) {
+    throw new AppError(404, "Branch not found");
+  }
 
   return result;
 };
 
 const deleteBranchFromDB = async (id: string) => {
   const result = await Branch.findOneAndUpdate(
-    { _id: id },
+    { _id: id, isDeleted: false },
     { isDeleted: true },
     { new: true },
   );
 
-  if (!result) throw new AppError(404, "Branch not found");
+  if (!result) {
+    throw new AppError(404, "Branch not found");
+  }
 
   return result;
 };
@@ -45,6 +67,7 @@ const deleteBranchFromDB = async (id: string) => {
 export const BranchServices = {
   createBranchIntoDB,
   getAllBranchesFromDB,
+  getSingleBranchFromDB,
   updateBranchIntoDB,
   deleteBranchFromDB,
 };
