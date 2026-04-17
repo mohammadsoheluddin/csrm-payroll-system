@@ -6,6 +6,8 @@ import userRoutes from "../modules/user/user.route";
 import employeeRoutes from "../modules/employee/employee.route";
 import departmentRoutes from "../modules/department/department.route";
 import branchRoutes from "../modules/branch/branch.route";
+import attendanceRoutes from "../modules/attendance/attendance.route";
+import leaveRoutes from "../modules/leave/leave.route";
 
 const router = Router();
 
@@ -37,6 +39,14 @@ const moduleRoutes = [
   {
     path: "/branches",
     route: branchRoutes,
+  },
+  {
+    path: "/attendance",
+    route: attendanceRoutes,
+  },
+  {
+    path: "/leave",
+    route: leaveRoutes,
   },
 ];
 

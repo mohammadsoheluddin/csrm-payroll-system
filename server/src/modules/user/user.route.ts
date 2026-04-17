@@ -10,12 +10,24 @@ router.get(
   UserControllers.getMe,
 );
 
-router.get("/", auth("superAdmin", "admin"), UserControllers.getAllUsers);
+router.get("/", auth("superAdmin", "admin", "hr"), UserControllers.getAllUsers);
 
-router.get("/:id", auth("superAdmin", "admin"), UserControllers.getSingleUser);
+router.get(
+  "/:id",
+  auth("superAdmin", "admin", "hr"),
+  UserControllers.getSingleUser,
+);
 
-router.patch("/:id", auth("superAdmin", "admin"), UserControllers.updateUser);
+router.patch(
+  "/:id",
+  auth("superAdmin", "admin", "hr"),
+  UserControllers.updateUser,
+);
 
-router.delete("/:id", auth("superAdmin", "admin"), UserControllers.deleteUser);
+router.delete(
+  "/:id",
+  auth("superAdmin", "admin", "hr"),
+  UserControllers.deleteUser,
+);
 
 export default router;

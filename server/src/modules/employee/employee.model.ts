@@ -32,8 +32,8 @@ const employeeSchema = new Schema<TEmployee>(
       trim: true,
     },
     user: {
-      type: String,
-      trim: true,
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
     name: {
       type: employeeNameSchema,

@@ -11,7 +11,7 @@ export interface TEmployeeName {
 
 export interface TEmployee {
   employeeId: string;
-  user?: string;
+  user?: Types.ObjectId;
   name: TEmployeeName;
   email: string;
   phone: string;
@@ -22,6 +22,6 @@ export interface TEmployee {
   department: Types.ObjectId;
   branch: Types.ObjectId;
   basicSalary: number;
-  status: TEmployeeStatus;
+  status?: TEmployeeStatus;
   isDeleted?: boolean;
 }

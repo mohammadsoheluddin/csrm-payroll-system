@@ -30,7 +30,7 @@ router.patch(
 
 router.delete(
   "/:id",
-  auth("superAdmin", "admin"),
+  auth("superAdmin", "admin", "hr"),
   BranchControllers.deleteBranch,
 );
 
