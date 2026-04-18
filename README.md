@@ -9,6 +9,12 @@ Enterprise-grade HR, Attendance, Leave, Payroll and Admin Management System for 
 - Database: MongoDB
 - Auth: JWT
 
-## Task Done
+## Modules
 
+- User
+- Branch
+- Department
 - Employee
+- Attendance
+- Leave
+- 
