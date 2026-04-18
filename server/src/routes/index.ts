@@ -8,6 +8,8 @@ import departmentRoutes from "../modules/department/department.route";
 import branchRoutes from "../modules/branch/branch.route";
 import attendanceRoutes from "../modules/attendance/attendance.route";
 import leaveRoutes from "../modules/leave/leave.route";
+import holidayRoutes from "../modules/holiday/holiday.route";
+import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
 
 const router = Router();
 
@@ -47,6 +49,14 @@ const moduleRoutes = [
   {
     path: "/leave",
     route: leaveRoutes,
+  },
+  {
+    path: "/holiday",
+    route: holidayRoutes,
+  },
+  {
+    path: "/salary-structure",
+    route: salaryStructureRoutes,
   },
 ];
 
