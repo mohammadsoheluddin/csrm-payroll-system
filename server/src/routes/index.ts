@@ -10,6 +10,8 @@ import attendanceRoutes from "../modules/attendance/attendance.route";
 import leaveRoutes from "../modules/leave/leave.route";
 import holidayRoutes from "../modules/holiday/holiday.route";
 import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
+import { payrollRoutes } from "../modules/payroll/payroll.route";
+import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.route";
 
 const router = Router();
 
@@ -57,6 +59,14 @@ const moduleRoutes = [
   {
     path: "/salary-structure",
     route: salaryStructureRoutes,
+  },
+  {
+    path: "/payroll",
+    route: payrollRoutes,
+  },
+  {
+    path: "/payroll-reports",
+    route: payrollReportRoutes,
   },
 ];
 

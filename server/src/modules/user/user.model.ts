@@ -1,6 +1,14 @@
-import bcrypt from "bcrypt";
 import { Schema, model } from "mongoose";
-import { TUser, UserModel } from "./user.interface";
+import { TUser, TUserRole, UserModel } from "./user.interface";
+
+const userRoles: TUserRole[] = [
+  "super_admin",
+  "admin",
+  "hr",
+  "accounts",
+  "manager",
+  "employee",
+];
 
 const userSchema = new Schema<TUser, UserModel>(
   {
@@ -13,18 +21,18 @@ const userSchema = new Schema<TUser, UserModel>(
       type: String,
       required: true,
       unique: true,
-      lowercase: true,
       trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
       required: true,
-      select: 0,
     },
     role: {
       type: String,
-      enum: ["superAdmin", "admin", "hr", "employee"],
+      enum: userRoles,
       default: "employee",
+      required: true,
     },
     isDeleted: {
       type: Boolean,
@@ -36,12 +44,11 @@ const userSchema = new Schema<TUser, UserModel>(
   },
 );
 
-userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+userSchema.statics.isUserExistsByEmail = async function (email: string) {
+  return await User.findOne({
+    email,
+    isDeleted: false,
+  });
+};
 
-  this.password = await bcrypt.hash(this.password, 10);
-});
-
-const User = model<TUser, UserModel>("User", userSchema);
-
-export default User;
+export const User = model<TUser, UserModel>("User", userSchema);

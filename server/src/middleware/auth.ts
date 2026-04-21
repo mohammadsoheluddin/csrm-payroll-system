@@ -1,32 +1,55 @@
 import { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
-import config from "../app/config";
 import AppError from "../errors/AppError";
+import { verifyToken } from "../modules/auth/auth.utils";
 
-type TRole = "superAdmin" | "admin" | "hr" | "employee";
+const HTTP_STATUS = {
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+};
 
-const auth = (...requiredRoles: TRole[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+type TRequestUser = {
+  userId: string;
+  email: string;
+  role: string;
+};
+
+const auth =
+  (...requiredRoles: string[]) =>
+  async (req: Request, _res: Response, next: NextFunction) => {
     try {
-      const token = req.headers.authorization;
+      const authorizationHeader = req.headers.authorization;
 
-      if (!token) {
-        throw new AppError(401, "You are not authorized!");
+      if (!authorizationHeader) {
+        throw new AppError(HTTP_STATUS.UNAUTHORIZED, "You are not authorized.");
       }
 
-      const decoded = jwt.verify(token, config.jwt_access_secret) as {
-        userId: string;
-        role: TRole;
-        email: string;
-      };
+      const token = authorizationHeader.startsWith("Bearer ")
+        ? authorizationHeader.split(" ")[1]
+        : authorizationHeader;
 
-      console.log("Decoded user:", decoded);
-      console.log("Required roles:", requiredRoles);
+      if (!token) {
+        throw new AppError(HTTP_STATUS.UNAUTHORIZED, "You are not authorized.");
+      }
 
-      (req as any).user = decoded;
+      const decoded = verifyToken(
+        token,
+        process.env.JWT_ACCESS_SECRET as string,
+      );
 
-      if (requiredRoles.length && !requiredRoles.includes(decoded.role)) {
-        throw new AppError(403, "Forbidden access");
+      (req as any).user = {
+        userId: decoded.userId,
+        email: decoded.email,
+        role: decoded.role,
+      } as TRequestUser;
+
+      if (
+        requiredRoles.length &&
+        !requiredRoles.includes((req as any).user.role)
+      ) {
+        throw new AppError(
+          HTTP_STATUS.FORBIDDEN,
+          "You are forbidden to access this resource.",
+        );
       }
 
       next();
@@ -34,6 +57,5 @@ const auth = (...requiredRoles: TRole[]) => {
       next(error);
     }
   };
-};
 
 export default auth;

@@ -1,6 +1,12 @@
 import { Model } from "mongoose";
 
-export type TUserRole = "superAdmin" | "admin" | "hr" | "employee";
+export type TUserRole =
+  | "super_admin"
+  | "admin"
+  | "hr"
+  | "accounts"
+  | "manager"
+  | "employee";
 
 export interface TUser {
   name: string;
@@ -10,4 +16,6 @@ export interface TUser {
   isDeleted?: boolean;
 }
 
-export interface UserModel extends Model<TUser> {}
+export interface UserModel extends Model<TUser> {
+  isUserExistsByEmail(email: string): Promise<TUser | null>;
+}
