@@ -1,36 +1,44 @@
 import express from "express";
 import auth from "../../middleware/auth";
+import { allowOwnEmployeeOrPermission } from "../../middleware/employeeResourceGuard";
+import requirePermission from "../../middleware/requirePermission";
+import { PERMISSIONS } from "../user/user.constant";
 import { PayrollReportControllers } from "./payrollReport.controller";
 
 const router = express.Router();
 
 router.get(
   "/payslip/:employeeId",
-  auth("super_admin", "admin", "hr", "accounts", "manager", "employee"),
+  auth(),
+  allowOwnEmployeeOrPermission("employeeId", PERMISSIONS.PAYSLIP_READ_ANY),
   PayrollReportControllers.getEmployeePayslip,
 );
 
 router.get(
   "/payslip/:employeeId/pdf",
-  auth("super_admin", "admin", "hr", "accounts", "manager", "employee"),
+  auth(),
+  allowOwnEmployeeOrPermission("employeeId", PERMISSIONS.PAYSLIP_READ_ANY),
   PayrollReportControllers.downloadPayslipPDF,
 );
 
 router.get(
   "/monthly-report",
-  auth("super_admin", "admin", "hr", "accounts", "manager"),
+  auth(),
+  requirePermission(PERMISSIONS.PAYROLL_REPORT_READ),
   PayrollReportControllers.getMonthlyPayrollReport,
 );
 
 router.get(
   "/monthly-report/export/csv",
-  auth("super_admin", "admin", "hr", "accounts", "manager"),
+  auth(),
+  requirePermission(PERMISSIONS.PAYROLL_REPORT_EXPORT),
   PayrollReportControllers.exportMonthlyPayrollReportCsv,
 );
 
 router.get(
   "/monthly-report/export/excel",
-  auth("super_admin", "admin", "hr", "accounts", "manager"),
+  auth(),
+  requirePermission(PERMISSIONS.PAYROLL_REPORT_EXPORT),
   PayrollReportControllers.exportMonthlyPayrollReportExcel,
 );
 

@@ -1,14 +1,6 @@
 import { Schema, model } from "mongoose";
-import { TUser, TUserRole, UserModel } from "./user.interface";
-
-const userRoles: TUserRole[] = [
-  "super_admin",
-  "admin",
-  "hr",
-  "accounts",
-  "manager",
-  "employee",
-];
+import { USER_ROLES } from "./user.constant";
+import { TUser, UserModel } from "./user.interface";
 
 const userSchema = new Schema<TUser, UserModel>(
   {
@@ -17,6 +9,7 @@ const userSchema = new Schema<TUser, UserModel>(
       required: true,
       trim: true,
     },
+
     email: {
       type: String,
       required: true,
@@ -24,16 +17,20 @@ const userSchema = new Schema<TUser, UserModel>(
       trim: true,
       lowercase: true,
     },
+
     password: {
       type: String,
       required: true,
+      select: false,
     },
+
     role: {
       type: String,
-      enum: userRoles,
+      enum: USER_ROLES,
       default: "employee",
       required: true,
     },
+
     isDeleted: {
       type: Boolean,
       default: false,
@@ -45,10 +42,12 @@ const userSchema = new Schema<TUser, UserModel>(
 );
 
 userSchema.statics.isUserExistsByEmail = async function (email: string) {
-  return await User.findOne({
+  return this.findOne({
     email,
     isDeleted: false,
   });
 };
 
 export const User = model<TUser, UserModel>("User", userSchema);
+
+export default User;

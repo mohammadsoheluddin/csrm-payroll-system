@@ -1,9 +1,11 @@
 import jwt, { JwtPayload, Secret, SignOptions } from "jsonwebtoken";
+import { TUserRole } from "../user/user.constant";
 
 export type TJwtUserPayload = {
   userId: string;
   email: string;
-  role: string;
+  role: TUserRole;
+  employeeId?: string;
 };
 
 export const createToken = (

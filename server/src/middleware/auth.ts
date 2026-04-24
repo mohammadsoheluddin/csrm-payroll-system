@@ -1,20 +1,23 @@
 import { NextFunction, Request, Response } from "express";
+import config from "../app/config";
 import AppError from "../errors/AppError";
 import { verifyToken } from "../modules/auth/auth.utils";
+import { TUserRole, USER_ROLES } from "../modules/user/user.constant";
 
 const HTTP_STATUS = {
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
 };
 
-type TRequestUser = {
+export type TRequestUser = {
   userId: string;
   email: string;
-  role: string;
+  role: TUserRole;
+  employeeId?: string;
 };
 
 const auth =
-  (...requiredRoles: string[]) =>
+  (...requiredRoles: TUserRole[]) =>
   async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const authorizationHeader = req.headers.authorization;
@@ -31,21 +34,22 @@ const auth =
         throw new AppError(HTTP_STATUS.UNAUTHORIZED, "You are not authorized.");
       }
 
-      const decoded = verifyToken(
-        token,
-        process.env.JWT_ACCESS_SECRET as string,
-      );
+      const decoded = verifyToken(token, config.jwt_access_secret);
+
+      const decodedRole = decoded.role as TUserRole;
+
+      if (!USER_ROLES.includes(decodedRole)) {
+        throw new AppError(HTTP_STATUS.UNAUTHORIZED, "Invalid token role.");
+      }
 
       (req as any).user = {
         userId: decoded.userId,
         email: decoded.email,
-        role: decoded.role,
+        role: decodedRole,
+        employeeId: decoded.employeeId,
       } as TRequestUser;
 
-      if (
-        requiredRoles.length &&
-        !requiredRoles.includes((req as any).user.role)
-      ) {
+      if (requiredRoles.length && !requiredRoles.includes(decodedRole)) {
         throw new AppError(
           HTTP_STATUS.FORBIDDEN,
           "You are forbidden to access this resource.",

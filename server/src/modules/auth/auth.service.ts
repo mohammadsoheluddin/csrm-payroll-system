@@ -1,16 +1,17 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
 import config from "../../app/config";
 import AppError from "../../errors/AppError";
 import createToken from "../../utils/createToken";
-import { User } from "../user/user.model";
+import Employee from "../employee/employee.model";
+import { TUserRole } from "../user/user.constant";
+import User from "../user/user.model";
 
 const registerUserIntoDB = async (payload: {
   name: string;
   email: string;
   password: string;
-  role?: "super_admin" | "admin" | "hr" | "accounts" | "manager" | "employee";
+  role?: TUserRole;
 }) => {
   const existingUser = await User.findOne({
     email: payload.email,
@@ -29,7 +30,14 @@ const registerUserIntoDB = async (payload: {
   };
 
   const result = await User.create(userPayload);
-  return result;
+
+  return {
+    _id: result._id,
+    name: result.name,
+    email: result.email,
+    role: result.role,
+    isDeleted: result.isDeleted,
+  };
 };
 
 const loginUserFromDB = async (payload: {
@@ -54,10 +62,16 @@ const loginUserFromDB = async (payload: {
     throw new AppError(401, "Password does not match");
   }
 
+  const linkedEmployee = await Employee.findOne({
+    user: user._id,
+    isDeleted: false,
+  }).select("_id");
+
   const jwtPayload = {
-    userId: user._id.toString(),
+    userId: String(user._id),
     role: user.role,
     email: user.email,
+    employeeId: linkedEmployee?._id ? String(linkedEmployee._id) : undefined,
   };
 
   const accessToken = createToken(
@@ -83,15 +97,21 @@ const refreshToken = async (token: string) => {
     throw new AppError(401, "You are not authorized!");
   }
 
-  let decoded;
+  let decoded: {
+    userId: string;
+    role: TUserRole;
+    email: string;
+    employeeId?: string;
+  };
 
   try {
     decoded = jwt.verify(token, config.jwt_refresh_secret) as {
       userId: string;
-      role: string;
+      role: TUserRole;
       email: string;
+      employeeId?: string;
     };
-  } catch (error) {
+  } catch {
     throw new AppError(403, "Invalid refresh token!");
   }
 
@@ -100,6 +120,7 @@ const refreshToken = async (token: string) => {
       userId: decoded.userId,
       role: decoded.role,
       email: decoded.email,
+      employeeId: decoded.employeeId,
     },
     config.jwt_access_secret,
     config.jwt_access_expires,

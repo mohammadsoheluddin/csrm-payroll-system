@@ -1,12 +1,5 @@
 import { Model } from "mongoose";
-
-export type TUserRole =
-  | "super_admin"
-  | "admin"
-  | "hr"
-  | "accounts"
-  | "manager"
-  | "employee";
+import { TUserRole } from "./user.constant";
 
 export interface TUser {
   name: string;
