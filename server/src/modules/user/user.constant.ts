@@ -53,7 +53,7 @@ export type TPermission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 export const PERMISSION_LIST = Object.values(PERMISSIONS);
 
-const ALL_PERMISSIONS = PERMISSION_LIST;
+const ALL_PERMISSIONS: TPermission[] = [...PERMISSION_LIST];
 
 export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   [USER_ROLE.super_admin]: ALL_PERMISSIONS,
@@ -95,6 +95,8 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
 
     PERMISSIONS.EMPLOYEE_READ,
 
+    PERMISSIONS.HOLIDAY_READ,
+
     PERMISSIONS.SALARY_STRUCTURE_READ,
 
     PERMISSIONS.PAYROLL_READ,
@@ -118,6 +120,8 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
     PERMISSIONS.LEAVE_READ,
     PERMISSIONS.LEAVE_APPROVE,
 
+    PERMISSIONS.HOLIDAY_READ,
+
     PERMISSIONS.PAYROLL_READ,
     PERMISSIONS.PAYROLL_APPROVE,
     PERMISSIONS.PAYROLL_LOCK,
@@ -130,7 +134,10 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
     PERMISSIONS.PAYSLIP_READ_ANY,
   ],
 
-  [USER_ROLE.employee]: [PERMISSIONS.PAYSLIP_READ_OWN],
+  [USER_ROLE.employee]: [
+    PERMISSIONS.HOLIDAY_READ,
+    PERMISSIONS.PAYSLIP_READ_OWN,
+  ],
 };
 
 export const hasPermission = (

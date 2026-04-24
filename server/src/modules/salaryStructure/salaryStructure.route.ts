@@ -1,45 +1,45 @@
-import { Router } from "express";
-import auth from "../../middleware/auth";
-import validateRequest from "../../middleware/validateRequest";
+import express from "express";
 import { SalaryStructureControllers } from "./salaryStructure.controller";
-import { SalaryStructureValidations } from "./salaryStructure.validation";
+import auth from "../../middleware/auth";
+import requirePermission from "../../middleware/requirePermission";
+import { PERMISSIONS } from "../user/user.constant";
 
-const router = Router();
+const router = express.Router();
 
 router.post(
-  "/",
-  auth("superAdmin", "admin", "hr"),
-  validateRequest(
-    SalaryStructureValidations.createSalaryStructureValidationSchema,
-  ),
+  "/create-salary-structure",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_STRUCTURE_MANAGE),
   SalaryStructureControllers.createSalaryStructure,
 );
 
 router.get(
   "/",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_STRUCTURE_READ),
   SalaryStructureControllers.getAllSalaryStructure,
 );
 
 router.get(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_STRUCTURE_READ),
   SalaryStructureControllers.getSingleSalaryStructure,
 );
 
 router.patch(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
-  validateRequest(
-    SalaryStructureValidations.updateSalaryStructureValidationSchema,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_STRUCTURE_MANAGE),
   SalaryStructureControllers.updateSalaryStructure,
 );
 
 router.delete(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_STRUCTURE_MANAGE),
   SalaryStructureControllers.deleteSalaryStructure,
 );
 
+export const SalaryStructureRoutes = router;
 export default router;

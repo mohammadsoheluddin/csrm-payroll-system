@@ -1,41 +1,45 @@
-import { Router } from "express";
-import auth from "../../middleware/auth";
-import validateRequest from "../../middleware/validateRequest";
+import express from "express";
 import { AttendanceControllers } from "./attendance.controller";
-import { AttendanceValidations } from "./attendance.validation";
+import auth from "../../middleware/auth";
+import requirePermission from "../../middleware/requirePermission";
+import { PERMISSIONS } from "../user/user.constant";
 
-const router = Router();
+const router = express.Router();
 
 router.post(
-  "/",
-  auth("superAdmin", "admin", "hr"),
-  validateRequest(AttendanceValidations.createAttendanceValidationSchema),
+  "/create-attendance",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_MANAGE),
   AttendanceControllers.createAttendance,
 );
 
 router.get(
   "/",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_READ),
   AttendanceControllers.getAllAttendance,
 );
 
 router.get(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_READ),
   AttendanceControllers.getSingleAttendance,
 );
 
 router.patch(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
-  validateRequest(AttendanceValidations.updateAttendanceValidationSchema),
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_MANAGE),
   AttendanceControllers.updateAttendance,
 );
 
 router.delete(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_MANAGE),
   AttendanceControllers.deleteAttendance,
 );
 
+export const AttendanceRoutes = router;
 export default router;

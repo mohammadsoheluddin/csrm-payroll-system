@@ -1,41 +1,63 @@
-import { Router } from "express";
-import auth from "../../middleware/auth";
-import validateRequest from "../../middleware/validateRequest";
+import express from "express";
 import { LeaveControllers } from "./leave.controller";
-import { LeaveValidations } from "./leave.validation";
+import auth from "../../middleware/auth";
+import requirePermission from "../../middleware/requirePermission";
+import { PERMISSIONS } from "../user/user.constant";
 
-const router = Router();
+const router = express.Router();
 
 router.post(
-  "/",
-  auth("superAdmin", "admin", "hr"),
-  validateRequest(LeaveValidations.createLeaveValidationSchema),
+  "/create-leave",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_MANAGE),
   LeaveControllers.createLeave,
 );
 
 router.get(
   "/",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_READ),
   LeaveControllers.getAllLeave,
 );
 
 router.get(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_READ),
   LeaveControllers.getSingleLeave,
+);
+
+/**
+ * Approve leave route
+ * Note:
+ * Your controller does not have approveLeave yet.
+ * So this route uses existing updateLeave controller with LEAVE_APPROVE permission.
+ *
+ * Postman body example:
+ * {
+ *   "status": "approved"
+ * }
+ */
+router.patch(
+  "/:id/approve",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_APPROVE),
+  LeaveControllers.updateLeave,
 );
 
 router.patch(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
-  validateRequest(LeaveValidations.updateLeaveValidationSchema),
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_MANAGE),
   LeaveControllers.updateLeave,
 );
 
 router.delete(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_MANAGE),
   LeaveControllers.deleteLeave,
 );
 
+export const LeaveRoutes = router;
 export default router;
