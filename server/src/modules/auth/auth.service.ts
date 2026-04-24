@@ -4,21 +4,31 @@ import jwt from "jsonwebtoken";
 import config from "../../app/config";
 import AppError from "../../errors/AppError";
 import createToken from "../../utils/createToken";
-import User from "../user/user.model";
+import { User } from "../user/user.model";
 
 const registerUserIntoDB = async (payload: {
   name: string;
   email: string;
   password: string;
-  role?: "superAdmin" | "admin" | "hr" | "employee";
+  role?: "super_admin" | "admin" | "hr" | "accounts" | "manager" | "employee";
 }) => {
-  const existingUser = await User.findOne({ email: payload.email });
+  const existingUser = await User.findOne({
+    email: payload.email,
+    isDeleted: false,
+  });
 
   if (existingUser) {
     throw new AppError(409, "User already exists with this email");
   }
 
-  const result = await User.create(payload);
+  const hashedPassword = await bcrypt.hash(payload.password, 10);
+
+  const userPayload = {
+    ...payload,
+    password: hashedPassword,
+  };
+
+  const result = await User.create(userPayload);
   return result;
 };
 
@@ -26,7 +36,10 @@ const loginUserFromDB = async (payload: {
   email: string;
   password: string;
 }) => {
-  const user = await User.findOne({ email: payload.email }).select("+password");
+  const user = await User.findOne({
+    email: payload.email,
+    isDeleted: false,
+  }).select("+password");
 
   if (!user) {
     throw new AppError(404, "User not found");
@@ -42,7 +55,7 @@ const loginUserFromDB = async (payload: {
   }
 
   const jwtPayload = {
-    userId: user._id,
+    userId: user._id.toString(),
     role: user.role,
     email: user.email,
   };
