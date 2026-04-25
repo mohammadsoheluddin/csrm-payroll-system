@@ -1,37 +1,51 @@
 import { Router } from "express";
 import auth from "../../middleware/auth";
+import requirePermission from "../../middleware/requirePermission";
+import { PERMISSIONS } from "../user/user.constant";
 import { BranchControllers } from "./branch.controller";
 
 const router = Router();
 
+/**
+ * Branch Routes Permission Logic:
+ * - Read: all authenticated roles with BRANCH_READ permission
+ * - Manage: super_admin, admin, hr
+ */
+
 router.post(
   "/",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_MANAGE),
   BranchControllers.createBranch,
 );
 
 router.get(
   "/",
-  auth("superAdmin", "admin", "hr", "employee"),
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_READ),
   BranchControllers.getAllBranches,
 );
 
 router.get(
   "/:id",
-  auth("superAdmin", "admin", "hr", "employee"),
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_READ),
   BranchControllers.getSingleBranch,
 );
 
 router.patch(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_MANAGE),
   BranchControllers.updateBranch,
 );
 
 router.delete(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_MANAGE),
   BranchControllers.deleteBranch,
 );
 
+export const BranchRoutes = router;
 export default router;

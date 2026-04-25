@@ -1,37 +1,51 @@
 import { Router } from "express";
 import auth from "../../middleware/auth";
+import requirePermission from "../../middleware/requirePermission";
+import { PERMISSIONS } from "../user/user.constant";
 import { DepartmentControllers } from "./department.controller";
 
 const router = Router();
 
+/**
+ * Department Routes Permission Logic:
+ * - Read: all authenticated roles with DEPARTMENT_READ permission
+ * - Manage: super_admin, admin, hr
+ */
+
 router.post(
   "/",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_MANAGE),
   DepartmentControllers.createDepartment,
 );
 
 router.get(
   "/",
-  auth("superAdmin", "admin", "hr", "employee"),
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_READ),
   DepartmentControllers.getAllDepartments,
 );
 
 router.get(
   "/:id",
-  auth("superAdmin", "admin", "hr", "employee"),
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_READ),
   DepartmentControllers.getSingleDepartment,
 );
 
 router.patch(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_MANAGE),
   DepartmentControllers.updateDepartment,
 );
 
 router.delete(
   "/:id",
-  auth("superAdmin", "admin", "hr"),
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_MANAGE),
   DepartmentControllers.deleteDepartment,
 );
 
+export const DepartmentRoutes = router;
 export default router;

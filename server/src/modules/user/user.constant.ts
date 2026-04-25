@@ -15,6 +15,12 @@ export const PERMISSIONS = {
   USER_READ: "user:read",
   USER_MANAGE: "user:manage",
 
+  BRANCH_READ: "branch:read",
+  BRANCH_MANAGE: "branch:manage",
+
+  DEPARTMENT_READ: "department:read",
+  DEPARTMENT_MANAGE: "department:manage",
+
   EMPLOYEE_READ: "employee:read",
   EMPLOYEE_MANAGE: "employee:manage",
 
@@ -51,7 +57,7 @@ export const PERMISSIONS = {
 
 export type TPermission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export const PERMISSION_LIST = Object.values(PERMISSIONS);
+export const PERMISSION_LIST = Object.values(PERMISSIONS) as TPermission[];
 
 const ALL_PERMISSIONS: TPermission[] = [...PERMISSION_LIST];
 
@@ -62,6 +68,12 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
 
   [USER_ROLE.hr]: [
     PERMISSIONS.USER_READ,
+
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.BRANCH_MANAGE,
+
+    PERMISSIONS.DEPARTMENT_READ,
+    PERMISSIONS.DEPARTMENT_MANAGE,
 
     PERMISSIONS.EMPLOYEE_READ,
     PERMISSIONS.EMPLOYEE_MANAGE,
@@ -93,6 +105,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   [USER_ROLE.accounts]: [
     PERMISSIONS.USER_READ,
 
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.DEPARTMENT_READ,
+
     PERMISSIONS.EMPLOYEE_READ,
 
     PERMISSIONS.HOLIDAY_READ,
@@ -112,6 +127,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
 
   [USER_ROLE.manager]: [
     PERMISSIONS.USER_READ,
+
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.DEPARTMENT_READ,
 
     PERMISSIONS.EMPLOYEE_READ,
 
@@ -135,6 +153,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   ],
 
   [USER_ROLE.employee]: [
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.DEPARTMENT_READ,
+
     PERMISSIONS.HOLIDAY_READ,
     PERMISSIONS.PAYSLIP_READ_OWN,
   ],
