@@ -6,7 +6,7 @@ export const USER_ROLE = {
   manager: "manager",
   employee: "employee",
 } as const;
-
+// changes
 export type TUserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
 
 export const USER_ROLES = Object.values(USER_ROLE);
