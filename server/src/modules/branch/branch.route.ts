@@ -6,12 +6,6 @@ import { BranchControllers } from "./branch.controller";
 
 const router = Router();
 
-/**
- * Branch Routes Permission Logic:
- * - Read: all authenticated roles with BRANCH_READ permission
- * - Manage: super_admin, admin, hr
- */
-
 router.post(
   "/",
   auth(),

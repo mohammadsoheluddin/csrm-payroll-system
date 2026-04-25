@@ -57,7 +57,7 @@ export const PERMISSIONS = {
 
 export type TPermission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export const PERMISSION_LIST = Object.values(PERMISSIONS) as TPermission[];
+export const PERMISSION_LIST = Object.values(PERMISSIONS);
 
 const ALL_PERMISSIONS: TPermission[] = [...PERMISSION_LIST];
 

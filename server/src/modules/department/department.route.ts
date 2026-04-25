@@ -6,12 +6,6 @@ import { DepartmentControllers } from "./department.controller";
 
 const router = Router();
 
-/**
- * Department Routes Permission Logic:
- * - Read: all authenticated roles with DEPARTMENT_READ permission
- * - Manage: super_admin, admin, hr
- */
-
 router.post(
   "/",
   auth(),
