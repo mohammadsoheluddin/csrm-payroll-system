@@ -29,6 +29,11 @@ const getAllAuditLogsFromDB = async (query: TAuditLogQuery) => {
     actorId,
     actorRole,
     entityId,
+    ipAddress,
+    networkType,
+    deviceType,
+    browser,
+    operatingSystem,
     fromDate,
     toDate,
     page = "1",
@@ -39,7 +44,7 @@ const getAllAuditLogsFromDB = async (query: TAuditLogQuery) => {
   const limitNumber = Number(limit) > 0 ? Number(limit) : 20;
   const skip = (pageNumber - 1) * limitNumber;
 
-  // Fixed: Added proper TypeScript type instead of raw Record
+  // Fixed: proper TypeScript type instead of raw Record
   const filter: Record<string, unknown> = {};
 
   if (module) {
@@ -62,8 +67,28 @@ const getAllAuditLogsFromDB = async (query: TAuditLogQuery) => {
     filter.entityId = entityId;
   }
 
+  // Added: device/network query filters
+  if (ipAddress) {
+    filter.ipAddress = ipAddress;
+  }
+
+  if (networkType) {
+    filter.networkType = networkType;
+  }
+
+  if (deviceType) {
+    filter.deviceType = deviceType;
+  }
+
+  if (browser) {
+    filter.browser = browser;
+  }
+
+  if (operatingSystem) {
+    filter.operatingSystem = operatingSystem;
+  }
+
   if (fromDate || toDate) {
-    // Fixed: Added proper date filter type instead of raw Record
     const createdAtFilter: Record<string, Date> = {};
 
     if (fromDate) {

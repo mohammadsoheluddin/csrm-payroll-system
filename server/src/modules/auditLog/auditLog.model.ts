@@ -19,6 +19,7 @@ const auditLogSchema = new Schema<TAuditLog>(
     actorRole: {
       type: String,
       trim: true,
+      index: true,
     },
 
     module: {
@@ -63,13 +64,111 @@ const auditLogSchema = new Schema<TAuditLog>(
       default: null,
     },
 
-    ipAddress: {
+    /**
+     * Added:
+     * Request metadata for better tracking and investigation.
+     */
+    requestId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    requestMethod: {
       type: String,
       trim: true,
     },
+    requestUrl: {
+      type: String,
+      trim: true,
+    },
+    requestOriginalUrl: {
+      type: String,
+      trim: true,
+    },
+    requestPath: {
+      type: String,
+      trim: true,
+    },
+    requestQuery: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+
+    /**
+     * Added:
+     * IP and network-related metadata.
+     */
+    ipAddress: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    forwardedFor: {
+      type: String,
+      trim: true,
+    },
+    realIp: {
+      type: String,
+      trim: true,
+    },
+    networkType: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+
+    /**
+     * Added:
+     * Device/browser metadata parsed from user-agent.
+     */
     userAgent: {
       type: String,
       trim: true,
+    },
+    browser: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    operatingSystem: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    deviceType: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+
+    /**
+     * Added:
+     * Optional client/session identifiers.
+     * Frontend can send these later using custom headers.
+     */
+    clientName: {
+      type: String,
+      trim: true,
+    },
+    clientId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    sessionId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+
+    /**
+     * Added:
+     * Optional location placeholder.
+     * We will not auto-detect geolocation now.
+     */
+    location: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
   },
   {
@@ -81,6 +180,9 @@ auditLogSchema.index({ module: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
 auditLogSchema.index({ actorId: 1, createdAt: -1 });
 auditLogSchema.index({ entityId: 1, createdAt: -1 });
+auditLogSchema.index({ ipAddress: 1, createdAt: -1 });
+auditLogSchema.index({ deviceType: 1, createdAt: -1 });
+auditLogSchema.index({ networkType: 1, createdAt: -1 });
 
 const AuditLog = model<TAuditLog>("AuditLog", auditLogSchema);
 
