@@ -6,7 +6,7 @@ export const USER_ROLE = {
   manager: "manager",
   employee: "employee",
 } as const;
-// changes
+
 export type TUserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE];
 
 export const USER_ROLES = Object.values(USER_ROLE);
@@ -53,6 +53,8 @@ export const PERMISSIONS = {
 
   PAYSLIP_READ_ANY: "payslip:read:any",
   PAYSLIP_READ_OWN: "payslip:read:own",
+
+  AUDIT_LOG_READ: "audit_log:read",
 } as const;
 
 export type TPermission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

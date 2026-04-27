@@ -12,6 +12,7 @@ import holidayRoutes from "../modules/holiday/holiday.route";
 import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
 import { payrollRoutes } from "../modules/payroll/payroll.route";
 import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.route";
+import auditLogRoutes from "../modules/auditLog/auditLog.route";
 
 const router = Router();
 
@@ -67,6 +68,10 @@ const moduleRoutes = [
   {
     path: "/payroll-reports",
     route: payrollReportRoutes,
+  },
+  {
+    path: "/audit-logs",
+    route: auditLogRoutes,
   },
 ];
 
