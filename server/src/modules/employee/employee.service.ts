@@ -22,12 +22,20 @@ const createEmployeeIntoDB = async (payload: TEmployee) => {
     throw new AppError(400, "Invalid department ID");
   }
 
-  const isBranchExists = await Branch.findById(payload.branch);
+  const isBranchExists = await Branch.findOne({
+    _id: payload.branch,
+    isDeleted: false,
+  });
+
   if (!isBranchExists) {
     throw new AppError(404, "Branch not found");
   }
 
-  const isDepartmentExists = await Department.findById(payload.department);
+  const isDepartmentExists = await Department.findOne({
+    _id: payload.department,
+    isDeleted: false,
+  });
+
   if (!isDepartmentExists) {
     throw new AppError(404, "Department not found");
   }
@@ -42,6 +50,10 @@ const createEmployeeIntoDB = async (payload: TEmployee) => {
 };
 
 const getAllEmployeesFromDB = async (status?: string) => {
+  /**
+   * Fixed:
+   * Added proper TypeScript type instead of raw Record.
+   */
   const query: Record<string, unknown> = { isDeleted: false };
 
   if (status) {
@@ -84,7 +96,11 @@ const updateEmployeeIntoDB = async (
       throw new AppError(400, "Invalid branch ID");
     }
 
-    const isBranchExists = await Branch.findById(payload.branch);
+    const isBranchExists = await Branch.findOne({
+      _id: payload.branch,
+      isDeleted: false,
+    });
+
     if (!isBranchExists) {
       throw new AppError(404, "Branch not found");
     }
@@ -95,7 +111,11 @@ const updateEmployeeIntoDB = async (
       throw new AppError(400, "Invalid department ID");
     }
 
-    const isDepartmentExists = await Department.findById(payload.department);
+    const isDepartmentExists = await Department.findOne({
+      _id: payload.department,
+      isDeleted: false,
+    });
+
     if (!isDepartmentExists) {
       throw new AppError(404, "Department not found");
     }

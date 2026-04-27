@@ -7,7 +7,7 @@ const validateRequest = (schema: ZodSchema) => {
       /**
        * Changed:
        * Now validates body, params, query and cookies.
-       * Before, this middleware validated only req.body.
+       * This is required for module-level validation like employee id params and status query.
        */
       const parsedData = (await schema.parseAsync({
         body: req.body,
