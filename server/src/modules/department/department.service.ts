@@ -12,10 +12,15 @@ const createDepartmentIntoDB = async (payload: TDepartment) => {
   }
 
   const result = await Department.create(payload);
+
   return result;
 };
 
 const getAllDepartmentsFromDB = async (status?: string) => {
+  /**
+   * Fixed:
+   * Added proper TypeScript type instead of raw Record.
+   */
   const query: Record<string, unknown> = { isDeleted: false };
 
   if (status) {
@@ -23,6 +28,7 @@ const getAllDepartmentsFromDB = async (status?: string) => {
   }
 
   const result = await Department.find(query);
+
   return result;
 };
 

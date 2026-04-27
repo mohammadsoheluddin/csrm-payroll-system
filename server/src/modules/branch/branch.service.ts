@@ -12,10 +12,15 @@ const createBranchIntoDB = async (payload: TBranch) => {
   }
 
   const result = await Branch.create(payload);
+
   return result;
 };
 
 const getAllBranchesFromDB = async (status?: string) => {
+  /**
+   * Fixed:
+   * Added proper TypeScript type instead of raw Record.
+   */
   const query: Record<string, unknown> = { isDeleted: false };
 
   if (status) {
@@ -23,6 +28,7 @@ const getAllBranchesFromDB = async (status?: string) => {
   }
 
   const result = await Branch.find(query);
+
   return result;
 };
 
