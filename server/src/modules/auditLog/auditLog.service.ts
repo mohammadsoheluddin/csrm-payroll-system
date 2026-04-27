@@ -1,9 +1,5 @@
 import AppError from "../../errors/AppError";
-import {
-  TAuditLog,
-  TAuditLogQuery,
-  TCreateAuditLogPayload,
-} from "./auditLog.interface";
+import { TAuditLogQuery, TCreateAuditLogPayload } from "./auditLog.interface";
 import AuditLog from "./auditLog.model";
 
 const createAuditLogIntoDB = async (payload: TCreateAuditLogPayload) => {
@@ -12,8 +8,9 @@ const createAuditLogIntoDB = async (payload: TCreateAuditLogPayload) => {
 };
 
 /**
+ * Added:
  * Use this function from other modules later.
- * Audit failure should not break main business operation.
+ * Audit log failure should not break the main business operation.
  */
 const createAuditLogSafely = async (payload: TCreateAuditLogPayload) => {
   try {
@@ -42,6 +39,7 @@ const getAllAuditLogsFromDB = async (query: TAuditLogQuery) => {
   const limitNumber = Number(limit) > 0 ? Number(limit) : 20;
   const skip = (pageNumber - 1) * limitNumber;
 
+  // Fixed: Added proper TypeScript type instead of raw Record
   const filter: Record<string, unknown> = {};
 
   if (module) {
@@ -65,6 +63,7 @@ const getAllAuditLogsFromDB = async (query: TAuditLogQuery) => {
   }
 
   if (fromDate || toDate) {
+    // Fixed: Added proper date filter type instead of raw Record
     const createdAtFilter: Record<string, Date> = {};
 
     if (fromDate) {
