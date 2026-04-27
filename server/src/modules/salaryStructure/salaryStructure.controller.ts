@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
+import {
+  createAuditLogFromRequest,
+  getAuditEntityId,
+  toAuditData,
+} from "../auditLog/auditLog.utils";
 import { SalaryStructureServices } from "./salaryStructure.service";
 
 const createSalaryStructure = catchAsync(
@@ -13,6 +18,16 @@ const createSalaryStructure = catchAsync(
     const result = await SalaryStructureServices.createSalaryStructureIntoDB(
       req.body,
     );
+
+    // Added: Audit log for salary structure creation
+    await createAuditLogFromRequest(req, {
+      module: "salary_structure",
+      action: "create",
+      entityId: getAuditEntityId(result),
+      description: "Salary structure created",
+      previousData: null,
+      newData: toAuditData(result),
+    });
 
     sendResponse(res, {
       statusCode: 201,
@@ -40,9 +55,12 @@ const getAllSalaryStructure = catchAsync(
 
 const getSingleSalaryStructure = catchAsync(
   async (req: Request, res: Response) => {
-    const result = await SalaryStructureServices.getSingleSalaryStructureFromDB(
-      req.params.id as string,
-    );
+    const salaryStructureId = req.params.id as string;
+
+    const result =
+      await SalaryStructureServices.getSingleSalaryStructureFromDB(
+        salaryStructureId,
+      );
 
     sendResponse(res, {
       statusCode: 200,
@@ -55,14 +73,34 @@ const getSingleSalaryStructure = catchAsync(
 
 const updateSalaryStructure = catchAsync(
   async (req: Request, res: Response) => {
+    const salaryStructureId = req.params.id as string;
+
     if (!req.body || Object.keys(req.body).length === 0) {
       throw new AppError(400, "Request body is empty");
     }
 
+    const previousSalaryStructure =
+      await SalaryStructureServices.getSingleSalaryStructureFromDB(
+        salaryStructureId,
+      );
+
     const result = await SalaryStructureServices.updateSalaryStructureIntoDB(
-      req.params.id as string,
+      salaryStructureId,
       req.body,
     );
+
+    // Added: Audit log for salary structure update
+    await createAuditLogFromRequest(req, {
+      module: "salary_structure",
+      action: "update",
+      entityId: getAuditEntityId(result, salaryStructureId),
+      description: "Salary structure updated",
+      previousData: toAuditData(previousSalaryStructure),
+      newData: toAuditData(result),
+      metadata: {
+        changedFields: Object.keys(req.body),
+      },
+    });
 
     sendResponse(res, {
       statusCode: 200,
@@ -75,9 +113,27 @@ const updateSalaryStructure = catchAsync(
 
 const deleteSalaryStructure = catchAsync(
   async (req: Request, res: Response) => {
-    const result = await SalaryStructureServices.deleteSalaryStructureFromDB(
-      req.params.id as string,
-    );
+    const salaryStructureId = req.params.id as string;
+
+    const previousSalaryStructure =
+      await SalaryStructureServices.getSingleSalaryStructureFromDB(
+        salaryStructureId,
+      );
+
+    const result =
+      await SalaryStructureServices.deleteSalaryStructureFromDB(
+        salaryStructureId,
+      );
+
+    // Added: Audit log for salary structure soft delete
+    await createAuditLogFromRequest(req, {
+      module: "salary_structure",
+      action: "soft_delete",
+      entityId: getAuditEntityId(result, salaryStructureId),
+      description: "Salary structure soft deleted",
+      previousData: toAuditData(previousSalaryStructure),
+      newData: toAuditData(result),
+    });
 
     sendResponse(res, {
       statusCode: 200,

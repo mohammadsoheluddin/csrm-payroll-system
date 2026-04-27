@@ -2,6 +2,11 @@ import { Request, Response } from "express";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
+import {
+  createAuditLogFromRequest,
+  getAuditEntityId,
+  toAuditData,
+} from "../auditLog/auditLog.utils";
 import { LeaveServices } from "./leave.service";
 
 const createLeave = catchAsync(async (req: Request, res: Response) => {
@@ -10,6 +15,16 @@ const createLeave = catchAsync(async (req: Request, res: Response) => {
   }
 
   const result = await LeaveServices.createLeaveIntoDB(req.body);
+
+  // Added: Audit log for leave creation
+  await createAuditLogFromRequest(req, {
+    module: "leave",
+    action: "create",
+    entityId: getAuditEntityId(result),
+    description: "Leave created",
+    previousData: null,
+    newData: toAuditData(result),
+  });
 
   sendResponse(res, {
     statusCode: 201,
@@ -33,9 +48,9 @@ const getAllLeave = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getSingleLeave = catchAsync(async (req: Request, res: Response) => {
-  const result = await LeaveServices.getSingleLeaveFromDB(
-    req.params.id as string,
-  );
+  const leaveId = req.params.id as string;
+
+  const result = await LeaveServices.getSingleLeaveFromDB(leaveId);
 
   sendResponse(res, {
     statusCode: 200,
@@ -46,14 +61,31 @@ const getSingleLeave = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateLeave = catchAsync(async (req: Request, res: Response) => {
+  const leaveId = req.params.id as string;
+
   if (!req.body || Object.keys(req.body).length === 0) {
     throw new AppError(400, "Request body is empty");
   }
 
-  const result = await LeaveServices.updateLeaveIntoDB(
-    req.params.id as string,
-    req.body,
-  );
+  const previousLeave = await LeaveServices.getSingleLeaveFromDB(leaveId);
+
+  const result = await LeaveServices.updateLeaveIntoDB(leaveId, req.body);
+
+  const isApproveRoute = req.originalUrl.includes("/approve");
+
+  // Added: Audit log for leave update/approve
+  await createAuditLogFromRequest(req, {
+    module: "leave",
+    action: isApproveRoute ? "approve" : "update",
+    entityId: getAuditEntityId(result, leaveId),
+    description: isApproveRoute ? "Leave approved" : "Leave updated",
+    previousData: toAuditData(previousLeave),
+    newData: toAuditData(result),
+    metadata: {
+      changedFields: Object.keys(req.body),
+      route: req.originalUrl,
+    },
+  });
 
   sendResponse(res, {
     statusCode: 200,
@@ -64,7 +96,21 @@ const updateLeave = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteLeave = catchAsync(async (req: Request, res: Response) => {
-  const result = await LeaveServices.deleteLeaveFromDB(req.params.id as string);
+  const leaveId = req.params.id as string;
+
+  const previousLeave = await LeaveServices.getSingleLeaveFromDB(leaveId);
+
+  const result = await LeaveServices.deleteLeaveFromDB(leaveId);
+
+  // Added: Audit log for leave soft delete
+  await createAuditLogFromRequest(req, {
+    module: "leave",
+    action: "soft_delete",
+    entityId: getAuditEntityId(result, leaveId),
+    description: "Leave soft deleted",
+    previousData: toAuditData(previousLeave),
+    newData: toAuditData(result),
+  });
 
   sendResponse(res, {
     statusCode: 200,
