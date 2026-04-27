@@ -205,8 +205,8 @@ const generateRequestId = (req: Request): string => {
 };
 
 /**
- * Added:
- * Converts Mongoose documents or plain objects into safe audit data.
+ * Fixed:
+ * Uses Record<string, unknown> instead of raw Record.
  */
 export const toAuditData = (data: unknown): Record<string, unknown> | null => {
   if (!data) {

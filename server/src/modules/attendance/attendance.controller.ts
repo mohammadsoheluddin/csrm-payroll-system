@@ -10,6 +10,10 @@ import {
 import { AttendanceServices } from "./attendance.service";
 
 const createAttendance = catchAsync(async (req: Request, res: Response) => {
+  /**
+   * Kept:
+   * Extra safeguard even though route-level Zod validation now checks request body.
+   */
   if (!req.body || Object.keys(req.body).length === 0) {
     throw new AppError(400, "Request body is empty");
   }
@@ -36,7 +40,14 @@ const createAttendance = catchAsync(async (req: Request, res: Response) => {
 
 const getAllAttendance = catchAsync(async (req: Request, res: Response) => {
   const result = await AttendanceServices.getAllAttendanceFromDB(
-    req.query as Record<string, unknown>,
+    req.query as {
+      employee?: string;
+      status?: string;
+      attendanceDate?: string;
+      source?: string;
+      fromDate?: string;
+      toDate?: string;
+    },
   );
 
   sendResponse(res, {
@@ -48,10 +59,9 @@ const getAllAttendance = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getSingleAttendance = catchAsync(async (req: Request, res: Response) => {
-  const attendanceId = req.params.id as string;
-
-  const result =
-    await AttendanceServices.getSingleAttendanceFromDB(attendanceId);
+  const result = await AttendanceServices.getSingleAttendanceFromDB(
+    req.params.id as string,
+  );
 
   sendResponse(res, {
     statusCode: 200,
@@ -62,11 +72,15 @@ const getSingleAttendance = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateAttendance = catchAsync(async (req: Request, res: Response) => {
-  const attendanceId = req.params.id as string;
-
+  /**
+   * Kept:
+   * Extra safeguard even though update validation already blocks empty body.
+   */
   if (!req.body || Object.keys(req.body).length === 0) {
     throw new AppError(400, "Request body is empty");
   }
+
+  const attendanceId = req.params.id as string;
 
   const previousAttendance =
     await AttendanceServices.getSingleAttendanceFromDB(attendanceId);

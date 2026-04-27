@@ -4,6 +4,15 @@ import Attendance from "./attendance.model";
 import { TAttendance } from "./attendance.interface";
 import Employee from "../employee/employee.model";
 
+type TAttendanceQuery = {
+  employee?: string;
+  status?: string;
+  attendanceDate?: string;
+  source?: string;
+  fromDate?: string;
+  toDate?: string;
+};
+
 const createAttendanceIntoDB = async (payload: TAttendance) => {
   if (!mongoose.isValidObjectId(payload.employee)) {
     throw new AppError(400, "Invalid employee ID");
@@ -41,7 +50,8 @@ const createAttendanceIntoDB = async (payload: TAttendance) => {
   return populatedResult;
 };
 
-const getAllAttendanceFromDB = async (query: Record<string, unknown>) => {
+const getAllAttendanceFromDB = async (query: TAttendanceQuery) => {
+  // Fixed: Proper TypeScript type instead of raw Record
   const filter: Record<string, unknown> = { isDeleted: false };
 
   if (query.employee) {
@@ -52,12 +62,24 @@ const getAllAttendanceFromDB = async (query: Record<string, unknown>) => {
     filter.status = query.status;
   }
 
-  if (query.attendanceDate) {
-    filter.attendanceDate = query.attendanceDate;
-  }
-
   if (query.source) {
     filter.source = query.source;
+  }
+
+  if (query.attendanceDate) {
+    filter.attendanceDate = query.attendanceDate;
+  } else if (query.fromDate || query.toDate) {
+    const attendanceDateFilter: Record<string, string> = {};
+
+    if (query.fromDate) {
+      attendanceDateFilter.$gte = query.fromDate;
+    }
+
+    if (query.toDate) {
+      attendanceDateFilter.$lte = query.toDate;
+    }
+
+    filter.attendanceDate = attendanceDateFilter;
   }
 
   const result = await Attendance.find(filter)

@@ -19,7 +19,6 @@ const globalErrorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   /**
    * Added:
    * Clean Zod validation error response.
-   * Without this, Zod validation errors may look unclear in Postman.
    */
   if (err instanceof ZodError) {
     statusCode = 400;
