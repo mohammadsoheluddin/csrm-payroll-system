@@ -54,6 +54,7 @@ export const PERMISSIONS = {
   PAYSLIP_READ_ANY: "payslip:read:any",
   PAYSLIP_READ_OWN: "payslip:read:own",
 
+  // Added: Global Audit Log read permission
   AUDIT_LOG_READ: "audit_log:read",
 } as const;
 
