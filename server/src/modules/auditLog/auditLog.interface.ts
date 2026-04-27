@@ -80,10 +80,7 @@ export interface TAuditLog {
   newData?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
 
-  /**
-   * Added:
-   * Request, device and network audit metadata.
-   */
+  // Added: Request, device and network audit metadata
   requestId?: string;
   requestMethod?: string;
   requestUrl?: string;

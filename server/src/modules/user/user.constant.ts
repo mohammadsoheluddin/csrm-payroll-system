@@ -60,11 +60,11 @@ export const PERMISSIONS = {
 
 export type TPermission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export const PERMISSION_LIST = Object.values(PERMISSIONS);
+export const PERMISSION_LIST = Object.values(PERMISSIONS) as TPermission[];
 
 const ALL_PERMISSIONS: TPermission[] = [...PERMISSION_LIST];
 
-// Fixed: Added proper TypeScript type for role-permission matrix
+// Fixed: Proper TypeScript type for role-permission matrix
 export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   [USER_ROLE.super_admin]: ALL_PERMISSIONS,
 

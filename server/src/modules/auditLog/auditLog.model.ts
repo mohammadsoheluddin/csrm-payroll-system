@@ -64,10 +64,7 @@ const auditLogSchema = new Schema<TAuditLog>(
       default: null,
     },
 
-    /**
-     * Added:
-     * Request metadata for better tracking and investigation.
-     */
+    // Added: Request metadata for audit investigation
     requestId: {
       type: String,
       trim: true,
@@ -94,10 +91,7 @@ const auditLogSchema = new Schema<TAuditLog>(
       default: null,
     },
 
-    /**
-     * Added:
-     * IP and network-related metadata.
-     */
+    // Added: IP and network metadata
     ipAddress: {
       type: String,
       trim: true,
@@ -117,10 +111,7 @@ const auditLogSchema = new Schema<TAuditLog>(
       index: true,
     },
 
-    /**
-     * Added:
-     * Device/browser metadata parsed from user-agent.
-     */
+    // Added: Device/browser metadata
     userAgent: {
       type: String,
       trim: true,
@@ -141,11 +132,7 @@ const auditLogSchema = new Schema<TAuditLog>(
       index: true,
     },
 
-    /**
-     * Added:
-     * Optional client/session identifiers.
-     * Frontend can send these later using custom headers.
-     */
+    // Added: Optional frontend/client identifiers
     clientName: {
       type: String,
       trim: true,
@@ -161,11 +148,6 @@ const auditLogSchema = new Schema<TAuditLog>(
       index: true,
     },
 
-    /**
-     * Added:
-     * Optional location placeholder.
-     * We will not auto-detect geolocation now.
-     */
     location: {
       type: Schema.Types.Mixed,
       default: null,

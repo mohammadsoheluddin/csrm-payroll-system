@@ -207,7 +207,6 @@ const generateRequestId = (req: Request): string => {
 /**
  * Added:
  * Converts Mongoose documents or plain objects into safe audit data.
- * This keeps previousData/newData TypeScript-safe.
  */
 export const toAuditData = (data: unknown): Record<string, unknown> | null => {
   if (!data) {
@@ -229,10 +228,6 @@ export const toAuditData = (data: unknown): Record<string, unknown> | null => {
   return data as Record<string, unknown>;
 };
 
-/**
- * Added:
- * Gets a readable entity id from Mongoose document/plain object.
- */
 export const getAuditEntityId = (
   data: unknown,
   fallbackId?: string,
@@ -246,10 +241,6 @@ export const getAuditEntityId = (
   return fallbackId;
 };
 
-/**
- * Added:
- * Gets a readable entity name for audit timeline.
- */
 export const getAuditEntityName = (
   data: unknown,
   keys: string[] = ["name", "title", "employeeId", "email", "payrollMonth"],
@@ -272,7 +263,6 @@ export const getAuditEntityName = (
 /**
  * Added:
  * Creates audit log from Express request with actor, device, IP, network and request metadata.
- * Audit log failure will not break main API operation because service uses createAuditLogSafely().
  */
 export const createAuditLogFromRequest = async (
   req: Request,

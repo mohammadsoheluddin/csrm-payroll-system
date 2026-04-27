@@ -9,7 +9,7 @@ const app = express();
 
 /**
  * Added:
- * Helps Express read the original client IP correctly when the app runs behind proxy/load balancer.
+ * Helps Express read original client IP correctly behind proxy/load balancer.
  */
 app.set("trust proxy", true);
 
