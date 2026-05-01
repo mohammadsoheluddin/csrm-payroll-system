@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  LEAVE_APPROVAL_STATUSES,
+  LEAVE_STATUSES,
+  LEAVE_TYPES,
+  MANAGEMENT_CONTROLLED_LEAVE_TYPES,
+  REPLACEMENT_LEAVE_TYPE,
+} from "./leave.constant";
 
 const objectIdSchema = (fieldName: string) =>
   z
@@ -6,25 +13,19 @@ const objectIdSchema = (fieldName: string) =>
     .trim()
     .regex(/^[0-9a-fA-F]{24}$/, `Invalid ${fieldName}`);
 
-const leaveTypeSchema = z.enum([
-  "casual",
-  "sick",
-  "earned",
-  "unpaid",
-  "maternity",
-  "paternity",
-  "official",
-  "others",
-]);
+const leaveTypeSchema = z.enum(LEAVE_TYPES);
+const leaveStatusSchema = z.enum(LEAVE_STATUSES);
+const leaveApprovalStatusSchema = z.enum(LEAVE_APPROVAL_STATUSES);
 
-const leaveStatusSchema = z.enum([
-  "pending",
-  "approved",
-  "rejected",
-  "cancelled",
-]);
+const isManagementControlledLeaveType = (leaveType?: string) => {
+  if (!leaveType) {
+    return false;
+  }
 
-const leaveApprovalStatusSchema = z.enum(["approved", "rejected", "cancelled"]);
+  return (MANAGEMENT_CONTROLLED_LEAVE_TYPES as readonly string[]).includes(
+    leaveType,
+  );
+};
 
 const isValidDateString = (value: string) => {
   const date = new Date(value);
@@ -54,6 +55,11 @@ const approvalNoteSchema = z
   .trim()
   .max(500, "Approval note cannot exceed 500 characters");
 
+const managementApprovalNoteSchema = z
+  .string()
+  .trim()
+  .max(500, "Management approval note cannot exceed 500 characters");
+
 const createLeaveValidationSchema = z.object({
   body: z
     .object({
@@ -65,12 +71,82 @@ const createLeaveValidationSchema = z.object({
       status: leaveStatusSchema.optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
       approvalNote: approvalNoteSchema.optional(),
+      isManagementApproved: z.boolean().optional(),
+      managementApprovalNote: managementApprovalNoteSchema.optional(),
+      replacementForDate: dateStringSchema("Replacement for date").optional(),
     })
     .strict()
     .refine((data) => data.endDate >= data.startDate, {
       message: "End date cannot be earlier than start date",
       path: ["endDate"],
-    }),
+    })
+    .refine(
+      (data) => {
+        if (!isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return data.isManagementApproved === true;
+      },
+      {
+        message:
+          "Management approval is required for paid, unpaid or others leave",
+        path: ["isManagementApproved"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (!isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return Boolean(data.managementApprovalNote?.trim());
+      },
+      {
+        message:
+          "Management approval note is required for paid, unpaid or others leave",
+        path: ["managementApprovalNote"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.leaveType !== REPLACEMENT_LEAVE_TYPE) {
+          return true;
+        }
+
+        return Boolean(data.replacementForDate);
+      },
+      {
+        message: "Replacement for date is required for replacement leave",
+        path: ["replacementForDate"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.leaveType !== REPLACEMENT_LEAVE_TYPE) {
+          return true;
+        }
+
+        return data.startDate === data.endDate;
+      },
+      {
+        message: "Replacement leave must be created for one day at a time",
+        path: ["endDate"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.leaveType === REPLACEMENT_LEAVE_TYPE) {
+          return true;
+        }
+
+        return !data.replacementForDate;
+      },
+      {
+        message: "Replacement for date is allowed only for replacement leave",
+        path: ["replacementForDate"],
+      },
+    ),
 });
 
 const updateLeaveValidationSchema = z.object({
@@ -87,6 +163,9 @@ const updateLeaveValidationSchema = z.object({
       status: leaveStatusSchema.optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
       approvalNote: approvalNoteSchema.optional(),
+      isManagementApproved: z.boolean().optional(),
+      managementApprovalNote: managementApprovalNoteSchema.optional(),
+      replacementForDate: dateStringSchema("Replacement for date").optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {
@@ -103,6 +182,34 @@ const updateLeaveValidationSchema = z.object({
       {
         message: "End date cannot be earlier than start date",
         path: ["endDate"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (!isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return data.isManagementApproved === true;
+      },
+      {
+        message:
+          "Management approval is required for paid, unpaid or others leave",
+        path: ["isManagementApproved"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (!isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return Boolean(data.managementApprovalNote?.trim());
+      },
+      {
+        message:
+          "Management approval note is required for paid, unpaid or others leave",
+        path: ["managementApprovalNote"],
       },
     ),
 });
@@ -131,6 +238,8 @@ const getAllLeaveValidationSchema = z.object({
       endDate: dateStringSchema("End date").optional(),
       fromDate: dateStringSchema("From date").optional(),
       toDate: dateStringSchema("To date").optional(),
+      replacementForDate: dateStringSchema("Replacement for date").optional(),
+      isManagementApproved: z.enum(["true", "false"]).optional(),
     })
     .strict()
     .refine(
@@ -155,10 +264,27 @@ const leaveIdParamValidationSchema = z.object({
   }),
 });
 
+const leaveBalanceValidationSchema = z.object({
+  params: z.object({
+    employeeId: objectIdSchema("employee id"),
+  }),
+  query: z
+    .object({
+      year: z
+        .string()
+        .trim()
+        .regex(/^\d{4}$/, "Year must follow YYYY format")
+        .optional(),
+    })
+    .strict()
+    .optional(),
+});
+
 export const LeaveValidations = {
   createLeaveValidationSchema,
   updateLeaveValidationSchema,
   approveLeaveValidationSchema,
   getAllLeaveValidationSchema,
   leaveIdParamValidationSchema,
+  leaveBalanceValidationSchema,
 };

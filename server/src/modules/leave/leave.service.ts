@@ -1,6 +1,14 @@
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
+import Attendance from "../attendance/attendance.model";
 import Employee from "../employee/employee.model";
+import Holiday from "../holiday/holiday.model";
+import {
+  ACTIVE_LEAVE_STATUSES,
+  LIMITED_LEAVE_POLICIES,
+  MANAGEMENT_CONTROLLED_LEAVE_TYPES,
+  REPLACEMENT_LEAVE_TYPE,
+} from "./leave.constant";
 import type { TLeave, TLeaveStatus, TLeaveType } from "./leave.interface";
 import Leave from "./leave.model";
 
@@ -8,7 +16,9 @@ type TCreateLeavePayload = Omit<TLeave, "totalDays"> & {
   totalDays?: number;
 };
 
-type TUpdateLeavePayload = Partial<TLeave>;
+type TUpdateLeavePayload = Partial<Omit<TLeave, "totalDays">> & {
+  totalDays?: number;
+};
 
 type TLeaveDateFilter = {
   $gte?: string;
@@ -23,6 +33,8 @@ type TLeaveDBFilter = {
   status?: TLeaveStatus;
   startDate?: string | TLeaveDateFilter;
   endDate?: string | TLeaveDateFilter;
+  replacementForDate?: string;
+  isManagementApproved?: boolean;
 };
 
 type TLeaveOverlapFilter = {
@@ -41,8 +53,6 @@ type TLeaveOverlapFilter = {
     $ne: mongoose.Types.ObjectId;
   };
 };
-
-const ACTIVE_LEAVE_STATUSES: TLeaveStatus[] = ["pending", "approved"];
 
 const getStringQueryValue = (
   query: Record<string, unknown>,
@@ -63,6 +73,67 @@ const toObjectId = (value: unknown, fieldName: string) => {
   }
 
   return new mongoose.Types.ObjectId(String(value));
+};
+
+const isManagementControlledLeaveType = (leaveType: TLeaveType) => {
+  return (MANAGEMENT_CONTROLLED_LEAVE_TYPES as readonly string[]).includes(
+    leaveType,
+  );
+};
+
+const toUTCDate = (dateString: string) => {
+  return new Date(`${dateString}T00:00:00.000Z`);
+};
+
+const calculateTotalLeaveDays = (startDate: string, endDate: string) => {
+  const start = toUTCDate(startDate);
+  const end = toUTCDate(endDate);
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  const diffDays = Math.floor(
+    (end.getTime() - start.getTime()) / millisecondsPerDay,
+  );
+
+  return diffDays + 1;
+};
+
+const getYearsInRange = (startDate: string, endDate: string) => {
+  const startYear = toUTCDate(startDate).getUTCFullYear();
+  const endYear = toUTCDate(endDate).getUTCFullYear();
+
+  const years: number[] = [];
+
+  for (let year = startYear; year <= endYear; year += 1) {
+    years.push(year);
+  }
+
+  return years;
+};
+
+const getYearStartDate = (year: number) => `${year}-01-01`;
+const getYearEndDate = (year: number) => `${year}-12-31`;
+
+const calculateOverlapDays = (
+  leaveStartDate: string,
+  leaveEndDate: string,
+  rangeStartDate: string,
+  rangeEndDate: string,
+) => {
+  const leaveStart = toUTCDate(leaveStartDate).getTime();
+  const leaveEnd = toUTCDate(leaveEndDate).getTime();
+  const rangeStart = toUTCDate(rangeStartDate).getTime();
+  const rangeEnd = toUTCDate(rangeEndDate).getTime();
+
+  const overlapStart = Math.max(leaveStart, rangeStart);
+  const overlapEnd = Math.min(leaveEnd, rangeEnd);
+
+  if (overlapEnd < overlapStart) {
+    return 0;
+  }
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+  return Math.floor((overlapEnd - overlapStart) / millisecondsPerDay) + 1;
 };
 
 const ensureEmployeeExists = async (employeeId: unknown) => {
@@ -86,16 +157,32 @@ const validateLeaveDateRange = (startDate: string, endDate: string) => {
   }
 };
 
-const calculateTotalLeaveDays = (startDate: string, endDate: string) => {
-  const start = new Date(`${startDate}T00:00:00.000Z`);
-  const end = new Date(`${endDate}T00:00:00.000Z`);
+const ensureManagementApprovalIfNeeded = ({
+  leaveType,
+  isManagementApproved,
+  managementApprovalNote,
+}: {
+  leaveType: TLeaveType;
+  isManagementApproved?: boolean;
+  managementApprovalNote?: string;
+}) => {
+  if (!isManagementControlledLeaveType(leaveType)) {
+    return;
+  }
 
-  const millisecondsPerDay = 24 * 60 * 60 * 1000;
-  const diffDays = Math.floor(
-    (end.getTime() - start.getTime()) / millisecondsPerDay,
-  );
+  if (isManagementApproved !== true) {
+    throw new AppError(
+      400,
+      "Management approval is required for paid, unpaid or others leave",
+    );
+  }
 
-  return diffDays + 1;
+  if (!managementApprovalNote?.trim()) {
+    throw new AppError(
+      400,
+      "Management approval note is required for paid, unpaid or others leave",
+    );
+  }
 };
 
 const ensureNoOverlappingLeave = async ({
@@ -149,21 +236,229 @@ const ensureNoOverlappingLeave = async ({
   }
 };
 
+const ensureLimitedLeaveBalance = async ({
+  employeeId,
+  leaveType,
+  startDate,
+  endDate,
+  currentStatus,
+  excludeLeaveId,
+}: {
+  employeeId: unknown;
+  leaveType: TLeaveType;
+  startDate: string;
+  endDate: string;
+  currentStatus?: TLeaveStatus;
+  excludeLeaveId?: string;
+}) => {
+  const effectiveStatus = currentStatus || "pending";
+
+  if (!ACTIVE_LEAVE_STATUSES.includes(effectiveStatus)) {
+    return;
+  }
+
+  const policy =
+    LIMITED_LEAVE_POLICIES[leaveType as keyof typeof LIMITED_LEAVE_POLICIES];
+
+  if (!policy) {
+    return;
+  }
+
+  const employeeObjectId = toObjectId(employeeId, "employee ID");
+  const years = getYearsInRange(startDate, endDate);
+
+  for (const year of years) {
+    const yearStartDate = getYearStartDate(year);
+    const yearEndDate = getYearEndDate(year);
+
+    const requestedDaysInYear = calculateOverlapDays(
+      startDate,
+      endDate,
+      yearStartDate,
+      yearEndDate,
+    );
+
+    const usedLeaves = await Leave.find({
+      employee: employeeObjectId,
+      leaveType,
+      isDeleted: false,
+      status: {
+        $in: ACTIVE_LEAVE_STATUSES,
+      },
+      startDate: {
+        $lte: yearEndDate,
+      },
+      endDate: {
+        $gte: yearStartDate,
+      },
+      ...(excludeLeaveId
+        ? {
+            _id: {
+              $ne: toObjectId(excludeLeaveId, "leave ID"),
+            },
+          }
+        : {}),
+    });
+
+    const usedDays = usedLeaves.reduce((total, leave) => {
+      return (
+        total +
+        calculateOverlapDays(
+          leave.startDate,
+          leave.endDate,
+          yearStartDate,
+          yearEndDate,
+        )
+      );
+    }, 0);
+
+    const remainingDays = policy.annualLimit - usedDays;
+
+    if (requestedDaysInYear > remainingDays) {
+      throw new AppError(
+        409,
+        `${policy.label} limit exceeded for ${year}. Annual limit: ${policy.annualLimit} days, used: ${usedDays} days, remaining: ${Math.max(
+          remainingDays,
+          0,
+        )} days`,
+      );
+    }
+  }
+};
+
+const ensureReplacementLeaveEligibility = async ({
+  employeeId,
+  leaveType,
+  startDate,
+  endDate,
+  replacementForDate,
+  excludeLeaveId,
+}: {
+  employeeId: unknown;
+  leaveType: TLeaveType;
+  startDate: string;
+  endDate: string;
+  replacementForDate?: string;
+  excludeLeaveId?: string;
+}) => {
+  if (leaveType !== REPLACEMENT_LEAVE_TYPE) {
+    return;
+  }
+
+  if (!replacementForDate) {
+    throw new AppError(
+      400,
+      "Replacement for date is required for replacement leave",
+    );
+  }
+
+  const totalDays = calculateTotalLeaveDays(startDate, endDate);
+
+  if (totalDays !== 1) {
+    throw new AppError(
+      400,
+      "Replacement leave must be created for one day at a time",
+    );
+  }
+
+  const employeeObjectId = toObjectId(employeeId, "employee ID");
+
+  const holiday = await Holiday.findOne({
+    holidayDate: replacementForDate,
+    isDeleted: false,
+  });
+
+  if (!holiday) {
+    throw new AppError(
+      400,
+      "Replacement leave is allowed only against an existing holiday record",
+    );
+  }
+
+  const holidayDutyAttendance = await Attendance.findOne({
+    employee: employeeObjectId,
+    attendanceDate: replacementForDate,
+    isDeleted: false,
+    status: {
+      $in: ["present", "late"],
+    },
+  });
+
+  if (!holidayDutyAttendance) {
+    throw new AppError(
+      400,
+      "Replacement leave requires employee attendance on the holiday date",
+    );
+  }
+
+  const replacementLeaveFilter = {
+    employee: employeeObjectId,
+    leaveType: REPLACEMENT_LEAVE_TYPE,
+    replacementForDate,
+    isDeleted: false,
+    status: {
+      $in: ACTIVE_LEAVE_STATUSES,
+    },
+    ...(excludeLeaveId
+      ? {
+          _id: {
+            $ne: toObjectId(excludeLeaveId, "leave ID"),
+          },
+        }
+      : {}),
+  };
+
+  const alreadyUsedReplacementLeave = await Leave.findOne(
+    replacementLeaveFilter,
+  );
+
+  if (alreadyUsedReplacementLeave) {
+    throw new AppError(
+      409,
+      "Replacement leave has already been used for this holiday duty date",
+    );
+  }
+};
+
 const createLeaveIntoDB = async (payload: TCreateLeavePayload) => {
   await ensureEmployeeExists(payload.employee);
 
   validateLeaveDateRange(payload.startDate, payload.endDate);
 
-  if (payload.approvedBy && !mongoose.isValidObjectId(payload.approvedBy)) {
-    throw new AppError(400, "Invalid approved by user ID");
-  }
+  const currentStatus = payload.status || "pending";
+
+  ensureManagementApprovalIfNeeded({
+    leaveType: payload.leaveType,
+    isManagementApproved: payload.isManagementApproved,
+    managementApprovalNote: payload.managementApprovalNote,
+  });
+
+  await ensureReplacementLeaveEligibility({
+    employeeId: payload.employee,
+    leaveType: payload.leaveType,
+    startDate: payload.startDate,
+    endDate: payload.endDate,
+    replacementForDate: payload.replacementForDate,
+  });
 
   await ensureNoOverlappingLeave({
     employeeId: payload.employee,
     startDate: payload.startDate,
     endDate: payload.endDate,
-    currentStatus: payload.status || "pending",
+    currentStatus,
   });
+
+  await ensureLimitedLeaveBalance({
+    employeeId: payload.employee,
+    leaveType: payload.leaveType,
+    startDate: payload.startDate,
+    endDate: payload.endDate,
+    currentStatus,
+  });
+
+  if (payload.approvedBy && !mongoose.isValidObjectId(payload.approvedBy)) {
+    throw new AppError(400, "Invalid approved by user ID");
+  }
 
   const calculatedTotalDays = calculateTotalLeaveDays(
     payload.startDate,
@@ -198,6 +493,11 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
   const endDate = getStringQueryValue(query, "endDate");
   const fromDate = getStringQueryValue(query, "fromDate");
   const toDate = getStringQueryValue(query, "toDate");
+  const replacementForDate = getStringQueryValue(query, "replacementForDate");
+  const isManagementApproved = getStringQueryValue(
+    query,
+    "isManagementApproved",
+  );
 
   if (employee) {
     filter.employee = toObjectId(employee, "employee ID");
@@ -228,6 +528,18 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
     filter.endDate = endDate;
   }
 
+  if (replacementForDate) {
+    filter.replacementForDate = replacementForDate;
+  }
+
+  if (isManagementApproved === "true") {
+    filter.isManagementApproved = true;
+  }
+
+  if (isManagementApproved === "false") {
+    filter.isManagementApproved = false;
+  }
+
   const result = await Leave.find(filter)
     .populate({
       path: "employee",
@@ -239,6 +551,62 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
     });
 
   return result;
+};
+
+const getLeaveBalanceFromDB = async (employeeId: string, year: number) => {
+  await ensureEmployeeExists(employeeId);
+
+  const employeeObjectId = toObjectId(employeeId, "employee ID");
+  const yearStartDate = getYearStartDate(year);
+  const yearEndDate = getYearEndDate(year);
+
+  const policies = Object.entries(LIMITED_LEAVE_POLICIES);
+
+  const balances = await Promise.all(
+    policies.map(async ([leaveType, policy]) => {
+      const usedLeaves = await Leave.find({
+        employee: employeeObjectId,
+        leaveType,
+        isDeleted: false,
+        status: {
+          $in: ACTIVE_LEAVE_STATUSES,
+        },
+        startDate: {
+          $lte: yearEndDate,
+        },
+        endDate: {
+          $gte: yearStartDate,
+        },
+      });
+
+      const usedDays = usedLeaves.reduce((total, leave) => {
+        return (
+          total +
+          calculateOverlapDays(
+            leave.startDate,
+            leave.endDate,
+            yearStartDate,
+            yearEndDate,
+          )
+        );
+      }, 0);
+
+      return {
+        leaveType,
+        label: policy.label,
+        annualLimit: policy.annualLimit,
+        usedDays,
+        remainingDays: Math.max(policy.annualLimit - usedDays, 0),
+      };
+    }),
+  );
+
+  return {
+    employee: employeeId,
+    year,
+    activeStatusesCounted: ACTIVE_LEAVE_STATUSES,
+    balances,
+  };
 };
 
 const getSingleLeaveFromDB = async (id: string) => {
@@ -286,14 +654,45 @@ const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
   }
 
   const nextEmployee = payload.employee || existingLeave.employee;
+  const nextLeaveType = payload.leaveType || existingLeave.leaveType;
   const nextStartDate = payload.startDate || existingLeave.startDate;
   const nextEndDate = payload.endDate || existingLeave.endDate;
   const nextStatus = payload.status || existingLeave.status || "pending";
+  const nextReplacementForDate =
+    payload.replacementForDate || existingLeave.replacementForDate;
+  const nextIsManagementApproved =
+    payload.isManagementApproved ?? existingLeave.isManagementApproved;
+  const nextManagementApprovalNote =
+    payload.managementApprovalNote || existingLeave.managementApprovalNote;
 
   validateLeaveDateRange(nextStartDate, nextEndDate);
 
+  ensureManagementApprovalIfNeeded({
+    leaveType: nextLeaveType,
+    isManagementApproved: nextIsManagementApproved,
+    managementApprovalNote: nextManagementApprovalNote,
+  });
+
+  await ensureReplacementLeaveEligibility({
+    employeeId: nextEmployee,
+    leaveType: nextLeaveType,
+    startDate: nextStartDate,
+    endDate: nextEndDate,
+    replacementForDate: nextReplacementForDate,
+    excludeLeaveId: id,
+  });
+
   await ensureNoOverlappingLeave({
     employeeId: nextEmployee,
+    startDate: nextStartDate,
+    endDate: nextEndDate,
+    excludeLeaveId: id,
+    currentStatus: nextStatus,
+  });
+
+  await ensureLimitedLeaveBalance({
+    employeeId: nextEmployee,
+    leaveType: nextLeaveType,
     startDate: nextStartDate,
     endDate: nextEndDate,
     excludeLeaveId: id,
@@ -360,6 +759,7 @@ const deleteLeaveFromDB = async (id: string) => {
 export const LeaveServices = {
   createLeaveIntoDB,
   getAllLeaveFromDB,
+  getLeaveBalanceFromDB,
   getSingleLeaveFromDB,
   updateLeaveIntoDB,
   deleteLeaveFromDB,

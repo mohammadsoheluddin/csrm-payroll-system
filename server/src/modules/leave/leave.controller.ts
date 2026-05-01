@@ -46,6 +46,23 @@ const getAllLeave = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getLeaveBalance = catchAsync(async (req: Request, res: Response) => {
+  const employeeId = req.params.employeeId as string;
+  const year =
+    typeof req.query.year === "string"
+      ? Number(req.query.year)
+      : new Date().getFullYear();
+
+  const result = await LeaveServices.getLeaveBalanceFromDB(employeeId, year);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Leave balance retrieved successfully",
+    data: result,
+  });
+});
+
 const getSingleLeave = catchAsync(async (req: Request, res: Response) => {
   const leaveId = req.params.id as string;
 
@@ -122,6 +139,7 @@ const deleteLeave = catchAsync(async (req: Request, res: Response) => {
 export const LeaveControllers = {
   createLeave,
   getAllLeave,
+  getLeaveBalance,
   getSingleLeave,
   updateLeave,
   deleteLeave,

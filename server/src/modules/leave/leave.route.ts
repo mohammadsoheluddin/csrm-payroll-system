@@ -25,6 +25,14 @@ router.get(
 );
 
 router.get(
+  "/balance/:employeeId",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_READ),
+  validateRequest(LeaveValidations.leaveBalanceValidationSchema),
+  LeaveControllers.getLeaveBalance,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.LEAVE_READ),

@@ -1,16 +1,7 @@
 import { Types } from "mongoose";
+import type { TLeaveStatus, TLeaveType } from "./leave.constant";
 
-export type TLeaveType =
-  | "casual"
-  | "sick"
-  | "earned"
-  | "unpaid"
-  | "maternity"
-  | "paternity"
-  | "official"
-  | "others";
-
-export type TLeaveStatus = "pending" | "approved" | "rejected" | "cancelled";
+export type { TLeaveStatus, TLeaveType } from "./leave.constant";
 
 export interface TLeave {
   employee: Types.ObjectId;
@@ -22,5 +13,19 @@ export interface TLeave {
   status?: TLeaveStatus;
   approvedBy?: Types.ObjectId;
   approvalNote?: string;
+
+  /**
+   * Management controlled leave:
+   * paid / unpaid / others
+   */
+  isManagementApproved?: boolean;
+  managementApprovalNote?: string;
+
+  /**
+   * Replacement leave:
+   * used when an employee worked on an official holiday / weekly holiday.
+   */
+  replacementForDate?: string;
+
   isDeleted?: boolean;
 }
