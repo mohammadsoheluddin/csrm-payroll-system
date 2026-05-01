@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -16,7 +16,6 @@ const createLeave = catchAsync(async (req: Request, res: Response) => {
 
   const result = await LeaveServices.createLeaveIntoDB(req.body);
 
-  // Added: Audit log for leave creation
   await createAuditLogFromRequest(req, {
     module: "leave",
     action: "create",
@@ -36,7 +35,7 @@ const createLeave = catchAsync(async (req: Request, res: Response) => {
 
 const getAllLeave = catchAsync(async (req: Request, res: Response) => {
   const result = await LeaveServices.getAllLeaveFromDB(
-    req.query as Record<string, unknown>,
+    req.query as unknown as Record<string, unknown>,
   );
 
   sendResponse(res, {
@@ -73,12 +72,11 @@ const updateLeave = catchAsync(async (req: Request, res: Response) => {
 
   const isApproveRoute = req.originalUrl.includes("/approve");
 
-  // Added: Audit log for leave update/approve
   await createAuditLogFromRequest(req, {
     module: "leave",
     action: isApproveRoute ? "approve" : "update",
     entityId: getAuditEntityId(result, leaveId),
-    description: isApproveRoute ? "Leave approved" : "Leave updated",
+    description: isApproveRoute ? "Leave approved/reviewed" : "Leave updated",
     previousData: toAuditData(previousLeave),
     newData: toAuditData(result),
     metadata: {
@@ -90,7 +88,9 @@ const updateLeave = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Leave updated successfully",
+    message: isApproveRoute
+      ? "Leave approval status updated successfully"
+      : "Leave updated successfully",
     data: result,
   });
 });
@@ -102,7 +102,6 @@ const deleteLeave = catchAsync(async (req: Request, res: Response) => {
 
   const result = await LeaveServices.deleteLeaveFromDB(leaveId);
 
-  // Added: Audit log for leave soft delete
   await createAuditLogFromRequest(req, {
     module: "leave",
     action: "soft_delete",

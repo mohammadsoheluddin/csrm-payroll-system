@@ -1,21 +1,67 @@
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
-import Leave from "./leave.model";
-import { TLeave } from "./leave.interface";
 import Employee from "../employee/employee.model";
+import type { TLeave, TLeaveStatus, TLeaveType } from "./leave.interface";
+import Leave from "./leave.model";
 
-const createLeaveIntoDB = async (payload: TLeave) => {
-  if (!mongoose.isValidObjectId(payload.employee)) {
+type TLeaveDateFilter = {
+  $gte?: string;
+  $lte?: string;
+};
+
+type TLeaveDBFilter = {
+  isDeleted: boolean;
+  employee?: mongoose.Types.ObjectId;
+  approvedBy?: mongoose.Types.ObjectId;
+  leaveType?: TLeaveType;
+  status?: TLeaveStatus;
+  startDate?: string | TLeaveDateFilter;
+  endDate?: string | TLeaveDateFilter;
+};
+
+const getStringQueryValue = (
+  query: Record<string, unknown>,
+  key: string,
+): string | undefined => {
+  const value = query[key];
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  return undefined;
+};
+
+const ensureEmployeeExists = async (employeeId: unknown) => {
+  if (!mongoose.isValidObjectId(employeeId)) {
     throw new AppError(400, "Invalid employee ID");
   }
 
-  const isEmployeeExists = await Employee.findOne({
-    _id: payload.employee,
+  const employee = await Employee.findOne({
+    _id: employeeId,
     isDeleted: false,
   });
 
-  if (!isEmployeeExists) {
+  if (!employee) {
     throw new AppError(404, "Employee not found");
+  }
+
+  return employee;
+};
+
+const validateLeaveDateRange = (startDate: string, endDate: string) => {
+  if (endDate < startDate) {
+    throw new AppError(400, "End date cannot be earlier than start date");
+  }
+};
+
+const createLeaveIntoDB = async (payload: TLeave) => {
+  await ensureEmployeeExists(payload.employee);
+
+  validateLeaveDateRange(payload.startDate, payload.endDate);
+
+  if (payload.approvedBy && !mongoose.isValidObjectId(payload.approvedBy)) {
+    throw new AppError(400, "Invalid approved by user ID");
   }
 
   if (payload.totalDays < 1) {
@@ -24,35 +70,65 @@ const createLeaveIntoDB = async (payload: TLeave) => {
 
   const result = await Leave.create(payload);
 
-  const populatedResult = await Leave.findById(result._id).populate({
-    path: "employee",
-    populate: [{ path: "branch" }, { path: "department" }],
-  });
+  const populatedResult = await Leave.findById(result._id)
+    .populate({
+      path: "employee",
+      populate: [{ path: "branch" }, { path: "department" }],
+    })
+    .populate("approvedBy");
 
   return populatedResult;
 };
 
 const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
-  const filter: Record<string, unknown> = { isDeleted: false };
+  const filter: TLeaveDBFilter = {
+    isDeleted: false,
+  };
 
-  if (query.employee) {
-    filter.employee = query.employee;
+  const employee = getStringQueryValue(query, "employee");
+  const approvedBy = getStringQueryValue(query, "approvedBy");
+  const leaveType = getStringQueryValue(query, "leaveType");
+  const status = getStringQueryValue(query, "status");
+  const startDate = getStringQueryValue(query, "startDate");
+  const endDate = getStringQueryValue(query, "endDate");
+  const fromDate = getStringQueryValue(query, "fromDate");
+  const toDate = getStringQueryValue(query, "toDate");
+
+  if (employee) {
+    if (!mongoose.isValidObjectId(employee)) {
+      throw new AppError(400, "Invalid employee ID");
+    }
+
+    filter.employee = new mongoose.Types.ObjectId(employee);
   }
 
-  if (query.leaveType) {
-    filter.leaveType = query.leaveType;
+  if (approvedBy) {
+    if (!mongoose.isValidObjectId(approvedBy)) {
+      throw new AppError(400, "Invalid approved by user ID");
+    }
+
+    filter.approvedBy = new mongoose.Types.ObjectId(approvedBy);
   }
 
-  if (query.status) {
-    filter.status = query.status;
+  if (leaveType) {
+    filter.leaveType = leaveType as TLeaveType;
   }
 
-  if (query.startDate) {
-    filter.startDate = query.startDate;
+  if (status) {
+    filter.status = status as TLeaveStatus;
   }
 
-  if (query.endDate) {
-    filter.endDate = query.endDate;
+  if (fromDate || toDate) {
+    filter.startDate = {
+      ...(fromDate ? { $gte: fromDate } : {}),
+      ...(toDate ? { $lte: toDate } : {}),
+    };
+  } else if (startDate) {
+    filter.startDate = startDate;
+  }
+
+  if (endDate) {
+    filter.endDate = endDate;
   }
 
   const result = await Leave.find(filter)
@@ -61,7 +137,9 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
       populate: [{ path: "branch" }, { path: "department" }],
     })
     .populate("approvedBy")
-    .sort({ createdAt: -1 });
+    .sort({
+      createdAt: -1,
+    });
 
   return result;
 };
@@ -103,18 +181,7 @@ const updateLeaveIntoDB = async (id: string, payload: Partial<TLeave>) => {
   }
 
   if (payload.employee) {
-    if (!mongoose.isValidObjectId(payload.employee)) {
-      throw new AppError(400, "Invalid employee ID");
-    }
-
-    const isEmployeeExists = await Employee.findOne({
-      _id: payload.employee,
-      isDeleted: false,
-    });
-
-    if (!isEmployeeExists) {
-      throw new AppError(404, "Employee not found");
-    }
+    await ensureEmployeeExists(payload.employee);
   }
 
   if (payload.approvedBy && !mongoose.isValidObjectId(payload.approvedBy)) {
@@ -125,10 +192,21 @@ const updateLeaveIntoDB = async (id: string, payload: Partial<TLeave>) => {
     throw new AppError(400, "Total leave days must be at least 1");
   }
 
+  const nextStartDate = payload.startDate || existingLeave.startDate;
+  const nextEndDate = payload.endDate || existingLeave.endDate;
+
+  validateLeaveDateRange(nextStartDate, nextEndDate);
+
   const result = await Leave.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    {
+      _id: id,
+      isDeleted: false,
+    },
     payload,
-    { new: true, runValidators: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   )
     .populate({
       path: "employee",
@@ -149,9 +227,16 @@ const deleteLeaveFromDB = async (id: string) => {
   }
 
   const result = await Leave.findOneAndUpdate(
-    { _id: id, isDeleted: false },
-    { isDeleted: true },
-    { new: true },
+    {
+      _id: id,
+      isDeleted: false,
+    },
+    {
+      isDeleted: true,
+    },
+    {
+      new: true,
+    },
   );
 
   if (!result) {
