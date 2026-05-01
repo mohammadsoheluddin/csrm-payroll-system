@@ -3,7 +3,8 @@ export type THolidayType =
   | "public"
   | "festival"
   | "company"
-  | "optional";
+  | "optional"
+  | "eid";
 
 export interface THoliday {
   holidayName: string;

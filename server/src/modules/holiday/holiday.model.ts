@@ -15,7 +15,7 @@ const holidaySchema = new Schema<THoliday>(
     },
     holidayType: {
       type: String,
-      enum: ["weekly", "public", "festival", "company", "optional"],
+      enum: ["weekly", "public", "festival", "company", "optional", "eid"],
       required: true,
     },
     remarks: {
