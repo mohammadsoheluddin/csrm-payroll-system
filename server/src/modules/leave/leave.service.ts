@@ -12,8 +12,9 @@ import {
 import type { TLeave, TLeaveStatus, TLeaveType } from "./leave.interface";
 import Leave from "./leave.model";
 
-type TCreateLeavePayload = Omit<TLeave, "totalDays"> & {
+type TCreateLeavePayload = Omit<TLeave, "totalDays" | "status"> & {
   totalDays?: number;
+  status?: "pending";
 };
 
 type TUpdateLeavePayload = Partial<Omit<TLeave, "totalDays">> & {
@@ -29,12 +30,13 @@ type TLeaveDBFilter = {
   isDeleted: boolean;
   employee?: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId;
+  managementConcernBy?: mongoose.Types.ObjectId;
   leaveType?: TLeaveType;
   status?: TLeaveStatus;
   startDate?: string | TLeaveDateFilter;
   endDate?: string | TLeaveDateFilter;
   replacementForDate?: string;
-  isManagementApproved?: boolean;
+  managementConcern?: boolean;
 };
 
 type TLeaveOverlapFilter = {
@@ -157,31 +159,37 @@ const validateLeaveDateRange = (startDate: string, endDate: string) => {
   }
 };
 
-const ensureManagementApprovalIfNeeded = ({
+const ensureManagementConcernIfNeeded = ({
   leaveType,
-  isManagementApproved,
-  managementApprovalNote,
+  managementConcern,
+  managementConcernNote,
+  managementConcernBy,
 }: {
   leaveType: TLeaveType;
-  isManagementApproved?: boolean;
-  managementApprovalNote?: string;
+  managementConcern?: boolean;
+  managementConcernNote?: string;
+  managementConcernBy?: unknown;
 }) => {
   if (!isManagementControlledLeaveType(leaveType)) {
     return;
   }
 
-  if (isManagementApproved !== true) {
+  if (managementConcern !== true) {
     throw new AppError(
       400,
-      "Management approval is required for paid, unpaid or others leave",
+      "Management concern is required for paid, unpaid or others leave",
     );
   }
 
-  if (!managementApprovalNote?.trim()) {
+  if (!managementConcernNote?.trim()) {
     throw new AppError(
       400,
-      "Management approval note is required for paid, unpaid or others leave",
+      "Management concern note is required for paid, unpaid or others leave",
     );
+  }
+
+  if (managementConcernBy && !mongoose.isValidObjectId(managementConcernBy)) {
+    throw new AppError(400, "Invalid management concern by user ID");
   }
 };
 
@@ -361,6 +369,13 @@ const ensureReplacementLeaveEligibility = async ({
     );
   }
 
+  if (startDate <= replacementForDate) {
+    throw new AppError(
+      400,
+      "Replacement leave cannot be taken before or on the worked holiday date",
+    );
+  }
+
   const employeeObjectId = toObjectId(employeeId, "employee ID");
 
   const holiday = await Holiday.findOne({
@@ -425,12 +440,13 @@ const createLeaveIntoDB = async (payload: TCreateLeavePayload) => {
 
   validateLeaveDateRange(payload.startDate, payload.endDate);
 
-  const currentStatus = payload.status || "pending";
+  const currentStatus: TLeaveStatus = "pending";
 
-  ensureManagementApprovalIfNeeded({
+  ensureManagementConcernIfNeeded({
     leaveType: payload.leaveType,
-    isManagementApproved: payload.isManagementApproved,
-    managementApprovalNote: payload.managementApprovalNote,
+    managementConcern: payload.managementConcern,
+    managementConcernNote: payload.managementConcernNote,
+    managementConcernBy: payload.managementConcernBy,
   });
 
   await ensureReplacementLeaveEligibility({
@@ -467,6 +483,7 @@ const createLeaveIntoDB = async (payload: TCreateLeavePayload) => {
 
   const result = await Leave.create({
     ...payload,
+    status: currentStatus,
     totalDays: calculatedTotalDays,
   });
 
@@ -475,7 +492,8 @@ const createLeaveIntoDB = async (payload: TCreateLeavePayload) => {
       path: "employee",
       populate: [{ path: "branch" }, { path: "department" }],
     })
-    .populate("approvedBy");
+    .populate("approvedBy")
+    .populate("managementConcernBy");
 
   return populatedResult;
 };
@@ -487,6 +505,7 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
 
   const employee = getStringQueryValue(query, "employee");
   const approvedBy = getStringQueryValue(query, "approvedBy");
+  const managementConcernBy = getStringQueryValue(query, "managementConcernBy");
   const leaveType = getStringQueryValue(query, "leaveType");
   const status = getStringQueryValue(query, "status");
   const startDate = getStringQueryValue(query, "startDate");
@@ -494,10 +513,7 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
   const fromDate = getStringQueryValue(query, "fromDate");
   const toDate = getStringQueryValue(query, "toDate");
   const replacementForDate = getStringQueryValue(query, "replacementForDate");
-  const isManagementApproved = getStringQueryValue(
-    query,
-    "isManagementApproved",
-  );
+  const managementConcern = getStringQueryValue(query, "managementConcern");
 
   if (employee) {
     filter.employee = toObjectId(employee, "employee ID");
@@ -505,6 +521,13 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
 
   if (approvedBy) {
     filter.approvedBy = toObjectId(approvedBy, "approved by user ID");
+  }
+
+  if (managementConcernBy) {
+    filter.managementConcernBy = toObjectId(
+      managementConcernBy,
+      "management concern by user ID",
+    );
   }
 
   if (leaveType) {
@@ -532,12 +555,12 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
     filter.replacementForDate = replacementForDate;
   }
 
-  if (isManagementApproved === "true") {
-    filter.isManagementApproved = true;
+  if (managementConcern === "true") {
+    filter.managementConcern = true;
   }
 
-  if (isManagementApproved === "false") {
-    filter.isManagementApproved = false;
+  if (managementConcern === "false") {
+    filter.managementConcern = false;
   }
 
   const result = await Leave.find(filter)
@@ -546,6 +569,7 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
       populate: [{ path: "branch" }, { path: "department" }],
     })
     .populate("approvedBy")
+    .populate("managementConcernBy")
     .sort({
       createdAt: -1,
     });
@@ -622,7 +646,8 @@ const getSingleLeaveFromDB = async (id: string) => {
       path: "employee",
       populate: [{ path: "branch" }, { path: "department" }],
     })
-    .populate("approvedBy");
+    .populate("approvedBy")
+    .populate("managementConcernBy");
 
   if (!result) {
     throw new AppError(404, "Leave record not found");
@@ -653,6 +678,13 @@ const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
     throw new AppError(400, "Invalid approved by user ID");
   }
 
+  if (
+    payload.managementConcernBy &&
+    !mongoose.isValidObjectId(payload.managementConcernBy)
+  ) {
+    throw new AppError(400, "Invalid management concern by user ID");
+  }
+
   const nextEmployee = payload.employee || existingLeave.employee;
   const nextLeaveType = payload.leaveType || existingLeave.leaveType;
   const nextStartDate = payload.startDate || existingLeave.startDate;
@@ -660,17 +692,20 @@ const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
   const nextStatus = payload.status || existingLeave.status || "pending";
   const nextReplacementForDate =
     payload.replacementForDate || existingLeave.replacementForDate;
-  const nextIsManagementApproved =
-    payload.isManagementApproved ?? existingLeave.isManagementApproved;
-  const nextManagementApprovalNote =
-    payload.managementApprovalNote || existingLeave.managementApprovalNote;
+  const nextManagementConcern =
+    payload.managementConcern ?? existingLeave.managementConcern;
+  const nextManagementConcernNote =
+    payload.managementConcernNote || existingLeave.managementConcernNote;
+  const nextManagementConcernBy =
+    payload.managementConcernBy || existingLeave.managementConcernBy;
 
   validateLeaveDateRange(nextStartDate, nextEndDate);
 
-  ensureManagementApprovalIfNeeded({
+  ensureManagementConcernIfNeeded({
     leaveType: nextLeaveType,
-    isManagementApproved: nextIsManagementApproved,
-    managementApprovalNote: nextManagementApprovalNote,
+    managementConcern: nextManagementConcern,
+    managementConcernNote: nextManagementConcernNote,
+    managementConcernBy: nextManagementConcernBy,
   });
 
   await ensureReplacementLeaveEligibility({
@@ -704,15 +739,37 @@ const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
     nextEndDate,
   );
 
+  const setPayload: Record<string, unknown> = {
+    ...payload,
+    totalDays: calculatedTotalDays,
+  };
+
+  const unsetPayload: Record<string, string> = {};
+
+  if (nextLeaveType !== REPLACEMENT_LEAVE_TYPE) {
+    unsetPayload.replacementForDate = "";
+  }
+
+  if (!isManagementControlledLeaveType(nextLeaveType)) {
+    unsetPayload.managementConcern = "";
+    unsetPayload.managementConcernNote = "";
+    unsetPayload.managementConcernBy = "";
+  }
+
+  const updateQuery: Record<string, unknown> = {
+    $set: setPayload,
+  };
+
+  if (Object.keys(unsetPayload).length > 0) {
+    updateQuery.$unset = unsetPayload;
+  }
+
   const result = await Leave.findOneAndUpdate(
     {
       _id: id,
       isDeleted: false,
     },
-    {
-      ...payload,
-      totalDays: calculatedTotalDays,
-    },
+    updateQuery,
     {
       new: true,
       runValidators: true,
@@ -722,7 +779,8 @@ const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
       path: "employee",
       populate: [{ path: "branch" }, { path: "department" }],
     })
-    .populate("approvedBy");
+    .populate("approvedBy")
+    .populate("managementConcernBy");
 
   if (!result) {
     throw new AppError(404, "Leave record not found");

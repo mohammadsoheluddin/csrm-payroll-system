@@ -15,6 +15,7 @@ const objectIdSchema = (fieldName: string) =>
 
 const leaveTypeSchema = z.enum(LEAVE_TYPES);
 const leaveStatusSchema = z.enum(LEAVE_STATUSES);
+const createLeaveStatusSchema = z.literal("pending");
 const leaveApprovalStatusSchema = z.enum(LEAVE_APPROVAL_STATUSES);
 
 const isManagementControlledLeaveType = (leaveType?: string) => {
@@ -55,10 +56,10 @@ const approvalNoteSchema = z
   .trim()
   .max(500, "Approval note cannot exceed 500 characters");
 
-const managementApprovalNoteSchema = z
+const managementConcernNoteSchema = z
   .string()
   .trim()
-  .max(500, "Management approval note cannot exceed 500 characters");
+  .max(500, "Management concern note cannot exceed 500 characters");
 
 const createLeaveValidationSchema = z.object({
   body: z
@@ -68,11 +69,14 @@ const createLeaveValidationSchema = z.object({
       startDate: dateStringSchema("Start date"),
       endDate: dateStringSchema("End date"),
       reason: reasonSchema,
-      status: leaveStatusSchema.optional(),
+      status: createLeaveStatusSchema.optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
       approvalNote: approvalNoteSchema.optional(),
-      isManagementApproved: z.boolean().optional(),
-      managementApprovalNote: managementApprovalNoteSchema.optional(),
+      managementConcern: z.boolean().optional(),
+      managementConcernNote: managementConcernNoteSchema.optional(),
+      managementConcernBy: objectIdSchema(
+        "management concern by user id",
+      ).optional(),
       replacementForDate: dateStringSchema("Replacement for date").optional(),
     })
     .strict()
@@ -86,12 +90,12 @@ const createLeaveValidationSchema = z.object({
           return true;
         }
 
-        return data.isManagementApproved === true;
+        return data.managementConcern === true;
       },
       {
         message:
-          "Management approval is required for paid, unpaid or others leave",
-        path: ["isManagementApproved"],
+          "Management concern is required for paid, unpaid or others leave",
+        path: ["managementConcern"],
       },
     )
     .refine(
@@ -100,12 +104,54 @@ const createLeaveValidationSchema = z.object({
           return true;
         }
 
-        return Boolean(data.managementApprovalNote?.trim());
+        return Boolean(data.managementConcernNote?.trim());
       },
       {
         message:
-          "Management approval note is required for paid, unpaid or others leave",
-        path: ["managementApprovalNote"],
+          "Management concern note is required for paid, unpaid or others leave",
+        path: ["managementConcernNote"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return data.managementConcern === undefined;
+      },
+      {
+        message:
+          "Management concern is allowed only for paid, unpaid or others leave",
+        path: ["managementConcern"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return data.managementConcernNote === undefined;
+      },
+      {
+        message:
+          "Management concern note is allowed only for paid, unpaid or others leave",
+        path: ["managementConcernNote"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (isManagementControlledLeaveType(data.leaveType)) {
+          return true;
+        }
+
+        return data.managementConcernBy === undefined;
+      },
+      {
+        message:
+          "Management concern by is allowed only for paid, unpaid or others leave",
+        path: ["managementConcernBy"],
       },
     )
     .refine(
@@ -136,6 +182,24 @@ const createLeaveValidationSchema = z.object({
     )
     .refine(
       (data) => {
+        if (data.leaveType !== REPLACEMENT_LEAVE_TYPE) {
+          return true;
+        }
+
+        if (!data.replacementForDate) {
+          return true;
+        }
+
+        return data.startDate > data.replacementForDate;
+      },
+      {
+        message:
+          "Replacement leave cannot be taken before or on the worked holiday date",
+        path: ["startDate"],
+      },
+    )
+    .refine(
+      (data) => {
         if (data.leaveType === REPLACEMENT_LEAVE_TYPE) {
           return true;
         }
@@ -160,11 +224,13 @@ const updateLeaveValidationSchema = z.object({
       startDate: dateStringSchema("Start date").optional(),
       endDate: dateStringSchema("End date").optional(),
       reason: reasonSchema.optional(),
-      status: leaveStatusSchema.optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
       approvalNote: approvalNoteSchema.optional(),
-      isManagementApproved: z.boolean().optional(),
-      managementApprovalNote: managementApprovalNoteSchema.optional(),
+      managementConcern: z.boolean().optional(),
+      managementConcernNote: managementConcernNoteSchema.optional(),
+      managementConcernBy: objectIdSchema(
+        "management concern by user id",
+      ).optional(),
       replacementForDate: dateStringSchema("Replacement for date").optional(),
     })
     .strict()
@@ -190,12 +256,12 @@ const updateLeaveValidationSchema = z.object({
           return true;
         }
 
-        return data.isManagementApproved === true;
+        return data.managementConcern === true;
       },
       {
         message:
-          "Management approval is required for paid, unpaid or others leave",
-        path: ["isManagementApproved"],
+          "Management concern is required for paid, unpaid or others leave",
+        path: ["managementConcern"],
       },
     )
     .refine(
@@ -204,12 +270,12 @@ const updateLeaveValidationSchema = z.object({
           return true;
         }
 
-        return Boolean(data.managementApprovalNote?.trim());
+        return Boolean(data.managementConcernNote?.trim());
       },
       {
         message:
-          "Management approval note is required for paid, unpaid or others leave",
-        path: ["managementApprovalNote"],
+          "Management concern note is required for paid, unpaid or others leave",
+        path: ["managementConcernNote"],
       },
     ),
 });
@@ -232,6 +298,9 @@ const getAllLeaveValidationSchema = z.object({
     .object({
       employee: objectIdSchema("employee id").optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
+      managementConcernBy: objectIdSchema(
+        "management concern by user id",
+      ).optional(),
       leaveType: leaveTypeSchema.optional(),
       status: leaveStatusSchema.optional(),
       startDate: dateStringSchema("Start date").optional(),
@@ -239,7 +308,7 @@ const getAllLeaveValidationSchema = z.object({
       fromDate: dateStringSchema("From date").optional(),
       toDate: dateStringSchema("To date").optional(),
       replacementForDate: dateStringSchema("Replacement for date").optional(),
-      isManagementApproved: z.enum(["true", "false"]).optional(),
+      managementConcern: z.enum(["true", "false"]).optional(),
     })
     .strict()
     .refine(

@@ -47,13 +47,17 @@ const leaveSchema = new Schema<TLeave>(
       type: String,
       trim: true,
     },
-    isManagementApproved: {
+    managementConcern: {
       type: Boolean,
       default: false,
     },
-    managementApprovalNote: {
+    managementConcernNote: {
       type: String,
       trim: true,
+    },
+    managementConcernBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
     },
     replacementForDate: {
       type: String,

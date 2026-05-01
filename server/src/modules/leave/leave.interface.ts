@@ -15,15 +15,16 @@ export interface TLeave {
   approvalNote?: string;
 
   /**
-   * Management controlled leave:
-   * paid / unpaid / others
+   * Management concern means management has given concern/instruction,
+   * but final system approval still happens through HR/Admin/authorized approval flow.
    */
-  isManagementApproved?: boolean;
-  managementApprovalNote?: string;
+  managementConcern?: boolean;
+  managementConcernNote?: string;
+  managementConcernBy?: Types.ObjectId;
 
   /**
    * Replacement leave:
-   * used when an employee worked on an official holiday / weekly holiday.
+   * Used when an employee worked on an official holiday and later takes replacement leave.
    */
   replacementForDate?: string;
 
