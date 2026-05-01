@@ -19,6 +19,25 @@ type TLeaveDBFilter = {
   endDate?: string | TLeaveDateFilter;
 };
 
+type TLeaveOverlapFilter = {
+  isDeleted: boolean;
+  employee: mongoose.Types.ObjectId;
+  status: {
+    $in: TLeaveStatus[];
+  };
+  startDate: {
+    $lte: string;
+  };
+  endDate: {
+    $gte: string;
+  };
+  _id?: {
+    $ne: mongoose.Types.ObjectId;
+  };
+};
+
+const ACTIVE_LEAVE_STATUSES: TLeaveStatus[] = ["pending", "approved"];
+
 const getStringQueryValue = (
   query: Record<string, unknown>,
   key: string,
@@ -32,13 +51,19 @@ const getStringQueryValue = (
   return undefined;
 };
 
-const ensureEmployeeExists = async (employeeId: unknown) => {
-  if (!mongoose.isValidObjectId(employeeId)) {
-    throw new AppError(400, "Invalid employee ID");
+const toObjectId = (value: unknown, fieldName: string) => {
+  if (!mongoose.isValidObjectId(value)) {
+    throw new AppError(400, `Invalid ${fieldName}`);
   }
 
+  return new mongoose.Types.ObjectId(String(value));
+};
+
+const ensureEmployeeExists = async (employeeId: unknown) => {
+  const employeeObjectId = toObjectId(employeeId, "employee ID");
+
   const employee = await Employee.findOne({
-    _id: employeeId,
+    _id: employeeObjectId,
     isDeleted: false,
   });
 
@@ -55,6 +80,61 @@ const validateLeaveDateRange = (startDate: string, endDate: string) => {
   }
 };
 
+const ensureNoOverlappingLeave = async ({
+  employeeId,
+  startDate,
+  endDate,
+  excludeLeaveId,
+  currentStatus,
+}: {
+  employeeId: unknown;
+  startDate: string;
+  endDate: string;
+  excludeLeaveId?: string;
+  currentStatus?: TLeaveStatus;
+}) => {
+  const effectiveStatus = currentStatus || "pending";
+
+  /**
+   * rejected/cancelled leave should not block future leave creation.
+   * Only pending and approved leaves are considered active leave records.
+   */
+  if (!ACTIVE_LEAVE_STATUSES.includes(effectiveStatus)) {
+    return;
+  }
+
+  const employeeObjectId = toObjectId(employeeId, "employee ID");
+
+  const overlapFilter: TLeaveOverlapFilter = {
+    employee: employeeObjectId,
+    isDeleted: false,
+    status: {
+      $in: ACTIVE_LEAVE_STATUSES,
+    },
+    startDate: {
+      $lte: endDate,
+    },
+    endDate: {
+      $gte: startDate,
+    },
+  };
+
+  if (excludeLeaveId) {
+    overlapFilter._id = {
+      $ne: toObjectId(excludeLeaveId, "leave ID"),
+    };
+  }
+
+  const overlappingLeave = await Leave.findOne(overlapFilter);
+
+  if (overlappingLeave) {
+    throw new AppError(
+      409,
+      "Leave already exists for this employee within the selected date range",
+    );
+  }
+};
+
 const createLeaveIntoDB = async (payload: TLeave) => {
   await ensureEmployeeExists(payload.employee);
 
@@ -67,6 +147,13 @@ const createLeaveIntoDB = async (payload: TLeave) => {
   if (payload.totalDays < 1) {
     throw new AppError(400, "Total leave days must be at least 1");
   }
+
+  await ensureNoOverlappingLeave({
+    employeeId: payload.employee,
+    startDate: payload.startDate,
+    endDate: payload.endDate,
+    currentStatus: payload.status || "pending",
+  });
 
   const result = await Leave.create(payload);
 
@@ -95,19 +182,11 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
   const toDate = getStringQueryValue(query, "toDate");
 
   if (employee) {
-    if (!mongoose.isValidObjectId(employee)) {
-      throw new AppError(400, "Invalid employee ID");
-    }
-
-    filter.employee = new mongoose.Types.ObjectId(employee);
+    filter.employee = toObjectId(employee, "employee ID");
   }
 
   if (approvedBy) {
-    if (!mongoose.isValidObjectId(approvedBy)) {
-      throw new AppError(400, "Invalid approved by user ID");
-    }
-
-    filter.approvedBy = new mongoose.Types.ObjectId(approvedBy);
+    filter.approvedBy = toObjectId(approvedBy, "approved by user ID");
   }
 
   if (leaveType) {
@@ -192,10 +271,20 @@ const updateLeaveIntoDB = async (id: string, payload: Partial<TLeave>) => {
     throw new AppError(400, "Total leave days must be at least 1");
   }
 
+  const nextEmployee = payload.employee || existingLeave.employee;
   const nextStartDate = payload.startDate || existingLeave.startDate;
   const nextEndDate = payload.endDate || existingLeave.endDate;
+  const nextStatus = payload.status || existingLeave.status || "pending";
 
   validateLeaveDateRange(nextStartDate, nextEndDate);
+
+  await ensureNoOverlappingLeave({
+    employeeId: nextEmployee,
+    startDate: nextStartDate,
+    endDate: nextEndDate,
+    excludeLeaveId: id,
+    currentStatus: nextStatus,
+  });
 
   const result = await Leave.findOneAndUpdate(
     {
