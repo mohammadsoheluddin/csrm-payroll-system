@@ -11,6 +11,7 @@ const genderSchema = z.enum(["male", "female", "other"]);
 
 const isValidDateString = (value: string) => {
   const date = new Date(value);
+
   return (
     !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
   );
@@ -43,13 +44,11 @@ const employeeNameValidationSchema = z
       .trim()
       .min(2, "First name must be at least 2 characters")
       .max(50, "First name cannot exceed 50 characters"),
-
     middleName: z
       .string()
       .trim()
       .max(50, "Middle name cannot exceed 50 characters")
       .optional(),
-
     lastName: z
       .string()
       .trim()
@@ -66,13 +65,11 @@ const updateEmployeeNameValidationSchema = z
       .min(2, "First name must be at least 2 characters")
       .max(50, "First name cannot exceed 50 characters")
       .optional(),
-
     middleName: z
       .string()
       .trim()
       .max(50, "Middle name cannot exceed 50 characters")
       .optional(),
-
     lastName: z
       .string()
       .trim()
@@ -104,33 +101,21 @@ const createEmployeeValidationSchema = z.object({
   body: z
     .object({
       employeeId: employeeIdSchema,
-
       user: objectIdSchema("user id").optional(),
-
       name: employeeNameValidationSchema,
-
       email: z.string().trim().toLowerCase().email("Invalid employee email"),
-
       phone: phoneSchema,
-
       gender: genderSchema,
-
       dateOfBirth: dateStringSchema("Date of birth").optional(),
-
       joiningDate: dateStringSchema("Joining date"),
-
       designation: z
         .string()
         .trim()
         .min(2, "Designation must be at least 2 characters")
         .max(100, "Designation cannot exceed 100 characters"),
-
       department: objectIdSchema("department id"),
-
       branch: objectIdSchema("branch id"),
-
       basicSalary: basicSalarySchema,
-
       status: employeeStatusSchema.optional(),
     })
     .strict(),
@@ -140,43 +125,30 @@ const updateEmployeeValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("employee id"),
   }),
-
   body: z
     .object({
       employeeId: employeeIdSchema.optional(),
-
       user: objectIdSchema("user id").optional(),
-
       name: updateEmployeeNameValidationSchema.optional(),
-
       email: z
         .string()
         .trim()
         .toLowerCase()
         .email("Invalid employee email")
         .optional(),
-
       phone: phoneSchema.optional(),
-
       gender: genderSchema.optional(),
-
       dateOfBirth: dateStringSchema("Date of birth").optional(),
-
       joiningDate: dateStringSchema("Joining date").optional(),
-
       designation: z
         .string()
         .trim()
         .min(2, "Designation must be at least 2 characters")
         .max(100, "Designation cannot exceed 100 characters")
         .optional(),
-
       department: objectIdSchema("department id").optional(),
-
       branch: objectIdSchema("branch id").optional(),
-
       basicSalary: basicSalarySchema.optional(),
-
       status: employeeStatusSchema.optional(),
     })
     .strict()

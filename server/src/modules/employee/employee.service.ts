@@ -1,9 +1,14 @@
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
-import Employee from "./employee.model";
-import { TEmployee } from "./employee.interface";
 import Branch from "../branch/branch.model";
 import Department from "../department/department.model";
+import type { TEmployee, TEmployeeStatus } from "./employee.interface";
+import Employee from "./employee.model";
+
+type TEmployeeDBQuery = {
+  isDeleted: boolean;
+  status?: TEmployeeStatus;
+};
 
 const createEmployeeIntoDB = async (payload: TEmployee) => {
   const existingEmployee = await Employee.findOne({
@@ -22,19 +27,13 @@ const createEmployeeIntoDB = async (payload: TEmployee) => {
     throw new AppError(400, "Invalid department ID");
   }
 
-  const isBranchExists = await Branch.findOne({
-    _id: payload.branch,
-    isDeleted: false,
-  });
+  const isBranchExists = await Branch.findById(payload.branch);
 
   if (!isBranchExists) {
     throw new AppError(404, "Branch not found");
   }
 
-  const isDepartmentExists = await Department.findOne({
-    _id: payload.department,
-    isDeleted: false,
-  });
+  const isDepartmentExists = await Department.findById(payload.department);
 
   if (!isDepartmentExists) {
     throw new AppError(404, "Department not found");
@@ -50,14 +49,12 @@ const createEmployeeIntoDB = async (payload: TEmployee) => {
 };
 
 const getAllEmployeesFromDB = async (status?: string) => {
-  /**
-   * Fixed:
-   * Added proper TypeScript type instead of raw Record.
-   */
-  const query: Record<string, unknown> = { isDeleted: false };
+  const query: TEmployeeDBQuery = {
+    isDeleted: false,
+  };
 
   if (status) {
-    query.status = status;
+    query.status = status as TEmployeeStatus;
   }
 
   const result = await Employee.find(query)
@@ -72,7 +69,10 @@ const getSingleEmployeeFromDB = async (id: string) => {
     throw new AppError(400, "Invalid employee ID");
   }
 
-  const result = await Employee.findOne({ _id: id, isDeleted: false })
+  const result = await Employee.findOne({
+    _id: id,
+    isDeleted: false,
+  })
     .populate("branch")
     .populate("department");
 
@@ -96,10 +96,7 @@ const updateEmployeeIntoDB = async (
       throw new AppError(400, "Invalid branch ID");
     }
 
-    const isBranchExists = await Branch.findOne({
-      _id: payload.branch,
-      isDeleted: false,
-    });
+    const isBranchExists = await Branch.findById(payload.branch);
 
     if (!isBranchExists) {
       throw new AppError(404, "Branch not found");
@@ -111,10 +108,7 @@ const updateEmployeeIntoDB = async (
       throw new AppError(400, "Invalid department ID");
     }
 
-    const isDepartmentExists = await Department.findOne({
-      _id: payload.department,
-      isDeleted: false,
-    });
+    const isDepartmentExists = await Department.findById(payload.department);
 
     if (!isDepartmentExists) {
       throw new AppError(404, "Department not found");
@@ -124,7 +118,9 @@ const updateEmployeeIntoDB = async (
   if (payload.email) {
     const existingEmployeeByEmail = await Employee.findOne({
       email: payload.email,
-      _id: { $ne: id },
+      _id: {
+        $ne: id,
+      },
     });
 
     if (existingEmployeeByEmail) {
@@ -138,7 +134,9 @@ const updateEmployeeIntoDB = async (
   if (payload.employeeId) {
     const existingEmployeeById = await Employee.findOne({
       employeeId: payload.employeeId,
-      _id: { $ne: id },
+      _id: {
+        $ne: id,
+      },
     });
 
     if (existingEmployeeById) {
@@ -150,9 +148,15 @@ const updateEmployeeIntoDB = async (
   }
 
   const result = await Employee.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    {
+      _id: id,
+      isDeleted: false,
+    },
     payload,
-    { new: true, runValidators: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   )
     .populate("branch")
     .populate("department");
@@ -170,9 +174,16 @@ const deleteEmployeeFromDB = async (id: string) => {
   }
 
   const result = await Employee.findOneAndUpdate(
-    { _id: id, isDeleted: false },
-    { isDeleted: true },
-    { new: true },
+    {
+      _id: id,
+      isDeleted: false,
+    },
+    {
+      isDeleted: true,
+    },
+    {
+      new: true,
+    },
   );
 
   if (!result) {

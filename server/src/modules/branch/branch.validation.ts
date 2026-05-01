@@ -26,15 +26,12 @@ const createBranchValidationSchema = z.object({
         .trim()
         .min(2, "Branch name must be at least 2 characters")
         .max(100, "Branch name cannot exceed 100 characters"),
-
       code: branchCodeSchema,
-
       address: z
         .string()
         .trim()
         .min(2, "Branch address must be at least 2 characters")
         .max(300, "Branch address cannot exceed 300 characters"),
-
       status: branchStatusSchema.optional(),
     })
     .strict(),
@@ -44,7 +41,6 @@ const updateBranchValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema,
   }),
-
   body: z
     .object({
       name: z
@@ -53,16 +49,13 @@ const updateBranchValidationSchema = z.object({
         .min(2, "Branch name must be at least 2 characters")
         .max(100, "Branch name cannot exceed 100 characters")
         .optional(),
-
       code: branchCodeSchema.optional(),
-
       address: z
         .string()
         .trim()
         .min(2, "Branch address must be at least 2 characters")
         .max(300, "Branch address cannot exceed 300 characters")
         .optional(),
-
       status: branchStatusSchema.optional(),
     })
     .strict()

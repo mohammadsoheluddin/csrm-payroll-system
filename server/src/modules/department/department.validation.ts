@@ -26,9 +26,7 @@ const createDepartmentValidationSchema = z.object({
         .trim()
         .min(2, "Department name must be at least 2 characters")
         .max(100, "Department name cannot exceed 100 characters"),
-
       code: departmentCodeSchema,
-
       status: departmentStatusSchema.optional(),
     })
     .strict(),
@@ -38,7 +36,6 @@ const updateDepartmentValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema,
   }),
-
   body: z
     .object({
       name: z
@@ -47,9 +44,7 @@ const updateDepartmentValidationSchema = z.object({
         .min(2, "Department name must be at least 2 characters")
         .max(100, "Department name cannot exceed 100 characters")
         .optional(),
-
       code: departmentCodeSchema.optional(),
-
       status: departmentStatusSchema.optional(),
     })
     .strict()

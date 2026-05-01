@@ -20,6 +20,7 @@ const attendanceSourceSchema = z.enum(["manual", "device", "import"]);
 
 const isValidDateString = (value: string) => {
   const date = new Date(value);
+
   return (
     !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
   );
@@ -57,19 +58,12 @@ const createAttendanceValidationSchema = z.object({
   body: z
     .object({
       employee: objectIdSchema("employee id"),
-
       attendanceDate: dateStringSchema("Attendance date"),
-
       checkInTime: timeStringSchema("Check-in time").optional(),
-
       checkOutTime: timeStringSchema("Check-out time").optional(),
-
       status: attendanceStatusSchema.optional(),
-
       source: attendanceSourceSchema.optional(),
-
       remarks: remarksSchema.optional(),
-
       deviceId: deviceIdSchema.optional(),
     })
     .strict()
@@ -92,23 +86,15 @@ const updateAttendanceValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("attendance id"),
   }),
-
   body: z
     .object({
       employee: objectIdSchema("employee id").optional(),
-
       attendanceDate: dateStringSchema("Attendance date").optional(),
-
       checkInTime: timeStringSchema("Check-in time").optional(),
-
       checkOutTime: timeStringSchema("Check-out time").optional(),
-
       status: attendanceStatusSchema.optional(),
-
       source: attendanceSourceSchema.optional(),
-
       remarks: remarksSchema.optional(),
-
       deviceId: deviceIdSchema.optional(),
     })
     .strict()

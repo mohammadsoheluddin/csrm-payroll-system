@@ -8,11 +8,6 @@ import { DepartmentValidations } from "./department.validation";
 
 const router = Router();
 
-/**
- * Changed:
- * Added request validation for create, update, read by id, delete by id and query filtering.
- */
-
 router.post(
   "/",
   auth(),

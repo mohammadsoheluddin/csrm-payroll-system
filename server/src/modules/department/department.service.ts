@@ -1,6 +1,11 @@
 import AppError from "../../errors/AppError";
+import type { TDepartment, TDepartmentStatus } from "./department.interface";
 import Department from "./department.model";
-import { TDepartment } from "./department.interface";
+
+type TDepartmentDBQuery = {
+  isDeleted: boolean;
+  status?: TDepartmentStatus;
+};
 
 const createDepartmentIntoDB = async (payload: TDepartment) => {
   const existingDepartment = await Department.findOne({
@@ -12,28 +17,27 @@ const createDepartmentIntoDB = async (payload: TDepartment) => {
   }
 
   const result = await Department.create(payload);
-
   return result;
 };
 
 const getAllDepartmentsFromDB = async (status?: string) => {
-  /**
-   * Fixed:
-   * Added proper TypeScript type instead of raw Record.
-   */
-  const query: Record<string, unknown> = { isDeleted: false };
+  const query: TDepartmentDBQuery = {
+    isDeleted: false,
+  };
 
   if (status) {
-    query.status = status;
+    query.status = status as TDepartmentStatus;
   }
 
   const result = await Department.find(query);
-
   return result;
 };
 
 const getSingleDepartmentFromDB = async (id: string) => {
-  const result = await Department.findOne({ _id: id, isDeleted: false });
+  const result = await Department.findOne({
+    _id: id,
+    isDeleted: false,
+  });
 
   if (!result) {
     throw new AppError(404, "Department not found");
@@ -47,9 +51,15 @@ const updateDepartmentIntoDB = async (
   payload: Partial<TDepartment>,
 ) => {
   const result = await Department.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    {
+      _id: id,
+      isDeleted: false,
+    },
     payload,
-    { new: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   );
 
   if (!result) {
@@ -61,9 +71,16 @@ const updateDepartmentIntoDB = async (
 
 const deleteDepartmentFromDB = async (id: string) => {
   const result = await Department.findOneAndUpdate(
-    { _id: id, isDeleted: false },
-    { isDeleted: true },
-    { new: true },
+    {
+      _id: id,
+      isDeleted: false,
+    },
+    {
+      isDeleted: true,
+    },
+    {
+      new: true,
+    },
   );
 
   if (!result) {

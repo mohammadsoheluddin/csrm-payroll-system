@@ -1,17 +1,12 @@
 import express from "express";
-import { EmployeeControllers } from "./employee.controller";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
 import { PERMISSIONS } from "../user/user.constant";
+import { EmployeeControllers } from "./employee.controller";
 import { EmployeeValidations } from "./employee.validation";
 
 const router = express.Router();
-
-/**
- * Changed:
- * Added validation middleware for employee create, list query, id params, update and delete routes.
- */
 
 router.post(
   "/create-employee",

@@ -1,16 +1,37 @@
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
-import Attendance from "./attendance.model";
-import { TAttendance } from "./attendance.interface";
 import Employee from "../employee/employee.model";
+import type {
+  TAttendance,
+  TAttendanceSource,
+  TAttendanceStatus,
+} from "./attendance.interface";
+import Attendance from "./attendance.model";
 
-type TAttendanceQuery = {
-  employee?: string;
-  status?: string;
-  attendanceDate?: string;
-  source?: string;
-  fromDate?: string;
-  toDate?: string;
+type TAttendanceDateFilter = {
+  $gte?: string;
+  $lte?: string;
+};
+
+type TAttendanceDBFilter = {
+  isDeleted: boolean;
+  employee?: mongoose.Types.ObjectId;
+  status?: TAttendanceStatus;
+  source?: TAttendanceSource;
+  attendanceDate?: string | TAttendanceDateFilter;
+};
+
+const getStringQueryValue = (
+  query: Record<string, unknown>,
+  key: string,
+): string | undefined => {
+  const value = query[key];
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  return undefined;
 };
 
 const createAttendanceIntoDB = async (payload: TAttendance) => {
@@ -50,36 +71,41 @@ const createAttendanceIntoDB = async (payload: TAttendance) => {
   return populatedResult;
 };
 
-const getAllAttendanceFromDB = async (query: TAttendanceQuery) => {
-  // Fixed: Proper TypeScript type instead of raw Record
-  const filter: Record<string, unknown> = { isDeleted: false };
+const getAllAttendanceFromDB = async (query: Record<string, unknown>) => {
+  const filter: TAttendanceDBFilter = {
+    isDeleted: false,
+  };
 
-  if (query.employee) {
-    filter.employee = query.employee;
-  }
+  const employee = getStringQueryValue(query, "employee");
+  const status = getStringQueryValue(query, "status");
+  const source = getStringQueryValue(query, "source");
+  const attendanceDate = getStringQueryValue(query, "attendanceDate");
+  const fromDate = getStringQueryValue(query, "fromDate");
+  const toDate = getStringQueryValue(query, "toDate");
 
-  if (query.status) {
-    filter.status = query.status;
-  }
-
-  if (query.source) {
-    filter.source = query.source;
-  }
-
-  if (query.attendanceDate) {
-    filter.attendanceDate = query.attendanceDate;
-  } else if (query.fromDate || query.toDate) {
-    const attendanceDateFilter: Record<string, string> = {};
-
-    if (query.fromDate) {
-      attendanceDateFilter.$gte = query.fromDate;
+  if (employee) {
+    if (!mongoose.isValidObjectId(employee)) {
+      throw new AppError(400, "Invalid employee ID");
     }
 
-    if (query.toDate) {
-      attendanceDateFilter.$lte = query.toDate;
-    }
+    filter.employee = new mongoose.Types.ObjectId(employee);
+  }
 
-    filter.attendanceDate = attendanceDateFilter;
+  if (status) {
+    filter.status = status as TAttendanceStatus;
+  }
+
+  if (source) {
+    filter.source = source as TAttendanceSource;
+  }
+
+  if (fromDate || toDate) {
+    filter.attendanceDate = {
+      ...(fromDate ? { $gte: fromDate } : {}),
+      ...(toDate ? { $lte: toDate } : {}),
+    };
+  } else if (attendanceDate) {
+    filter.attendanceDate = attendanceDate;
   }
 
   const result = await Attendance.find(filter)
@@ -87,7 +113,10 @@ const getAllAttendanceFromDB = async (query: TAttendanceQuery) => {
       path: "employee",
       populate: [{ path: "branch" }, { path: "department" }],
     })
-    .sort({ attendanceDate: -1, createdAt: -1 });
+    .sort({
+      attendanceDate: -1,
+      createdAt: -1,
+    });
 
   return result;
 };
@@ -152,7 +181,9 @@ const updateAttendanceIntoDB = async (
     employee: employeeId,
     attendanceDate,
     isDeleted: false,
-    _id: { $ne: id },
+    _id: {
+      $ne: id,
+    },
   });
 
   if (duplicateAttendance) {
@@ -163,9 +194,15 @@ const updateAttendanceIntoDB = async (
   }
 
   const result = await Attendance.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    {
+      _id: id,
+      isDeleted: false,
+    },
     payload,
-    { new: true, runValidators: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   ).populate({
     path: "employee",
     populate: [{ path: "branch" }, { path: "department" }],
@@ -184,9 +221,16 @@ const deleteAttendanceFromDB = async (id: string) => {
   }
 
   const result = await Attendance.findOneAndUpdate(
-    { _id: id, isDeleted: false },
-    { isDeleted: true },
-    { new: true },
+    {
+      _id: id,
+      isDeleted: false,
+    },
+    {
+      isDeleted: true,
+    },
+    {
+      new: true,
+    },
   );
 
   if (!result) {

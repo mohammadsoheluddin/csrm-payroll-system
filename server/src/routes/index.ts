@@ -70,6 +70,7 @@ const moduleRoutes = [
     route: payrollReportRoutes,
   },
   {
+    // Added: Global Audit Log API route
     path: "/audit-logs",
     route: auditLogRoutes,
   },

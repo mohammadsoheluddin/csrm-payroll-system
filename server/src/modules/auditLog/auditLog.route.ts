@@ -7,10 +7,9 @@ import { AuditLogControllers } from "./auditLog.controller";
 const router = Router();
 
 /**
- * Global Audit Log Routes
- *
- * Only users with AUDIT_LOG_READ permission can access global audit logs.
- * By default, this should be limited to super_admin and admin.
+ * Added:
+ * Global Audit Log read routes.
+ * Only users with AUDIT_LOG_READ permission can access these routes.
  */
 
 router.get(
