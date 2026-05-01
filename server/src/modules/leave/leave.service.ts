@@ -4,6 +4,12 @@ import Employee from "../employee/employee.model";
 import type { TLeave, TLeaveStatus, TLeaveType } from "./leave.interface";
 import Leave from "./leave.model";
 
+type TCreateLeavePayload = Omit<TLeave, "totalDays"> & {
+  totalDays?: number;
+};
+
+type TUpdateLeavePayload = Partial<TLeave>;
+
 type TLeaveDateFilter = {
   $gte?: string;
   $lte?: string;
@@ -80,6 +86,18 @@ const validateLeaveDateRange = (startDate: string, endDate: string) => {
   }
 };
 
+const calculateTotalLeaveDays = (startDate: string, endDate: string) => {
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+  const diffDays = Math.floor(
+    (end.getTime() - start.getTime()) / millisecondsPerDay,
+  );
+
+  return diffDays + 1;
+};
+
 const ensureNoOverlappingLeave = async ({
   employeeId,
   startDate,
@@ -95,10 +113,6 @@ const ensureNoOverlappingLeave = async ({
 }) => {
   const effectiveStatus = currentStatus || "pending";
 
-  /**
-   * rejected/cancelled leave should not block future leave creation.
-   * Only pending and approved leaves are considered active leave records.
-   */
   if (!ACTIVE_LEAVE_STATUSES.includes(effectiveStatus)) {
     return;
   }
@@ -135,17 +149,13 @@ const ensureNoOverlappingLeave = async ({
   }
 };
 
-const createLeaveIntoDB = async (payload: TLeave) => {
+const createLeaveIntoDB = async (payload: TCreateLeavePayload) => {
   await ensureEmployeeExists(payload.employee);
 
   validateLeaveDateRange(payload.startDate, payload.endDate);
 
   if (payload.approvedBy && !mongoose.isValidObjectId(payload.approvedBy)) {
     throw new AppError(400, "Invalid approved by user ID");
-  }
-
-  if (payload.totalDays < 1) {
-    throw new AppError(400, "Total leave days must be at least 1");
   }
 
   await ensureNoOverlappingLeave({
@@ -155,7 +165,15 @@ const createLeaveIntoDB = async (payload: TLeave) => {
     currentStatus: payload.status || "pending",
   });
 
-  const result = await Leave.create(payload);
+  const calculatedTotalDays = calculateTotalLeaveDays(
+    payload.startDate,
+    payload.endDate,
+  );
+
+  const result = await Leave.create({
+    ...payload,
+    totalDays: calculatedTotalDays,
+  });
 
   const populatedResult = await Leave.findById(result._id)
     .populate({
@@ -245,7 +263,7 @@ const getSingleLeaveFromDB = async (id: string) => {
   return result;
 };
 
-const updateLeaveIntoDB = async (id: string, payload: Partial<TLeave>) => {
+const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError(400, "Invalid leave ID");
   }
@@ -267,10 +285,6 @@ const updateLeaveIntoDB = async (id: string, payload: Partial<TLeave>) => {
     throw new AppError(400, "Invalid approved by user ID");
   }
 
-  if (payload.totalDays !== undefined && payload.totalDays < 1) {
-    throw new AppError(400, "Total leave days must be at least 1");
-  }
-
   const nextEmployee = payload.employee || existingLeave.employee;
   const nextStartDate = payload.startDate || existingLeave.startDate;
   const nextEndDate = payload.endDate || existingLeave.endDate;
@@ -286,12 +300,20 @@ const updateLeaveIntoDB = async (id: string, payload: Partial<TLeave>) => {
     currentStatus: nextStatus,
   });
 
+  const calculatedTotalDays = calculateTotalLeaveDays(
+    nextStartDate,
+    nextEndDate,
+  );
+
   const result = await Leave.findOneAndUpdate(
     {
       _id: id,
       isDeleted: false,
     },
-    payload,
+    {
+      ...payload,
+      totalDays: calculatedTotalDays,
+    },
     {
       new: true,
       runValidators: true,

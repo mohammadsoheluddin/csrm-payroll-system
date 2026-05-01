@@ -43,12 +43,6 @@ const dateStringSchema = (fieldName: string) =>
       message: `${fieldName} must be a valid date`,
     });
 
-const totalDaysSchema = z.coerce
-  .number()
-  .int("Total days must be an integer")
-  .min(1, "Total leave days must be at least 1")
-  .max(365, "Total leave days cannot exceed 365");
-
 const reasonSchema = z
   .string()
   .trim()
@@ -67,7 +61,6 @@ const createLeaveValidationSchema = z.object({
       leaveType: leaveTypeSchema,
       startDate: dateStringSchema("Start date"),
       endDate: dateStringSchema("End date"),
-      totalDays: totalDaysSchema,
       reason: reasonSchema,
       status: leaveStatusSchema.optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
@@ -90,7 +83,6 @@ const updateLeaveValidationSchema = z.object({
       leaveType: leaveTypeSchema.optional(),
       startDate: dateStringSchema("Start date").optional(),
       endDate: dateStringSchema("End date").optional(),
-      totalDays: totalDaysSchema.optional(),
       reason: reasonSchema.optional(),
       status: leaveStatusSchema.optional(),
       approvedBy: objectIdSchema("approved by user id").optional(),
