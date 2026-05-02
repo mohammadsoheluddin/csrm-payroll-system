@@ -10,6 +10,7 @@ export type TAuditLogActorRole =
 export type TAuditLogModule =
   | "auth"
   | "user"
+  | "company"
   | "branch"
   | "department"
   | "employee"
@@ -73,14 +74,12 @@ export interface TAuditLog {
 
   entityId?: string;
   entityName?: string;
-
   description: string;
 
   previousData?: Record<string, unknown> | null;
   newData?: Record<string, unknown> | null;
   metadata?: Record<string, unknown> | null;
 
-  // Added: Request, device and network audit metadata
   requestId?: string;
   requestMethod?: string;
   requestUrl?: string;
@@ -119,7 +118,6 @@ export interface TCreateAuditLogPayload {
 
   entityId?: string;
   entityName?: string;
-
   description: string;
 
   previousData?: Record<string, unknown> | null;
@@ -156,13 +154,11 @@ export interface TAuditLogQuery {
   actorId?: string;
   actorRole?: string;
   entityId?: string;
-
   ipAddress?: string;
   networkType?: string;
   deviceType?: string;
   browser?: string;
   operatingSystem?: string;
-
   fromDate?: string;
   toDate?: string;
   page?: string;
