@@ -1,18 +1,19 @@
 import { Router } from "express";
-import healthRoutes from "./health.route";
-import protectedRoutes from "./protected.route";
-import authRoutes from "../modules/auth/auth.route";
-import userRoutes from "../modules/user/user.route";
-import employeeRoutes from "../modules/employee/employee.route";
-import departmentRoutes from "../modules/department/department.route";
-import branchRoutes from "../modules/branch/branch.route";
+import auditLogRoutes from "../modules/auditLog/auditLog.route";
 import attendanceRoutes from "../modules/attendance/attendance.route";
-import leaveRoutes from "../modules/leave/leave.route";
+import authRoutes from "../modules/auth/auth.route";
+import branchRoutes from "../modules/branch/branch.route";
+import companyRoutes from "../modules/company/company.route";
+import departmentRoutes from "../modules/department/department.route";
+import employeeRoutes from "../modules/employee/employee.route";
 import holidayRoutes from "../modules/holiday/holiday.route";
-import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
+import leaveRoutes from "../modules/leave/leave.route";
 import { payrollRoutes } from "../modules/payroll/payroll.route";
 import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.route";
-import auditLogRoutes from "../modules/auditLog/auditLog.route";
+import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
+import userRoutes from "../modules/user/user.route";
+import healthRoutes from "./health.route";
+import protectedRoutes from "./protected.route";
 
 const router = Router();
 
@@ -32,6 +33,10 @@ const moduleRoutes = [
   {
     path: "/users",
     route: userRoutes,
+  },
+  {
+    path: "/companies",
+    route: companyRoutes,
   },
   {
     path: "/employees",
@@ -70,7 +75,6 @@ const moduleRoutes = [
     route: payrollReportRoutes,
   },
   {
-    // Added: Global Audit Log API route
     path: "/audit-logs",
     route: auditLogRoutes,
   },

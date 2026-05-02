@@ -15,6 +15,9 @@ export const PERMISSIONS = {
   USER_READ: "user:read",
   USER_MANAGE: "user:manage",
 
+  COMPANY_READ: "company:read",
+  COMPANY_MANAGE: "company:manage",
+
   BRANCH_READ: "branch:read",
   BRANCH_MANAGE: "branch:manage",
 
@@ -54,7 +57,6 @@ export const PERMISSIONS = {
   PAYSLIP_READ_ANY: "payslip:read:any",
   PAYSLIP_READ_OWN: "payslip:read:own",
 
-  // Added: Global Audit Log read permission
   AUDIT_LOG_READ: "audit_log:read",
 } as const;
 
@@ -64,7 +66,6 @@ export const PERMISSION_LIST = Object.values(PERMISSIONS) as TPermission[];
 
 const ALL_PERMISSIONS: TPermission[] = [...PERMISSION_LIST];
 
-// Fixed: Proper TypeScript type for role-permission matrix
 export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   [USER_ROLE.super_admin]: ALL_PERMISSIONS,
 
@@ -72,6 +73,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
 
   [USER_ROLE.hr]: [
     PERMISSIONS.USER_READ,
+
+    PERMISSIONS.COMPANY_READ,
+    PERMISSIONS.COMPANY_MANAGE,
 
     PERMISSIONS.BRANCH_READ,
     PERMISSIONS.BRANCH_MANAGE,
@@ -109,9 +113,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   [USER_ROLE.accounts]: [
     PERMISSIONS.USER_READ,
 
+    PERMISSIONS.COMPANY_READ,
     PERMISSIONS.BRANCH_READ,
     PERMISSIONS.DEPARTMENT_READ,
-
     PERMISSIONS.EMPLOYEE_READ,
 
     PERMISSIONS.HOLIDAY_READ,
@@ -132,9 +136,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   [USER_ROLE.manager]: [
     PERMISSIONS.USER_READ,
 
+    PERMISSIONS.COMPANY_READ,
     PERMISSIONS.BRANCH_READ,
     PERMISSIONS.DEPARTMENT_READ,
-
     PERMISSIONS.EMPLOYEE_READ,
 
     PERMISSIONS.ATTENDANCE_READ,
@@ -157,9 +161,9 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
   ],
 
   [USER_ROLE.employee]: [
+    PERMISSIONS.COMPANY_READ,
     PERMISSIONS.BRANCH_READ,
     PERMISSIONS.DEPARTMENT_READ,
-
     PERMISSIONS.HOLIDAY_READ,
     PERMISSIONS.PAYSLIP_READ_OWN,
   ],
@@ -169,11 +173,15 @@ export const hasPermission = (
   role: TUserRole | string | undefined,
   requiredPermissions: TPermission[],
 ) => {
-  if (!role) return false;
+  if (!role) {
+    return false;
+  }
 
   const permissions = ROLE_PERMISSIONS[role as TUserRole];
 
-  if (!permissions) return false;
+  if (!permissions) {
+    return false;
+  }
 
   return requiredPermissions.every((permission) =>
     permissions.includes(permission),
