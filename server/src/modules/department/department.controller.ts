@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -17,12 +17,11 @@ const createDepartment = catchAsync(async (req: Request, res: Response) => {
 
   const result = await DepartmentServices.createDepartmentIntoDB(req.body);
 
-  // Added: Audit log for department creation
   await createAuditLogFromRequest(req, {
     module: "department",
     action: "create",
     entityId: getAuditEntityId(result),
-    entityName: getAuditEntityName(result, ["name", "code"]),
+    entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
     description: "Department created",
     previousData: null,
     newData: toAuditData(result),
@@ -38,7 +37,7 @@ const createDepartment = catchAsync(async (req: Request, res: Response) => {
 
 const getAllDepartments = catchAsync(async (req: Request, res: Response) => {
   const result = await DepartmentServices.getAllDepartmentsFromDB(
-    req.query.status as string,
+    req.query as unknown as Record<string, unknown>,
   );
 
   sendResponse(res, {
@@ -78,12 +77,11 @@ const updateDepartment = catchAsync(async (req: Request, res: Response) => {
     req.body,
   );
 
-  // Added: Audit log for department update
   await createAuditLogFromRequest(req, {
     module: "department",
     action: "update",
     entityId: getAuditEntityId(result, departmentId),
-    entityName: getAuditEntityName(result, ["name", "code"]),
+    entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
     description: "Department updated",
     previousData: toAuditData(previousDepartment),
     newData: toAuditData(result),
@@ -108,12 +106,11 @@ const deleteDepartment = catchAsync(async (req: Request, res: Response) => {
 
   const result = await DepartmentServices.deleteDepartmentFromDB(departmentId);
 
-  // Added: Audit log for department soft delete
   await createAuditLogFromRequest(req, {
     module: "department",
     action: "soft_delete",
     entityId: getAuditEntityId(result, departmentId),
-    entityName: getAuditEntityName(result, ["name", "code"]),
+    entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
     description: "Department soft deleted",
     previousData: toAuditData(previousDepartment),
     newData: toAuditData(result),

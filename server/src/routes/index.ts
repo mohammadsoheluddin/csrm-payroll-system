@@ -8,6 +8,7 @@ import departmentRoutes from "../modules/department/department.route";
 import employeeRoutes from "../modules/employee/employee.route";
 import holidayRoutes from "../modules/holiday/holiday.route";
 import leaveRoutes from "../modules/leave/leave.route";
+import majorDepartmentRoutes from "../modules/majorDepartment/majorDepartment.route";
 import { payrollRoutes } from "../modules/payroll/payroll.route";
 import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.route";
 import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
@@ -37,6 +38,10 @@ const moduleRoutes = [
   {
     path: "/companies",
     route: companyRoutes,
+  },
+  {
+    path: "/major-departments",
+    route: majorDepartmentRoutes,
   },
   {
     path: "/employees",

@@ -1,15 +1,14 @@
 import { Types } from "mongoose";
 
-export type TDepartmentStatus = "active" | "inactive";
+export type TMajorDepartmentStatus = "active" | "inactive";
 
-export interface TDepartment {
+export interface TMajorDepartment {
   company: Types.ObjectId;
-  majorDepartment: Types.ObjectId;
   name: string;
   code: string;
   shortName?: string;
   description?: string;
   sortOrder?: number;
-  status?: TDepartmentStatus;
+  status?: TMajorDepartmentStatus;
   isDeleted?: boolean;
 }

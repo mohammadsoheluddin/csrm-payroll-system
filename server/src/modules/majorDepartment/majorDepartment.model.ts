@@ -1,16 +1,11 @@
 import { Schema, model } from "mongoose";
-import type { TDepartment } from "./department.interface";
+import type { TMajorDepartment } from "./majorDepartment.interface";
 
-const departmentSchema = new Schema<TDepartment>(
+const majorDepartmentSchema = new Schema<TMajorDepartment>(
   {
     company: {
       type: Schema.Types.ObjectId,
       ref: "Company",
-      required: true,
-    },
-    majorDepartment: {
-      type: Schema.Types.ObjectId,
-      ref: "MajorDepartment",
       required: true,
     },
     name: {
@@ -52,10 +47,9 @@ const departmentSchema = new Schema<TDepartment>(
   },
 );
 
-departmentSchema.index(
+majorDepartmentSchema.index(
   {
     company: 1,
-    majorDepartment: 1,
     code: 1,
   },
   {
@@ -66,10 +60,9 @@ departmentSchema.index(
   },
 );
 
-departmentSchema.index(
+majorDepartmentSchema.index(
   {
     company: 1,
-    majorDepartment: 1,
     name: 1,
   },
   {
@@ -80,13 +73,15 @@ departmentSchema.index(
   },
 );
 
-departmentSchema.index({
+majorDepartmentSchema.index({
   company: 1,
-  majorDepartment: 1,
   status: 1,
   isDeleted: 1,
 });
 
-const Department = model<TDepartment>("Department", departmentSchema);
+const MajorDepartment = model<TMajorDepartment>(
+  "MajorDepartment",
+  majorDepartmentSchema,
+);
 
-export default Department;
+export default MajorDepartment;

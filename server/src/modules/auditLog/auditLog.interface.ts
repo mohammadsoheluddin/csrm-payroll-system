@@ -11,6 +11,7 @@ export type TAuditLogModule =
   | "auth"
   | "user"
   | "company"
+  | "major_department"
   | "branch"
   | "department"
   | "employee"

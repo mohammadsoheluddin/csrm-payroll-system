@@ -6,30 +6,29 @@ const objectIdSchema = (fieldName: string) =>
     .trim()
     .regex(/^[0-9a-fA-F]{24}$/, `Invalid ${fieldName}`);
 
-const departmentStatusSchema = z.enum(["active", "inactive"]);
+const majorDepartmentStatusSchema = z.enum(["active", "inactive"]);
 
-const departmentCodeSchema = z
+const majorDepartmentCodeSchema = z
   .string()
   .trim()
-  .min(2, "Department code must be at least 2 characters")
-  .max(30, "Department code cannot exceed 30 characters")
+  .min(2, "Major department code must be at least 2 characters")
+  .max(30, "Major department code cannot exceed 30 characters")
   .regex(
     /^[A-Za-z0-9_-]+$/,
-    "Department code can contain only letters, numbers, underscore and hyphen",
+    "Major department code can contain only letters, numbers, underscore and hyphen",
   )
   .transform((value) => value.toUpperCase());
 
-const createDepartmentValidationSchema = z.object({
+const createMajorDepartmentValidationSchema = z.object({
   body: z
     .object({
       company: objectIdSchema("company id"),
-      majorDepartment: objectIdSchema("major department id"),
       name: z
         .string()
         .trim()
-        .min(2, "Department name must be at least 2 characters")
-        .max(120, "Department name cannot exceed 120 characters"),
-      code: departmentCodeSchema,
+        .min(2, "Major department name must be at least 2 characters")
+        .max(120, "Major department name cannot exceed 120 characters"),
+      code: majorDepartmentCodeSchema,
       shortName: z
         .string()
         .trim()
@@ -46,26 +45,25 @@ const createDepartmentValidationSchema = z.object({
         .int("Sort order must be an integer")
         .min(0, "Sort order cannot be negative")
         .optional(),
-      status: departmentStatusSchema.optional(),
+      status: majorDepartmentStatusSchema.optional(),
     })
     .strict(),
 });
 
-const updateDepartmentValidationSchema = z.object({
+const updateMajorDepartmentValidationSchema = z.object({
   params: z.object({
-    id: objectIdSchema("department id"),
+    id: objectIdSchema("major department id"),
   }),
   body: z
     .object({
       company: objectIdSchema("company id").optional(),
-      majorDepartment: objectIdSchema("major department id").optional(),
       name: z
         .string()
         .trim()
-        .min(2, "Department name must be at least 2 characters")
-        .max(120, "Department name cannot exceed 120 characters")
+        .min(2, "Major department name must be at least 2 characters")
+        .max(120, "Major department name cannot exceed 120 characters")
         .optional(),
-      code: departmentCodeSchema.optional(),
+      code: majorDepartmentCodeSchema.optional(),
       shortName: z
         .string()
         .trim()
@@ -82,7 +80,7 @@ const updateDepartmentValidationSchema = z.object({
         .int("Sort order must be an integer")
         .min(0, "Sort order cannot be negative")
         .optional(),
-      status: departmentStatusSchema.optional(),
+      status: majorDepartmentStatusSchema.optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {
@@ -90,26 +88,25 @@ const updateDepartmentValidationSchema = z.object({
     }),
 });
 
-const getAllDepartmentsValidationSchema = z.object({
+const getAllMajorDepartmentsValidationSchema = z.object({
   query: z
     .object({
       company: objectIdSchema("company id").optional(),
-      majorDepartment: objectIdSchema("major department id").optional(),
-      status: departmentStatusSchema.optional(),
+      status: majorDepartmentStatusSchema.optional(),
     })
     .strict()
     .optional(),
 });
 
-const departmentIdValidationSchema = z.object({
+const majorDepartmentIdParamValidationSchema = z.object({
   params: z.object({
-    id: objectIdSchema("department id"),
+    id: objectIdSchema("major department id"),
   }),
 });
 
-export const DepartmentValidations = {
-  createDepartmentValidationSchema,
-  updateDepartmentValidationSchema,
-  getAllDepartmentsValidationSchema,
-  departmentIdValidationSchema,
+export const MajorDepartmentValidations = {
+  createMajorDepartmentValidationSchema,
+  updateMajorDepartmentValidationSchema,
+  getAllMajorDepartmentsValidationSchema,
+  majorDepartmentIdParamValidationSchema,
 };
