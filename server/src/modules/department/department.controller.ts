@@ -131,3 +131,4 @@ export const DepartmentControllers = {
   updateDepartment,
   deleteDepartment,
 };
+// Updated
