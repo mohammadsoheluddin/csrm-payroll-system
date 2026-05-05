@@ -5,6 +5,7 @@ import authRoutes from "../modules/auth/auth.route";
 import branchRoutes from "../modules/branch/branch.route";
 import companyRoutes from "../modules/company/company.route";
 import departmentRoutes from "../modules/department/department.route";
+import designationRoutes from "../modules/designation/designation.route";
 import employeeRoutes from "../modules/employee/employee.route";
 import holidayRoutes from "../modules/holiday/holiday.route";
 import leaveRoutes from "../modules/leave/leave.route";
@@ -42,6 +43,10 @@ const moduleRoutes = [
   {
     path: "/major-departments",
     route: majorDepartmentRoutes,
+  },
+  {
+    path: "/designations",
+    route: designationRoutes,
   },
   {
     path: "/employees",
