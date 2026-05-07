@@ -13,6 +13,7 @@ export type TAuditLogModule =
   | "company"
   | "major_department"
   | "designation"
+  | "employee_bank_info"
   | "branch"
   | "department"
   | "employee"
