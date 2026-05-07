@@ -7,6 +7,28 @@ const objectIdSchema = (fieldName: string) =>
     .regex(/^[0-9a-fA-F]{24}$/, `Invalid ${fieldName}`);
 
 const employeeStatusSchema = z.enum(["active", "inactive"]);
+
+const employmentStatusSchema = z.enum([
+  "active",
+  "probation",
+  "confirmed",
+  "resigned",
+  "terminated",
+  "retired",
+  "suspended",
+]);
+
+const serviceTypeSchema = z.enum([
+  "permanent",
+  "probation",
+  "contractual",
+  "temporary",
+  "daily_wage",
+  "intern",
+]);
+
+const payTypeSchema = z.enum(["monthly", "daily", "hourly"]);
+
 const genderSchema = z.enum(["male", "female", "other"]);
 
 const isValidDateString = (value: string) => {
@@ -36,6 +58,19 @@ const employeeIdSchema = z
     "Employee ID can contain only letters, numbers, underscore and hyphen",
   )
   .transform((value) => value.toUpperCase());
+
+const optionalCodeSchema = (fieldName: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${fieldName} cannot be empty`)
+    .max(30, `${fieldName} cannot exceed 30 characters`)
+    .regex(
+      /^[A-Za-z0-9_-]+$/,
+      `${fieldName} can contain only letters, numbers, underscore and hyphen`,
+    )
+    .transform((value) => value.toUpperCase())
+    .optional();
 
 const employeeNameValidationSchema = z
   .object({
@@ -92,30 +127,54 @@ const phoneSchema = z
     "Phone number can contain only numbers, space, hyphen and optional plus sign",
   );
 
-const basicSalarySchema = z.coerce
+const salarySchema = z.coerce
   .number()
   .min(0, "Basic salary cannot be negative")
   .max(100000000, "Basic salary is too large");
+
+const dutyHourPerDaySchema = z.coerce
+  .number()
+  .min(0, "Duty hour per day cannot be negative")
+  .max(24, "Duty hour per day cannot exceed 24");
+
+const leaveDaySchema = z.coerce
+  .number()
+  .min(0, "Leave day cannot be negative")
+  .max(365, "Leave day cannot exceed 365");
 
 const createEmployeeValidationSchema = z.object({
   body: z
     .object({
       employeeId: employeeIdSchema,
+      officeId: optionalCodeSchema("Office ID"),
+      cardNo: optionalCodeSchema("Card No"),
+
       user: objectIdSchema("user id").optional(),
+
       name: employeeNameValidationSchema,
       email: z.string().trim().toLowerCase().email("Invalid employee email"),
       phone: phoneSchema,
       gender: genderSchema,
       dateOfBirth: dateStringSchema("Date of birth").optional(),
-      joiningDate: dateStringSchema("Joining date"),
-      designation: z
-        .string()
-        .trim()
-        .min(2, "Designation must be at least 2 characters")
-        .max(100, "Designation cannot exceed 100 characters"),
+
+      company: objectIdSchema("company id"),
+      majorDepartment: objectIdSchema("major department id"),
       department: objectIdSchema("department id"),
+      designation: objectIdSchema("designation id"),
       branch: objectIdSchema("branch id"),
-      basicSalary: basicSalarySchema,
+
+      joiningDate: dateStringSchema("Joining date"),
+      confirmationDate: dateStringSchema("Confirmation date").optional(),
+
+      serviceType: serviceTypeSchema.optional(),
+      payType: payTypeSchema.optional(),
+      dutyHourPerDay: dutyHourPerDaySchema.optional(),
+      leaveDay: leaveDaySchema.optional(),
+
+      employmentStatus: employmentStatusSchema.optional(),
+
+      basicSalary: salarySchema.optional(),
+
       status: employeeStatusSchema.optional(),
     })
     .strict(),
@@ -127,8 +186,15 @@ const updateEmployeeValidationSchema = z.object({
   }),
   body: z
     .object({
-      employeeId: employeeIdSchema.optional(),
+      /**
+       * employeeId intentionally not allowed here.
+       * Official employee ID is permanent after employee creation.
+       */
+      officeId: optionalCodeSchema("Office ID"),
+      cardNo: optionalCodeSchema("Card No"),
+
       user: objectIdSchema("user id").optional(),
+
       name: updateEmployeeNameValidationSchema.optional(),
       email: z
         .string()
@@ -139,16 +205,25 @@ const updateEmployeeValidationSchema = z.object({
       phone: phoneSchema.optional(),
       gender: genderSchema.optional(),
       dateOfBirth: dateStringSchema("Date of birth").optional(),
-      joiningDate: dateStringSchema("Joining date").optional(),
-      designation: z
-        .string()
-        .trim()
-        .min(2, "Designation must be at least 2 characters")
-        .max(100, "Designation cannot exceed 100 characters")
-        .optional(),
+
+      company: objectIdSchema("company id").optional(),
+      majorDepartment: objectIdSchema("major department id").optional(),
       department: objectIdSchema("department id").optional(),
+      designation: objectIdSchema("designation id").optional(),
       branch: objectIdSchema("branch id").optional(),
-      basicSalary: basicSalarySchema.optional(),
+
+      joiningDate: dateStringSchema("Joining date").optional(),
+      confirmationDate: dateStringSchema("Confirmation date").optional(),
+
+      serviceType: serviceTypeSchema.optional(),
+      payType: payTypeSchema.optional(),
+      dutyHourPerDay: dutyHourPerDaySchema.optional(),
+      leaveDay: leaveDaySchema.optional(),
+
+      employmentStatus: employmentStatusSchema.optional(),
+
+      basicSalary: salarySchema.optional(),
+
       status: employeeStatusSchema.optional(),
     })
     .strict()
@@ -161,6 +236,15 @@ const getAllEmployeesValidationSchema = z.object({
   query: z
     .object({
       status: employeeStatusSchema.optional(),
+      employmentStatus: employmentStatusSchema.optional(),
+      serviceType: serviceTypeSchema.optional(),
+      payType: payTypeSchema.optional(),
+
+      company: objectIdSchema("company id").optional(),
+      majorDepartment: objectIdSchema("major department id").optional(),
+      department: objectIdSchema("department id").optional(),
+      designation: objectIdSchema("designation id").optional(),
+      branch: objectIdSchema("branch id").optional(),
     })
     .strict()
     .optional(),

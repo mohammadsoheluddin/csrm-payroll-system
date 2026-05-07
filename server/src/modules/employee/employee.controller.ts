@@ -6,8 +6,7 @@ import { EmployeeServices } from "./employee.service";
 
 const createEmployee = catchAsync(async (req: Request, res: Response) => {
   /**
-   * Kept:
-   * Extra safeguard even though route-level Zod validation now checks request body.
+   * Extra safeguard even though route-level Zod validation checks request body.
    */
   if (!req.body || Object.keys(req.body).length === 0) {
     throw new AppError(400, "Request body is empty");
@@ -24,9 +23,7 @@ const createEmployee = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllEmployees = catchAsync(async (req: Request, res: Response) => {
-  const result = await EmployeeServices.getAllEmployeesFromDB(
-    req.query.status as string,
-  );
+  const result = await EmployeeServices.getAllEmployeesFromDB(req.query);
 
   sendResponse(res, {
     statusCode: 200,
@@ -51,7 +48,6 @@ const getSingleEmployee = catchAsync(async (req: Request, res: Response) => {
 
 const updateEmployee = catchAsync(async (req: Request, res: Response) => {
   /**
-   * Kept:
    * Extra safeguard even though update validation already blocks empty body.
    */
   if (!req.body || Object.keys(req.body).length === 0) {

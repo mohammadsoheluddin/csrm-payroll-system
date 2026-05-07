@@ -1,80 +1,415 @@
 import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
 import Branch from "../branch/branch.model";
+import Company from "../company/company.model";
 import Department from "../department/department.model";
-import type { TEmployee, TEmployeeStatus } from "./employee.interface";
+import Designation from "../designation/designation.model";
+import MajorDepartment from "../majorDepartment/majorDepartment.model";
+import User from "../user/user.model";
+import {
+  TEmployee,
+  TEmployeeStatus,
+  TEmploymentStatus,
+  TPayType,
+  TServiceType,
+} from "./employee.interface";
 import Employee from "./employee.model";
 
 type TEmployeeDBQuery = {
   isDeleted: boolean;
   status?: TEmployeeStatus;
+  employmentStatus?: TEmploymentStatus;
+  serviceType?: TServiceType;
+  payType?: TPayType;
+  company?: string;
+  majorDepartment?: string;
+  department?: string;
+  designation?: string;
+  branch?: string;
 };
 
-const createEmployeeIntoDB = async (payload: TEmployee) => {
-  const existingEmployee = await Employee.findOne({
-    $or: [{ employeeId: payload.employeeId }, { email: payload.email }],
+type TEmployeeQueryFilters = {
+  status?: string;
+  employmentStatus?: string;
+  serviceType?: string;
+  payType?: string;
+  company?: string;
+  majorDepartment?: string;
+  department?: string;
+  designation?: string;
+  branch?: string;
+};
+
+type TEmployeeReferencePayload = Pick<
+  TEmployee,
+  "company" | "majorDepartment" | "department" | "designation" | "branch"
+>;
+
+type TActiveDuplicateCondition = {
+  officeId?: string;
+  cardNo?: string;
+};
+
+const validateObjectId = (id: unknown, fieldName: string) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, `Invalid ${fieldName}`);
+  }
+};
+
+const validateConfirmationDate = (
+  joiningDate?: string,
+  confirmationDate?: string,
+) => {
+  if (!joiningDate || !confirmationDate) {
+    return;
+  }
+
+  const joining = new Date(joiningDate);
+  const confirmation = new Date(confirmationDate);
+
+  if (confirmation < joining) {
+    throw new AppError(400, "Confirmation date cannot be before joining date");
+  }
+};
+
+const validateUserReference = async (user?: unknown) => {
+  if (!user) {
+    return;
+  }
+
+  validateObjectId(user, "user ID");
+
+  const isUserExists = await User.findOne({
+    _id: user,
+    isDeleted: false,
   });
 
-  if (existingEmployee) {
-    throw new AppError(409, "Employee already exists with this ID or email");
+  if (!isUserExists) {
+    throw new AppError(404, "User not found");
+  }
+};
+
+const validateEmployeeReferences = async (
+  references: TEmployeeReferencePayload,
+) => {
+  validateObjectId(references.company, "company ID");
+  validateObjectId(references.majorDepartment, "major department ID");
+  validateObjectId(references.department, "department ID");
+  validateObjectId(references.designation, "designation ID");
+  validateObjectId(references.branch, "branch ID");
+
+  const companyId = String(references.company);
+  const majorDepartmentId = String(references.majorDepartment);
+  const departmentId = String(references.department);
+  const designationId = String(references.designation);
+  const branchId = String(references.branch);
+
+  const isCompanyExists = await Company.findOne({
+    _id: companyId,
+    isDeleted: false,
+    status: "active",
+  });
+
+  if (!isCompanyExists) {
+    throw new AppError(404, "Company not found");
   }
 
-  if (!mongoose.isValidObjectId(payload.branch)) {
-    throw new AppError(400, "Invalid branch ID");
+  const isMajorDepartmentExists = await MajorDepartment.findOne({
+    _id: majorDepartmentId,
+    company: companyId,
+    isDeleted: false,
+    status: "active",
+  });
+
+  if (!isMajorDepartmentExists) {
+    throw new AppError(404, "Major department not found under this company");
   }
 
-  if (!mongoose.isValidObjectId(payload.department)) {
-    throw new AppError(400, "Invalid department ID");
+  const isDepartmentExists = await Department.findOne({
+    _id: departmentId,
+    company: companyId,
+    majorDepartment: majorDepartmentId,
+    isDeleted: false,
+    status: "active",
+  });
+
+  if (!isDepartmentExists) {
+    throw new AppError(
+      404,
+      "Department not found under this company and major department",
+    );
   }
 
-  const isBranchExists = await Branch.findById(payload.branch);
+  const isDesignationExists = await Designation.findOne({
+    _id: designationId,
+    company: companyId,
+    isDeleted: false,
+    status: "active",
+  });
+
+  if (!isDesignationExists) {
+    throw new AppError(404, "Designation not found under this company");
+  }
+
+  const isBranchExists = await Branch.findOne({
+    _id: branchId,
+    isDeleted: false,
+    status: "active",
+  });
 
   if (!isBranchExists) {
     throw new AppError(404, "Branch not found");
   }
+};
 
-  const isDepartmentExists = await Department.findById(payload.department);
+const ensureEmployeeUniqueOnCreate = async (payload: Partial<TEmployee>) => {
+  if (payload.employeeId) {
+    const existingEmployeeByEmployeeId = await Employee.findOne({
+      employeeId: payload.employeeId,
+    });
 
-  if (!isDepartmentExists) {
-    throw new AppError(404, "Department not found");
+    if (existingEmployeeByEmployeeId) {
+      throw new AppError(
+        409,
+        "Employee ID already exists. Employee ID is permanent and cannot be reused",
+      );
+    }
   }
+
+  if (payload.email) {
+    const existingEmployeeByEmail = await Employee.findOne({
+      email: payload.email,
+    });
+
+    if (existingEmployeeByEmail) {
+      throw new AppError(
+        409,
+        "Another employee already exists with this email",
+      );
+    }
+  }
+
+  const activeDuplicateConditions: TActiveDuplicateCondition[] = [];
+
+  if (payload.officeId) {
+    activeDuplicateConditions.push({
+      officeId: payload.officeId,
+    });
+  }
+
+  if (payload.cardNo) {
+    activeDuplicateConditions.push({
+      cardNo: payload.cardNo,
+    });
+  }
+
+  if (!activeDuplicateConditions.length) {
+    return;
+  }
+
+  const existingActiveEmployee = await Employee.findOne({
+    isDeleted: false,
+    $or: activeDuplicateConditions,
+  });
+
+  if (!existingActiveEmployee) {
+    return;
+  }
+
+  if (
+    payload.officeId &&
+    existingActiveEmployee.officeId === payload.officeId
+  ) {
+    throw new AppError(
+      409,
+      "Another active employee already exists with this office ID",
+    );
+  }
+
+  if (payload.cardNo && existingActiveEmployee.cardNo === payload.cardNo) {
+    throw new AppError(
+      409,
+      "Another active employee already exists with this card no",
+    );
+  }
+
+  throw new AppError(409, "Employee already exists with duplicate information");
+};
+
+const ensureEmployeeUniqueOnUpdate = async (
+  payload: Partial<TEmployee>,
+  employeeMongoId: string,
+) => {
+  if (payload.email) {
+    const existingEmployeeByEmail = await Employee.findOne({
+      email: payload.email,
+      _id: {
+        $ne: employeeMongoId,
+      },
+    });
+
+    if (existingEmployeeByEmail) {
+      throw new AppError(
+        409,
+        "Another employee already exists with this email",
+      );
+    }
+  }
+
+  const activeDuplicateConditions: TActiveDuplicateCondition[] = [];
+
+  if (payload.officeId) {
+    activeDuplicateConditions.push({
+      officeId: payload.officeId,
+    });
+  }
+
+  if (payload.cardNo) {
+    activeDuplicateConditions.push({
+      cardNo: payload.cardNo,
+    });
+  }
+
+  if (!activeDuplicateConditions.length) {
+    return;
+  }
+
+  const existingActiveEmployee = await Employee.findOne({
+    _id: {
+      $ne: employeeMongoId,
+    },
+    isDeleted: false,
+    $or: activeDuplicateConditions,
+  });
+
+  if (!existingActiveEmployee) {
+    return;
+  }
+
+  if (
+    payload.officeId &&
+    existingActiveEmployee.officeId === payload.officeId
+  ) {
+    throw new AppError(
+      409,
+      "Another active employee already exists with this office ID",
+    );
+  }
+
+  if (payload.cardNo && existingActiveEmployee.cardNo === payload.cardNo) {
+    throw new AppError(
+      409,
+      "Another active employee already exists with this card no",
+    );
+  }
+
+  throw new AppError(409, "Employee already exists with duplicate information");
+};
+
+const populateEmployeeQuery = () => [
+  {
+    path: "user",
+    select: "name email role",
+  },
+  {
+    path: "company",
+  },
+  {
+    path: "majorDepartment",
+  },
+  {
+    path: "department",
+  },
+  {
+    path: "designation",
+  },
+  {
+    path: "branch",
+  },
+];
+
+const createEmployeeIntoDB = async (payload: TEmployee) => {
+  await validateUserReference(payload.user);
+
+  await validateEmployeeReferences({
+    company: payload.company,
+    majorDepartment: payload.majorDepartment,
+    department: payload.department,
+    designation: payload.designation,
+    branch: payload.branch,
+  });
+
+  validateConfirmationDate(payload.joiningDate, payload.confirmationDate);
+
+  await ensureEmployeeUniqueOnCreate({
+    employeeId: payload.employeeId,
+    email: payload.email,
+    officeId: payload.officeId,
+    cardNo: payload.cardNo,
+  });
 
   const result = await Employee.create(payload);
 
-  const populatedResult = await Employee.findById(result._id)
-    .populate("branch")
-    .populate("department");
+  const populatedResult = await Employee.findById(result._id).populate(
+    populateEmployeeQuery(),
+  );
 
   return populatedResult;
 };
 
-const getAllEmployeesFromDB = async (status?: string) => {
+const getAllEmployeesFromDB = async (filters: TEmployeeQueryFilters = {}) => {
   const query: TEmployeeDBQuery = {
     isDeleted: false,
   };
 
-  if (status) {
-    query.status = status as TEmployeeStatus;
+  if (filters.status) {
+    query.status = filters.status as TEmployeeStatus;
   }
 
-  const result = await Employee.find(query)
-    .populate("branch")
-    .populate("department");
+  if (filters.employmentStatus) {
+    query.employmentStatus = filters.employmentStatus as TEmploymentStatus;
+  }
+
+  if (filters.serviceType) {
+    query.serviceType = filters.serviceType as TServiceType;
+  }
+
+  if (filters.payType) {
+    query.payType = filters.payType as TPayType;
+  }
+
+  if (filters.company) {
+    query.company = filters.company;
+  }
+
+  if (filters.majorDepartment) {
+    query.majorDepartment = filters.majorDepartment;
+  }
+
+  if (filters.department) {
+    query.department = filters.department;
+  }
+
+  if (filters.designation) {
+    query.designation = filters.designation;
+  }
+
+  if (filters.branch) {
+    query.branch = filters.branch;
+  }
+
+  const result = await Employee.find(query).populate(populateEmployeeQuery());
 
   return result;
 };
 
 const getSingleEmployeeFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid employee ID");
-  }
+  validateObjectId(id, "employee ID");
 
   const result = await Employee.findOne({
     _id: id,
     isDeleted: false,
-  })
-    .populate("branch")
-    .populate("department");
+  }).populate(populateEmployeeQuery());
 
   if (!result) {
     throw new AppError(404, "Employee not found");
@@ -87,65 +422,41 @@ const updateEmployeeIntoDB = async (
   id: string,
   payload: Partial<TEmployee>,
 ) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid employee ID");
+  validateObjectId(id, "employee ID");
+
+  const existingEmployee = await Employee.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!existingEmployee) {
+    throw new AppError(404, "Employee not found");
   }
 
-  if (payload.branch) {
-    if (!mongoose.isValidObjectId(payload.branch)) {
-      throw new AppError(400, "Invalid branch ID");
-    }
+  await validateUserReference(payload.user);
 
-    const isBranchExists = await Branch.findById(payload.branch);
+  await validateEmployeeReferences({
+    company: payload.company ?? existingEmployee.company,
+    majorDepartment:
+      payload.majorDepartment ?? existingEmployee.majorDepartment,
+    department: payload.department ?? existingEmployee.department,
+    designation: payload.designation ?? existingEmployee.designation,
+    branch: payload.branch ?? existingEmployee.branch,
+  });
 
-    if (!isBranchExists) {
-      throw new AppError(404, "Branch not found");
-    }
-  }
+  validateConfirmationDate(
+    payload.joiningDate ?? existingEmployee.joiningDate,
+    payload.confirmationDate ?? existingEmployee.confirmationDate,
+  );
 
-  if (payload.department) {
-    if (!mongoose.isValidObjectId(payload.department)) {
-      throw new AppError(400, "Invalid department ID");
-    }
-
-    const isDepartmentExists = await Department.findById(payload.department);
-
-    if (!isDepartmentExists) {
-      throw new AppError(404, "Department not found");
-    }
-  }
-
-  if (payload.email) {
-    const existingEmployeeByEmail = await Employee.findOne({
+  await ensureEmployeeUniqueOnUpdate(
+    {
       email: payload.email,
-      _id: {
-        $ne: id,
-      },
-    });
-
-    if (existingEmployeeByEmail) {
-      throw new AppError(
-        409,
-        "Another employee already exists with this email",
-      );
-    }
-  }
-
-  if (payload.employeeId) {
-    const existingEmployeeById = await Employee.findOne({
-      employeeId: payload.employeeId,
-      _id: {
-        $ne: id,
-      },
-    });
-
-    if (existingEmployeeById) {
-      throw new AppError(
-        409,
-        "Another employee already exists with this employee ID",
-      );
-    }
-  }
+      officeId: payload.officeId,
+      cardNo: payload.cardNo,
+    },
+    id,
+  );
 
   const result = await Employee.findOneAndUpdate(
     {
@@ -157,9 +468,7 @@ const updateEmployeeIntoDB = async (
       new: true,
       runValidators: true,
     },
-  )
-    .populate("branch")
-    .populate("department");
+  ).populate(populateEmployeeQuery());
 
   if (!result) {
     throw new AppError(404, "Employee not found");
@@ -169,9 +478,7 @@ const updateEmployeeIntoDB = async (
 };
 
 const deleteEmployeeFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid employee ID");
-  }
+  validateObjectId(id, "employee ID");
 
   const result = await Employee.findOneAndUpdate(
     {
@@ -180,6 +487,7 @@ const deleteEmployeeFromDB = async (id: string) => {
     },
     {
       isDeleted: true,
+      status: "inactive",
     },
     {
       new: true,
