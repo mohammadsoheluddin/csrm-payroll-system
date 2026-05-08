@@ -1,5 +1,6 @@
 import { Router } from "express";
 import auditLogRoutes from "../modules/auditLog/auditLog.route";
+import bankSheetRoutes from "../modules/bankSheet/bankSheet.route";
 import attendanceRoutes from "../modules/attendance/attendance.route";
 import authRoutes from "../modules/auth/auth.route";
 import branchRoutes from "../modules/branch/branch.route";
@@ -88,6 +89,10 @@ const moduleRoutes = [
   {
     path: "/payroll-reports",
     route: payrollReportRoutes,
+  },
+  {
+    path: "/bank-sheets",
+    route: bankSheetRoutes,
   },
   {
     path: "/audit-logs",

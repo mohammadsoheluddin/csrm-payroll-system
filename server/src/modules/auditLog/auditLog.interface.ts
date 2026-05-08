@@ -14,6 +14,7 @@ export type TAuditLogModule =
   | "major_department"
   | "designation"
   | "employee_bank_info"
+  | "bank_sheet"
   | "branch"
   | "department"
   | "employee"
