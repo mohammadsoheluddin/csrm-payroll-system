@@ -1,456 +1,338 @@
+import httpStatus = require("http-status");
 import mongoose from "mongoose";
+
 import AppError from "../../errors/AppError";
-import Company from "../company/company.model";
+
 import Employee from "../employee/employee.model";
-import type {
-  TEmployeeBankInfo,
-  TEmployeeBankInfoStatus,
-  TEmployeePaymentMode,
-} from "./employeeBankInfo.interface";
+import Company from "../company/company.model";
+
+import { TEmployeeBankInfo } from "./employeeBankInfo.interface";
 import EmployeeBankInfo from "./employeeBankInfo.model";
 
-type TEmployeeBankInfoQueryFilters = {
-  employee?: string;
-  company?: string;
-  paymentMode?: string;
-  status?: string;
-  isPrimary?: string;
-};
-
-type TEmployeeBankInfoDBQuery = {
-  isDeleted: boolean;
-  employee?: mongoose.Types.ObjectId;
-  company?: mongoose.Types.ObjectId;
-  paymentMode?: TEmployeePaymentMode;
-  status?: TEmployeeBankInfoStatus;
-  isPrimary?: boolean;
-};
-
-type TCreateEmployeeBankInfoPayload = Omit<
-  TEmployeeBankInfo,
-  "employee" | "company"
-> & {
-  employee: string | mongoose.Types.ObjectId;
-  company: string | mongoose.Types.ObjectId;
-};
-
-type TUpdateEmployeeBankInfoPayload = Partial<
-  Omit<TEmployeeBankInfo, "employee" | "company">
-> & {
-  employee?: string | mongoose.Types.ObjectId;
-  company?: string | mongoose.Types.ObjectId;
-};
-
-type TResolvedEmployeeCompany = {
-  employeeObjectId: mongoose.Types.ObjectId;
-  companyObjectId: mongoose.Types.ObjectId;
-};
-
-const toObjectId = (value: unknown, fieldName: string) => {
-  if (!mongoose.isValidObjectId(value)) {
-    throw new AppError(400, `Invalid ${fieldName}`);
-  }
-
-  return new mongoose.Types.ObjectId(String(value));
-};
-
-const getStringQueryValue = (
-  query: TEmployeeBankInfoQueryFilters,
-  key: keyof TEmployeeBankInfoQueryFilters,
-): string | undefined => {
-  const value = query[key];
-
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
-  }
-
-  return undefined;
-};
-
-const getRequiredText = (value: unknown) => {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim();
-};
-
-const ensureEmployeeAndCompany = async (
-  employeeId: unknown,
-  companyId: unknown,
-): Promise<TResolvedEmployeeCompany> => {
-  const employeeObjectId = toObjectId(employeeId, "employee ID");
-  const companyObjectId = toObjectId(companyId, "company ID");
-
-  const company = await Company.findOne({
-    _id: companyObjectId,
-    isDeleted: false,
-    status: "active",
-  });
-
-  if (!company) {
-    throw new AppError(404, "Company not found");
-  }
-
-  const employee = await Employee.findOne({
-    _id: employeeObjectId,
-    isDeleted: false,
-    status: "active",
-  });
+const createEmployeeBankInfo = async (
+  payload: TEmployeeBankInfo,
+  createdBy?: mongoose.Types.ObjectId,
+) => {
+  const employee = await Employee.findById(payload.employee);
 
   if (!employee) {
-    throw new AppError(404, "Active employee not found");
+    throw new AppError(httpStatus.NOT_FOUND, "Employee not found");
   }
 
-  const employeeCompany = String(employee.company);
+  const company = await Company.findById(payload.company);
 
-  if (employeeCompany !== String(companyObjectId)) {
-    throw new AppError(400, "Employee does not belong to this company");
+  if (!company) {
+    throw new AppError(httpStatus.NOT_FOUND, "Company not found");
   }
 
-  return {
-    employeeObjectId,
-    companyObjectId,
-  };
-};
+  /**
+   * =====================================================
+   * Duplicate Prevention Logic
+   * =====================================================
+   */
 
-const validatePaymentModeDetails = (payload: Partial<TEmployeeBankInfo>) => {
   if (payload.paymentMode === "bank") {
-    const requiredFields = [
-      {
-        key: "accountName",
-        label: "Account name",
-        value: payload.accountName,
-      },
-      {
-        key: "bankName",
-        label: "Bank name",
-        value: payload.bankName,
-      },
-      {
-        key: "bankBranchName",
-        label: "Bank branch name",
-        value: payload.bankBranchName,
-      },
-      {
-        key: "bankBranchCode",
-        label: "Bank branch code",
-        value: payload.bankBranchCode,
-      },
-      {
-        key: "accountNo",
-        label: "Account no",
-        value: payload.accountNo,
-      },
-      {
-        key: "processBankBranchNo",
-        label: "Process bank branch no",
-        value: payload.processBankBranchNo,
-      },
-    ];
+    const existingBankInfo = await EmployeeBankInfo.findOne({
+      employee: payload.employee,
+      paymentMode: "bank",
+      bankName: payload.bankName,
+      bankBranchCode: payload.bankBranchCode,
+      accountNo: payload.accountNo,
+      processBankBranchNo: payload.processBankBranchNo,
+      isDeleted: false,
+    });
 
-    const missingField = requiredFields.find(
-      (field) => !getRequiredText(field.value),
-    );
-
-    if (missingField) {
+    if (existingBankInfo) {
       throw new AppError(
-        400,
-        `${missingField.label} is required for bank payment`,
+        httpStatus.CONFLICT,
+        "Same bank account information already exists for this employee",
       );
     }
   }
 
   if (payload.paymentMode === "mobile_banking") {
-    if (!payload.mobileBankingProvider) {
-      throw new AppError(
-        400,
-        "Mobile banking provider is required for mobile banking payment",
-      );
-    }
+    const existingMobileInfo = await EmployeeBankInfo.findOne({
+      employee: payload.employee,
+      paymentMode: "mobile_banking",
+      mobileBankingProvider: payload.mobileBankingProvider,
+      mobileBankingNo: payload.mobileBankingNo,
+      isDeleted: false,
+    });
 
-    if (!getRequiredText(payload.mobileBankingNo)) {
+    if (existingMobileInfo) {
       throw new AppError(
-        400,
-        "Mobile banking no is required for mobile banking payment",
+        httpStatus.CONFLICT,
+        "Same mobile banking information already exists for this employee",
       );
     }
   }
 
   if (payload.paymentMode === "cash") {
-    if (!getRequiredText(payload.cashPayReason)) {
-      throw new AppError(400, "Cash pay reason is required for cash payment");
-    }
-  }
-
-  if (payload.effectiveFrom && payload.effectiveTo) {
-    const effectiveFrom = new Date(payload.effectiveFrom);
-    const effectiveTo = new Date(payload.effectiveTo);
-
-    if (effectiveTo < effectiveFrom) {
-      throw new AppError(400, "Effective to cannot be before effective from");
-    }
-  }
-};
-
-const clearOtherPrimaryPaymentInfos = async (
-  employee: mongoose.Types.ObjectId,
-  excludeId?: string,
-) => {
-  await EmployeeBankInfo.updateMany(
-    {
-      employee,
+    const existingCashInfo = await EmployeeBankInfo.findOne({
+      employee: payload.employee,
+      paymentMode: "cash",
+      cashPayReason: payload.cashPayReason,
       isDeleted: false,
-      isPrimary: true,
-      ...(excludeId
-        ? {
-            _id: {
-              $ne: toObjectId(excludeId, "employee bank info ID"),
-            },
-          }
-        : {}),
-    },
-    {
-      isPrimary: false,
-    },
-  );
-};
+    });
 
-const populateEmployeeBankInfoQuery = () => [
-  {
-    path: "employee",
-    select:
-      "employeeId officeId cardNo name email phone company majorDepartment department designation branch employmentStatus status",
-    populate: [
-      {
-        path: "company",
-      },
-      {
-        path: "majorDepartment",
-      },
-      {
-        path: "department",
-      },
-      {
-        path: "designation",
-      },
-      {
-        path: "branch",
-      },
-    ],
-  },
-  {
-    path: "company",
-  },
-];
+    if (existingCashInfo) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Same cash payment setup already exists for this employee",
+      );
+    }
+  }
 
-const createEmployeeBankInfoIntoDB = async (
-  payload: TCreateEmployeeBankInfoPayload,
-) => {
-  const { employeeObjectId, companyObjectId } = await ensureEmployeeAndCompany(
-    payload.employee,
-    payload.company,
-  );
+  /**
+   * =====================================================
+   * Primary Logic
+   * =====================================================
+   */
 
-  const isPrimary = payload.isPrimary ?? true;
-  const status = payload.status ?? "active";
-
-  validatePaymentModeDetails({
-    ...payload,
-    employee: employeeObjectId,
-    company: companyObjectId,
-    isPrimary,
-    status,
+  const existingPrimary = await EmployeeBankInfo.findOne({
+    employee: payload.employee,
+    isPrimary: true,
+    isDeleted: false,
+    status: "active",
   });
 
-  if (isPrimary && status === "active") {
-    await clearOtherPrimaryPaymentInfos(employeeObjectId);
+  let isPrimary = false;
+
+  /**
+   * First active payment info
+   */
+  if (!existingPrimary && payload.status === "active") {
+    isPrimary = true;
+  }
+
+  /**
+   * Explicit primary request
+   */
+  if (payload.isPrimary === true) {
+    isPrimary = true;
+
+    await EmployeeBankInfo.updateMany(
+      {
+        employee: payload.employee,
+        isPrimary: true,
+      },
+      {
+        $set: {
+          isPrimary: false,
+        },
+      },
+    );
   }
 
   const result = await EmployeeBankInfo.create({
     ...payload,
-    employee: employeeObjectId,
-    company: companyObjectId,
     isPrimary,
-    status,
+    createdBy,
   });
 
-  const populatedResult = await EmployeeBankInfo.findById(result._id).populate(
-    populateEmployeeBankInfoQuery(),
-  );
-
-  return populatedResult;
+  return result;
 };
 
-const getAllEmployeeBankInfosFromDB = async (
-  filters: TEmployeeBankInfoQueryFilters = {},
-) => {
-  const query: TEmployeeBankInfoDBQuery = {
+const getAllEmployeeBankInfos = async (query: Record<string, unknown>) => {
+  const filter: Record<string, unknown> = {
     isDeleted: false,
   };
 
-  const employee = getStringQueryValue(filters, "employee");
-  const company = getStringQueryValue(filters, "company");
-  const paymentMode = getStringQueryValue(filters, "paymentMode");
-  const status = getStringQueryValue(filters, "status");
-  const isPrimary = getStringQueryValue(filters, "isPrimary");
-
-  if (employee) {
-    query.employee = toObjectId(employee, "employee ID");
+  if (query.employee) {
+    filter.employee = query.employee;
   }
 
-  if (company) {
-    query.company = toObjectId(company, "company ID");
+  if (query.company) {
+    filter.company = query.company;
   }
 
-  if (paymentMode) {
-    query.paymentMode = paymentMode as TEmployeePaymentMode;
+  if (query.paymentMode) {
+    filter.paymentMode = query.paymentMode;
   }
 
-  if (status) {
-    query.status = status as TEmployeeBankInfoStatus;
+  if (query.status) {
+    filter.status = query.status;
   }
 
-  if (isPrimary) {
-    query.isPrimary = isPrimary === "true";
+  const result = await EmployeeBankInfo.find(filter)
+    .populate("employee")
+    .populate("company")
+    .sort({ createdAt: -1 });
+
+  return result;
+};
+
+const getSingleEmployeeBankInfo = async (id: string) => {
+  const result = await EmployeeBankInfo.findOne({
+    _id: id,
+    isDeleted: false,
+  })
+    .populate("employee")
+    .populate("company");
+
+  if (!result) {
+    throw new AppError(httpStatus.NOT_FOUND, "Employee bank info not found");
   }
 
-  const result = await EmployeeBankInfo.find(query)
-    .populate(populateEmployeeBankInfoQuery())
-    .sort({
-      isPrimary: -1,
-      effectiveFrom: -1,
-      createdAt: -1,
+  return result;
+};
+
+const updateEmployeeBankInfo = async (
+  id: string,
+  payload: Partial<TEmployeeBankInfo>,
+) => {
+  const existingData = await EmployeeBankInfo.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!existingData) {
+    throw new AppError(httpStatus.NOT_FOUND, "Employee bank info not found");
+  }
+
+  /**
+   * =====================================================
+   * Duplicate Check During Update
+   * =====================================================
+   */
+
+  const employee = payload.employee || existingData.employee;
+
+  const paymentMode = payload.paymentMode || existingData.paymentMode;
+
+  if (paymentMode === "bank") {
+    const duplicateBank = await EmployeeBankInfo.findOne({
+      _id: { $ne: id },
+      employee,
+      paymentMode: "bank",
+      bankName: payload.bankName || existingData.bankName,
+      bankBranchCode: payload.bankBranchCode || existingData.bankBranchCode,
+      accountNo: payload.accountNo || existingData.accountNo,
+      processBankBranchNo:
+        payload.processBankBranchNo || existingData.processBankBranchNo,
+      isDeleted: false,
     });
 
-  return result;
-};
-
-const getSingleEmployeeBankInfoFromDB = async (id: string) => {
-  const employeeBankInfoObjectId = toObjectId(id, "employee bank info ID");
-
-  const result = await EmployeeBankInfo.findOne({
-    _id: employeeBankInfoObjectId,
-    isDeleted: false,
-  }).populate(populateEmployeeBankInfoQuery());
-
-  if (!result) {
-    throw new AppError(404, "Employee bank info not found");
+    if (duplicateBank) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Same bank account information already exists for this employee",
+      );
+    }
   }
 
+  if (paymentMode === "mobile_banking") {
+    const duplicateMobile = await EmployeeBankInfo.findOne({
+      _id: { $ne: id },
+      employee,
+      paymentMode: "mobile_banking",
+      mobileBankingProvider:
+        payload.mobileBankingProvider || existingData.mobileBankingProvider,
+      mobileBankingNo: payload.mobileBankingNo || existingData.mobileBankingNo,
+      isDeleted: false,
+    });
+
+    if (duplicateMobile) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Same mobile banking information already exists for this employee",
+      );
+    }
+  }
+
+  if (paymentMode === "cash") {
+    const duplicateCash = await EmployeeBankInfo.findOne({
+      _id: { $ne: id },
+      employee,
+      paymentMode: "cash",
+      cashPayReason: payload.cashPayReason || existingData.cashPayReason,
+      isDeleted: false,
+    });
+
+    if (duplicateCash) {
+      throw new AppError(
+        httpStatus.CONFLICT,
+        "Same cash payment setup already exists for this employee",
+      );
+    }
+  }
+
+  /**
+   * =====================================================
+   * Primary Update Logic
+   * =====================================================
+   */
+
+  if (payload.isPrimary === true) {
+    await EmployeeBankInfo.updateMany(
+      {
+        employee,
+        _id: { $ne: id },
+        isPrimary: true,
+      },
+      {
+        $set: {
+          isPrimary: false,
+        },
+      },
+    );
+  }
+
+  const result = await EmployeeBankInfo.findByIdAndUpdate(id, payload, {
+    new: true,
+    runValidators: true,
+  });
+
   return result;
 };
 
-const updateEmployeeBankInfoIntoDB = async (
-  id: string,
-  payload: TUpdateEmployeeBankInfoPayload,
-) => {
-  const employeeBankInfoObjectId = toObjectId(id, "employee bank info ID");
-
-  const existingEmployeeBankInfo = await EmployeeBankInfo.findOne({
-    _id: employeeBankInfoObjectId,
+const deleteEmployeeBankInfo = async (id: string) => {
+  const existingData = await EmployeeBankInfo.findOne({
+    _id: id,
     isDeleted: false,
   });
 
-  if (!existingEmployeeBankInfo) {
-    throw new AppError(404, "Employee bank info not found");
+  if (!existingData) {
+    throw new AppError(httpStatus.NOT_FOUND, "Employee bank info not found");
   }
 
-  const nextEmployee = payload.employee ?? existingEmployeeBankInfo.employee;
-  const nextCompany = payload.company ?? existingEmployeeBankInfo.company;
-
-  const { employeeObjectId, companyObjectId } = await ensureEmployeeAndCompany(
-    nextEmployee,
-    nextCompany,
-  );
-
-  const nextData: Partial<TEmployeeBankInfo> = {
-    employee: employeeObjectId,
-    company: companyObjectId,
-    accountName: payload.accountName ?? existingEmployeeBankInfo.accountName,
-    bankName: payload.bankName ?? existingEmployeeBankInfo.bankName,
-    bankBranchName:
-      payload.bankBranchName ?? existingEmployeeBankInfo.bankBranchName,
-    bankBranchCode:
-      payload.bankBranchCode ?? existingEmployeeBankInfo.bankBranchCode,
-    accountNo: payload.accountNo ?? existingEmployeeBankInfo.accountNo,
-    processBankBranchNo:
-      payload.processBankBranchNo ??
-      existingEmployeeBankInfo.processBankBranchNo,
-    routingNo: payload.routingNo ?? existingEmployeeBankInfo.routingNo,
-    paymentMode: payload.paymentMode ?? existingEmployeeBankInfo.paymentMode,
-    mobileBankingProvider:
-      payload.mobileBankingProvider ??
-      existingEmployeeBankInfo.mobileBankingProvider,
-    mobileBankingNo:
-      payload.mobileBankingNo ?? existingEmployeeBankInfo.mobileBankingNo,
-    cashPayReason:
-      payload.cashPayReason ?? existingEmployeeBankInfo.cashPayReason,
-    effectiveFrom:
-      payload.effectiveFrom ?? existingEmployeeBankInfo.effectiveFrom,
-    effectiveTo: payload.effectiveTo ?? existingEmployeeBankInfo.effectiveTo,
-    isPrimary: payload.isPrimary ?? existingEmployeeBankInfo.isPrimary,
-    status: payload.status ?? existingEmployeeBankInfo.status,
-  };
-
-  validatePaymentModeDetails(nextData);
-
-  if (nextData.isPrimary && nextData.status === "active") {
-    await clearOtherPrimaryPaymentInfos(employeeObjectId, id);
-  }
-
-  const result = await EmployeeBankInfo.findOneAndUpdate(
-    {
-      _id: employeeBankInfoObjectId,
-      isDeleted: false,
-    },
-    {
-      ...payload,
-      employee: employeeObjectId,
-      company: companyObjectId,
-    },
-    {
-      new: true,
-      runValidators: true,
-    },
-  ).populate(populateEmployeeBankInfoQuery());
-
-  if (!result) {
-    throw new AppError(404, "Employee bank info not found");
-  }
-
-  return result;
-};
-
-const deleteEmployeeBankInfoFromDB = async (id: string) => {
-  const employeeBankInfoObjectId = toObjectId(id, "employee bank info ID");
-
-  const result = await EmployeeBankInfo.findOneAndUpdate(
-    {
-      _id: employeeBankInfoObjectId,
-      isDeleted: false,
-    },
+  const result = await EmployeeBankInfo.findByIdAndUpdate(
+    id,
     {
       isDeleted: true,
-      status: "inactive",
       isPrimary: false,
     },
     {
       new: true,
     },
-  ).populate(populateEmployeeBankInfoQuery());
+  );
 
-  if (!result) {
-    throw new AppError(404, "Employee bank info not found");
+  /**
+   * If deleted record was primary,
+   * assign another active payment info as primary
+   */
+
+  if (existingData.isPrimary) {
+    const anotherActiveInfo = await EmployeeBankInfo.findOne({
+      employee: existingData.employee,
+      isDeleted: false,
+      status: "active",
+    });
+
+    if (anotherActiveInfo) {
+      await EmployeeBankInfo.findByIdAndUpdate(anotherActiveInfo._id, {
+        isPrimary: true,
+      });
+    }
   }
 
   return result;
 };
 
 export const EmployeeBankInfoServices = {
-  createEmployeeBankInfoIntoDB,
-  getAllEmployeeBankInfosFromDB,
-  getSingleEmployeeBankInfoFromDB,
-  updateEmployeeBankInfoIntoDB,
-  deleteEmployeeBankInfoFromDB,
+  createEmployeeBankInfo,
+  getAllEmployeeBankInfos,
+  getSingleEmployeeBankInfo,
+  updateEmployeeBankInfo,
+  deleteEmployeeBankInfo,
 };
