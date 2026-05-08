@@ -1,126 +1,131 @@
 import { Request, Response } from "express";
-import catchAsync from "../../utils/catchAsync";
-import sendResponse from "../../utils/sendResponse";
-import { PayrollService } from "./payroll.service";
 
-const getSingleParam = (value: string | string[] | undefined) => {
-  if (!value) return "";
-  return Array.isArray(value) ? value[0] : value;
-};
+import catchAsync from "../../utils/catchAsync";
+
+import sendResponse from "../../utils/sendResponse";
+
+import { PayrollServices } from "./payroll.service";
 
 const processPayrollById = catchAsync(async (req: Request, res: Response) => {
-  const payrollId = getSingleParam(req.params.id);
-  const remarks = req.body?.remarks;
-  const actionBy =
-    (req as any)?.user?.userId || req.body?.actionBy || undefined;
+  const payrollId = req.params.id as string;
 
-  const result = await PayrollService.processPayrollByIdFromDB(
+  const user = (
+    req as Request & {
+      user?: {
+        userId?: string;
+      };
+    }
+  ).user;
+
+  const result = await PayrollServices.processPayrollByIdFromDB(
     payrollId,
-    remarks,
-    actionBy,
+    user?.userId,
   );
 
   sendResponse(res, {
     statusCode: 200,
+
     success: true,
+
     message: "Payroll processed successfully",
+
     data: result,
   });
 });
 
 const approvePayrollById = catchAsync(async (req: Request, res: Response) => {
-  const payrollId = getSingleParam(req.params.id);
-  const remarks = req.body?.remarks;
-  const approvedBy =
-    (req as any)?.user?.userId || req.body?.approvedBy || undefined;
+  const payrollId = req.params.id as string;
 
-  const result = await PayrollService.approvePayrollByIdFromDB(
+  const user = (
+    req as Request & {
+      user?: {
+        userId?: string;
+      };
+    }
+  ).user;
+
+  const result = await PayrollServices.approvePayrollByIdFromDB(
     payrollId,
-    approvedBy,
-    remarks,
+    user?.userId,
   );
 
   sendResponse(res, {
     statusCode: 200,
+
     success: true,
+
     message: "Payroll approved successfully",
+
     data: result,
   });
 });
 
 const markPayrollAsPaid = catchAsync(async (req: Request, res: Response) => {
-  const payrollId = getSingleParam(req.params.id);
-  const remarks = req.body?.remarks;
-  const actionBy =
-    (req as any)?.user?.userId || req.body?.actionBy || undefined;
-
-  const result = await PayrollService.markPayrollAsPaidFromDB(
-    payrollId,
-    remarks,
-    actionBy,
-  );
+  const result = await PayrollServices.markPayrollAsPaidFromDB();
 
   sendResponse(res, {
     statusCode: 200,
+
     success: true,
+
     message: "Payroll marked as paid successfully",
+
     data: result,
   });
 });
 
 const lockPayrollById = catchAsync(async (req: Request, res: Response) => {
-  const payrollId = getSingleParam(req.params.id);
-  const lockedBy =
-    (req as any)?.user?.userId || req.body?.lockedBy || undefined;
+  const payrollId = req.params.id as string;
 
-  const result = await PayrollService.lockPayrollByIdFromDB(
+  const user = (
+    req as Request & {
+      user?: {
+        userId?: string;
+      };
+    }
+  ).user;
+
+  const result = await PayrollServices.lockPayrollByIdFromDB(
     payrollId,
-    lockedBy,
+    user?.userId,
   );
 
   sendResponse(res, {
     statusCode: 200,
+
     success: true,
+
     message: "Payroll locked successfully",
+
     data: result,
   });
 });
 
 const unlockPayrollById = catchAsync(async (req: Request, res: Response) => {
-  const payrollId = getSingleParam(req.params.id);
-  const actionBy =
-    (req as any)?.user?.userId || req.body?.actionBy || undefined;
-
-  const result = await PayrollService.unlockPayrollByIdFromDB(
-    payrollId,
-    actionBy,
-  );
+  const result = await PayrollServices.unlockPayrollByIdFromDB();
 
   sendResponse(res, {
     statusCode: 200,
+
     success: true,
+
     message: "Payroll unlocked successfully",
+
     data: result,
   });
 });
 
 const approveMonthlyPayrollBatch = catchAsync(
   async (req: Request, res: Response) => {
-    const month = Number(req.body?.month);
-    const year = Number(req.body?.year);
-    const approvedBy =
-      (req as any)?.user?.userId || req.body?.approvedBy || undefined;
-
-    const result = await PayrollService.approveMonthlyPayrollBatchFromDB(
-      month,
-      year,
-      approvedBy,
-    );
+    const result = await PayrollServices.approveMonthlyPayrollBatchFromDB();
 
     sendResponse(res, {
       statusCode: 200,
+
       success: true,
+
       message: "Monthly payroll batch approved successfully",
+
       data: result,
     });
   },
@@ -128,56 +133,48 @@ const approveMonthlyPayrollBatch = catchAsync(
 
 const lockMonthlyPayrollBatch = catchAsync(
   async (req: Request, res: Response) => {
-    const month = Number(req.body?.month);
-    const year = Number(req.body?.year);
-    const lockedBy =
-      (req as any)?.user?.userId || req.body?.lockedBy || undefined;
-
-    const result = await PayrollService.lockMonthlyPayrollBatchFromDB(
-      month,
-      year,
-      lockedBy,
-    );
+    const result = await PayrollServices.lockMonthlyPayrollBatchFromDB();
 
     sendResponse(res, {
       statusCode: 200,
+
       success: true,
+
       message: "Monthly payroll batch locked successfully",
+
       data: result,
     });
   },
 );
 
 const updatePayrollById = catchAsync(async (req: Request, res: Response) => {
-  const payrollId = getSingleParam(req.params.id);
-  const actionBy =
-    (req as any)?.user?.userId || req.body?.actionBy || undefined;
-
-  const result = await PayrollService.updatePayrollByIdFromDB(
-    payrollId,
-    req.body,
-    actionBy,
-  );
+  const result = await PayrollServices.updatePayrollByIdFromDB();
 
   sendResponse(res, {
     statusCode: 200,
+
     success: true,
+
     message: "Payroll updated successfully",
+
     data: result,
   });
 });
 
 const getPayrollAuditTimeline = catchAsync(
   async (req: Request, res: Response) => {
-    const payrollId = getSingleParam(req.params.id);
+    const payrollId = req.params.id as string;
 
     const result =
-      await PayrollService.getPayrollAuditTimelineFromDB(payrollId);
+      await PayrollServices.getPayrollAuditTimelineFromDB(payrollId);
 
     sendResponse(res, {
       statusCode: 200,
+
       success: true,
+
       message: "Payroll audit timeline retrieved successfully",
+
       data: result,
     });
   },
@@ -185,12 +182,20 @@ const getPayrollAuditTimeline = catchAsync(
 
 export const PayrollController = {
   processPayrollById,
+
   approvePayrollById,
+
   markPayrollAsPaid,
+
   lockPayrollById,
+
   unlockPayrollById,
+
   approveMonthlyPayrollBatch,
+
   lockMonthlyPayrollBatch,
+
   updatePayrollById,
+
   getPayrollAuditTimeline,
 };

@@ -1,454 +1,528 @@
-import { Types } from "mongoose";
+import mongoose from "mongoose";
+
 import AppError from "../../errors/AppError";
+
+import Employee from "../employee/employee.model";
+
+import SalaryStructure from "../salaryStructure/salaryStructure.model";
+
+import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
+
 import { Payroll } from "./payroll.model";
+
 import { TPayrollAuditAction, TPayrollStatus } from "./payroll.interface";
 
-const HTTP_STATUS = {
-  BAD_REQUEST: 400,
-  NOT_FOUND: 404,
+const calculateOTAmount = ({
+  otHours,
+  otRate,
+}: {
+  otHours: number;
+
+  otRate: number;
+}) => {
+  return Number((Number(otHours || 0) * Number(otRate || 0)).toFixed(2));
 };
 
-const buildPayrollMonth = (month: number, year: number) => {
-  const paddedMonth = String(month).padStart(2, "0");
-  return `${year}-${paddedMonth}`;
-};
+const addPayrollAuditLog = ({
+  payroll,
+  action,
+  fromStatus,
+  toStatus,
+  actionBy,
+  note,
+}: {
+  payroll: any;
 
-const validateMonthYear = (month: number, year: number) => {
-  if (!month || !year) {
-    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Month and year are required.");
-  }
+  action: TPayrollAuditAction;
 
-  if (month < 1 || month > 12) {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Month must be between 1 and 12.",
-    );
-  }
-};
+  fromStatus?: TPayrollStatus | null;
 
-const getValidObjectId = (id?: string) => {
-  if (!id) return null;
-  if (!Types.ObjectId.isValid(id)) return null;
-  return new Types.ObjectId(id);
-};
+  toStatus?: TPayrollStatus | null;
 
-const addAuditLog = (
-  payroll: any,
-  action: TPayrollAuditAction,
-  fromStatus: TPayrollStatus | null,
-  toStatus: TPayrollStatus | null,
-  actionBy?: string,
-  note?: string,
-) => {
+  actionBy?: string | null;
+
+  note?: string;
+}) => {
   payroll.auditLogs.push({
     action,
-    fromStatus,
-    toStatus,
-    actionBy: getValidObjectId(actionBy),
+
+    fromStatus: fromStatus || null,
+
+    toStatus: toStatus || null,
+
+    actionBy:
+      actionBy && mongoose.isValidObjectId(actionBy)
+        ? new mongoose.Types.ObjectId(actionBy)
+        : null,
+
     actionAt: new Date(),
+
     note: note || "",
   });
 };
 
-const ensurePayrollExists = async (id: string) => {
+const createPayrollIntoDB = async (payload: any, actionBy?: string) => {
+  const { employee, payrollMonth, remarks, otHours = 0, otRate = 0 } = payload;
+
+  if (!mongoose.isValidObjectId(employee)) {
+    throw new AppError(400, "Invalid employee ID");
+  }
+
+  const existingPayroll = await Payroll.findOne({
+    employee,
+    payrollMonth,
+    isDeleted: false,
+  });
+
+  if (existingPayroll) {
+    throw new AppError(
+      409,
+      "Payroll already exists for this employee and month",
+    );
+  }
+
+  const employeeData = await Employee.findOne({
+    _id: employee,
+    isDeleted: false,
+  })
+    .populate("company")
+    .populate("branch")
+    .populate("department")
+    .populate("designation");
+
+  if (!employeeData) {
+    throw new AppError(404, "Employee not found");
+  }
+
+  const salaryStructure = await SalaryStructure.findOne({
+    employee,
+    isDeleted: false,
+    isActive: true,
+  });
+
+  if (!salaryStructure) {
+    throw new AppError(404, "Active salary structure not found");
+  }
+
+  const employeeBankInfo = await EmployeeBankInfo.findOne({
+    employee,
+    isDeleted: false,
+    isActive: true,
+  });
+
+  const grossSalary = Number(salaryStructure.grossSalary || 0);
+
+  const fixedDeduction = Number(salaryStructure.totalDeduction || 0);
+
+  /*
+      ATTENDANCE DEDUCTION
+      FUTURE ENGINE PLACEHOLDER
+    */
+
+  const attendanceDeduction = 0;
+
+  const netSalary = grossSalary - fixedDeduction - attendanceDeduction;
+
+  /*
+      OT SNAPSHOT
+      (Currently optional compatibility layer)
+    */
+
+  const calculatedOTAmount = calculateOTAmount({
+    otHours: Number(otHours || 0),
+
+    otRate: Number(otRate || 0),
+  });
+
+  const finalPayableSalary = Number(
+    (netSalary + calculatedOTAmount).toFixed(2),
+  );
+
+  const payroll = await Payroll.create({
+    employee,
+
+    payrollMonth,
+
+    salaryStructure: salaryStructure._id,
+
+    grossSalary,
+
+    fixedDeduction,
+
+    attendanceDeduction,
+
+    netSalary,
+
+    payableSalary: netSalary,
+
+    /*
+          OT SNAPSHOT
+        */
+
+    otHours: Number(otHours || 0),
+
+    otRate: Number(otRate || 0),
+
+    otAmount: calculatedOTAmount,
+
+    finalPayableSalary,
+
+    status: "draft",
+
+    remarks: remarks || "",
+
+    isLocked: false,
+
+    auditLogs: [
+      {
+        action: "generated",
+
+        fromStatus: null,
+
+        toStatus: "draft",
+
+        actionBy:
+          actionBy && mongoose.isValidObjectId(actionBy)
+            ? new mongoose.Types.ObjectId(actionBy)
+            : null,
+
+        actionAt: new Date(),
+
+        note: "Payroll generated",
+      },
+    ],
+
+    snapshot: {
+      employee: {
+        employeeDbId: employeeData?._id?.toString?.(),
+
+        employeeId: employeeData?.employeeId || "",
+
+        employeeName: [
+          employeeData?.name?.firstName || "",
+
+          employeeData?.name?.middleName || "",
+
+          employeeData?.name?.lastName || "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
+
+        company: employeeData?.company
+          ? {
+              id: (employeeData.company as any)?._id?.toString?.() || "",
+
+              name: (employeeData.company as any)?.name || "",
+            }
+          : null,
+
+        branch: employeeData?.branch
+          ? {
+              id: (employeeData.branch as any)?._id?.toString?.() || "",
+
+              name: (employeeData.branch as any)?.name || "",
+            }
+          : null,
+
+        department: employeeData?.department
+          ? {
+              id: (employeeData.department as any)?._id?.toString?.() || "",
+
+              name: (employeeData.department as any)?.name || "",
+            }
+          : null,
+
+        designation: employeeData?.designation
+          ? {
+              id: (employeeData.designation as any)?._id?.toString?.() || "",
+
+              name: (employeeData.designation as any)?.name || "",
+            }
+          : null,
+
+        employmentStatus: employeeData?.employmentStatus || "",
+
+        joiningDate: employeeData?.joiningDate || null,
+      },
+
+      salary: {
+        grossSalary,
+
+        fixedDeduction,
+
+        attendanceDeduction,
+
+        netSalary,
+
+        payableSalary: netSalary,
+
+        /*
+              OT SNAPSHOT
+            */
+
+        otHours: Number(otHours || 0),
+
+        otRate: Number(otRate || 0),
+
+        otAmount: calculatedOTAmount,
+
+        finalPayableSalary,
+
+        salaryStructureId: salaryStructure?._id?.toString?.() || "",
+      },
+
+      payment: employeeBankInfo
+        ? {
+            paymentMode: employeeBankInfo.paymentMode || null,
+
+            bankName: employeeBankInfo.bankName || null,
+
+            bankBranchName: employeeBankInfo.bankBranchName || null,
+
+            bankBranchCode: employeeBankInfo.bankBranchCode || null,
+
+            accountName: employeeBankInfo.accountName || null,
+
+            accountNo: employeeBankInfo.accountNo || null,
+
+            routingNo: employeeBankInfo.routingNo || null,
+
+            mobileBankingNo: employeeBankInfo.mobileBankingNo || null,
+          }
+        : null,
+    },
+
+    isDeleted: false,
+  });
+
+  return payroll;
+};
+
+const processPayrollIntoDB = async (id: string, actionBy?: string) => {
   const payroll = await Payroll.findOne({
     _id: id,
     isDeleted: false,
   });
 
   if (!payroll) {
-    throw new AppError(HTTP_STATUS.NOT_FOUND, "Payroll record not found.");
+    throw new AppError(404, "Payroll not found");
   }
 
-  return payroll;
-};
-
-const ensureNotLocked = (payroll: any) => {
   if (payroll.isLocked) {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "This payroll is locked and cannot be modified.",
-    );
-  }
-};
-
-const ensureEditablePayroll = (payroll: any) => {
-  if (payroll.isLocked) {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Locked payroll cannot be edited.",
-    );
-  }
-
-  if (payroll.status === "approved" || payroll.status === "paid") {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Approved or paid payroll cannot be edited directly.",
-    );
-  }
-};
-
-const processPayrollByIdFromDB = async (
-  payrollId: string,
-  remarks?: string,
-  actionBy?: string,
-) => {
-  const payroll = await ensurePayrollExists(payrollId);
-  ensureNotLocked(payroll);
-
-  if (payroll.status !== "draft") {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Only draft payroll can be processed.",
-    );
+    throw new AppError(400, "Locked payroll cannot be processed");
   }
 
   const previousStatus = payroll.status;
 
   payroll.status = "processed";
 
-  if (remarks !== undefined) {
-    payroll.remarks = remarks;
-  }
-
-  addAuditLog(
+  addPayrollAuditLog({
     payroll,
-    "processed",
-    previousStatus,
-    payroll.status,
+
+    action: "processed",
+
+    fromStatus: previousStatus,
+
+    toStatus: "processed",
+
     actionBy,
-    remarks,
-  );
+
+    note: "Payroll processed",
+  });
 
   await payroll.save();
 
   return payroll;
 };
 
-const approvePayrollByIdFromDB = async (
-  payrollId: string,
-  approvedBy?: string,
-  remarks?: string,
-) => {
-  const payroll = await ensurePayrollExists(payrollId);
-  ensureNotLocked(payroll);
+const approvePayrollIntoDB = async (id: string, actionBy?: string) => {
+  const payroll = await Payroll.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!payroll) {
+    throw new AppError(404, "Payroll not found");
+  }
 
   if (payroll.status !== "processed") {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Only processed payroll can be approved.",
-    );
+    throw new AppError(400, "Only processed payroll can be approved");
   }
 
   const previousStatus = payroll.status;
 
   payroll.status = "approved";
+
+  payroll.approvedBy =
+    actionBy && mongoose.isValidObjectId(actionBy)
+      ? new mongoose.Types.ObjectId(actionBy)
+      : null;
+
   payroll.approvedAt = new Date();
-  payroll.approvedBy = getValidObjectId(approvedBy);
 
-  if (remarks !== undefined) {
-    payroll.remarks = remarks;
-  }
-
-  addAuditLog(
+  addPayrollAuditLog({
     payroll,
-    "approved",
-    previousStatus,
-    payroll.status,
-    approvedBy,
-    remarks,
-  );
 
-  await payroll.save();
+    action: "approved",
 
-  return payroll;
-};
+    fromStatus: previousStatus,
 
-const markPayrollAsPaidFromDB = async (
-  payrollId: string,
-  remarks?: string,
-  actionBy?: string,
-) => {
-  const payroll = await ensurePayrollExists(payrollId);
-  ensureNotLocked(payroll);
+    toStatus: "approved",
 
-  if (payroll.status !== "approved") {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Only approved payroll can be marked as paid.",
-    );
-  }
-
-  const previousStatus = payroll.status;
-
-  payroll.status = "paid";
-
-  if (remarks !== undefined) {
-    payroll.remarks = remarks;
-  }
-
-  addAuditLog(
-    payroll,
-    "paid",
-    previousStatus,
-    payroll.status,
     actionBy,
-    remarks,
-  );
+
+    note: "Payroll approved",
+  });
 
   await payroll.save();
 
   return payroll;
 };
 
-const lockPayrollByIdFromDB = async (payrollId: string, lockedBy?: string) => {
-  const payroll = await ensurePayrollExists(payrollId);
+const lockPayrollIntoDB = async (id: string, actionBy?: string) => {
+  const payroll = await Payroll.findOne({
+    _id: id,
+    isDeleted: false,
+  });
 
-  if (payroll.isLocked) {
-    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Payroll is already locked.");
-  }
-
-  if (payroll.status !== "approved" && payroll.status !== "paid") {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "Only approved or paid payroll can be locked.",
-    );
+  if (!payroll) {
+    throw new AppError(404, "Payroll not found");
   }
 
   payroll.isLocked = true;
+
+  payroll.lockedBy =
+    actionBy && mongoose.isValidObjectId(actionBy)
+      ? new mongoose.Types.ObjectId(actionBy)
+      : null;
+
   payroll.lockedAt = new Date();
-  payroll.lockedBy = getValidObjectId(lockedBy);
 
-  addAuditLog(
+  addPayrollAuditLog({
     payroll,
-    "locked",
-    payroll.status,
-    payroll.status,
-    lockedBy,
-    "Payroll locked",
-  );
 
-  await payroll.save();
+    action: "locked",
 
-  return payroll;
-};
+    fromStatus: payroll.status,
 
-const unlockPayrollByIdFromDB = async (
-  payrollId: string,
-  actionBy?: string,
-) => {
-  const payroll = await ensurePayrollExists(payrollId);
+    toStatus: payroll.status,
 
-  if (!payroll.isLocked) {
-    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Payroll is already unlocked.");
-  }
-
-  payroll.isLocked = false;
-  payroll.lockedAt = null;
-  payroll.lockedBy = null;
-
-  addAuditLog(
-    payroll,
-    "unlocked",
-    payroll.status,
-    payroll.status,
     actionBy,
-    "Payroll unlocked",
-  );
 
-  await payroll.save();
-
-  return payroll;
-};
-
-const approveMonthlyPayrollBatchFromDB = async (
-  month: number,
-  year: number,
-  approvedBy?: string,
-) => {
-  validateMonthYear(month, year);
-
-  const payrollMonth = buildPayrollMonth(month, year);
-
-  const payrolls = await Payroll.find({
-    payrollMonth,
-    isDeleted: false,
-    status: "processed",
-    isLocked: false,
+    note: "Payroll locked",
   });
 
-  if (!payrolls.length) {
-    throw new AppError(
-      HTTP_STATUS.NOT_FOUND,
-      "No processed payroll found for this month.",
-    );
-  }
-
-  const updatedPayrolls = [];
-
-  for (const payroll of payrolls) {
-    const previousStatus = payroll.status;
-
-    payroll.status = "approved";
-    payroll.approvedAt = new Date();
-    payroll.approvedBy = getValidObjectId(approvedBy);
-
-    addAuditLog(
-      payroll,
-      "approved",
-      previousStatus,
-      payroll.status,
-      approvedBy,
-      "Monthly batch approval",
-    );
-
-    await payroll.save();
-    updatedPayrolls.push(payroll);
-  }
-
-  return {
-    payrollMonth,
-    totalApproved: updatedPayrolls.length,
-    data: updatedPayrolls,
-  };
-};
-
-const lockMonthlyPayrollBatchFromDB = async (
-  month: number,
-  year: number,
-  lockedBy?: string,
-) => {
-  validateMonthYear(month, year);
-
-  const payrollMonth = buildPayrollMonth(month, year);
-
-  const payrolls = await Payroll.find({
-    payrollMonth,
-    isDeleted: false,
-    isLocked: false,
-    $or: [{ status: "approved" }, { status: "paid" }],
-  });
-
-  if (!payrolls.length) {
-    throw new AppError(
-      HTTP_STATUS.NOT_FOUND,
-      "No approved or paid payroll found for this month to lock.",
-    );
-  }
-
-  const updatedPayrolls = [];
-
-  for (const payroll of payrolls) {
-    payroll.isLocked = true;
-    payroll.lockedAt = new Date();
-    payroll.lockedBy = getValidObjectId(lockedBy);
-
-    addAuditLog(
-      payroll,
-      "locked",
-      payroll.status,
-      payroll.status,
-      lockedBy,
-      "Monthly batch lock",
-    );
-
-    await payroll.save();
-    updatedPayrolls.push(payroll);
-  }
-
-  return {
-    payrollMonth,
-    totalLocked: updatedPayrolls.length,
-    data: updatedPayrolls,
-  };
-};
-
-const updatePayrollByIdFromDB = async (
-  payrollId: string,
-  payload: {
-    grossSalary?: number;
-    fixedDeduction?: number;
-    attendanceDeduction?: number;
-    netSalary?: number;
-    payableSalary?: number;
-    remarks?: string;
-  },
-  actionBy?: string,
-) => {
-  const payroll = await ensurePayrollExists(payrollId);
-  ensureEditablePayroll(payroll);
-
-  const allowedFields = [
-    "grossSalary",
-    "fixedDeduction",
-    "attendanceDeduction",
-    "netSalary",
-    "payableSalary",
-    "remarks",
-  ] as const;
-
-  let hasChanges = false;
-
-  for (const field of allowedFields) {
-    if (payload[field] !== undefined) {
-      payroll[field] = payload[field] as never;
-      hasChanges = true;
-    }
-  }
-
-  if (!hasChanges) {
-    throw new AppError(
-      HTTP_STATUS.BAD_REQUEST,
-      "No valid payroll fields provided for update.",
-    );
-  }
-
-  addAuditLog(
-    payroll,
-    "updated",
-    payroll.status,
-    payroll.status,
-    actionBy,
-    payload.remarks || "Payroll updated",
-  );
-
   await payroll.save();
 
   return payroll;
 };
 
-const getPayrollAuditTimelineFromDB = async (payrollId: string) => {
-  const payroll = await Payroll.findOne({
-    _id: payrollId,
+const getAllPayrollFromDB = async () => {
+  return Payroll.find({
     isDeleted: false,
   })
     .populate("employee")
-    .populate("approvedBy")
-    .populate("lockedBy")
-    .populate("auditLogs.actionBy");
+    .populate("salaryStructure")
+    .sort({
+      createdAt: -1,
+    });
+};
+
+const getSinglePayrollFromDB = async (id: string) => {
+  const payroll = await Payroll.findOne({
+    _id: id,
+    isDeleted: false,
+  })
+    .populate("employee")
+    .populate("salaryStructure");
 
   if (!payroll) {
-    throw new AppError(HTTP_STATUS.NOT_FOUND, "Payroll record not found.");
+    throw new AppError(404, "Payroll not found");
+  }
+
+  return payroll;
+};
+
+const getPayrollAuditTimelineFromDB = async (id: string) => {
+  const payroll = await Payroll.findOne({
+    _id: id,
+    isDeleted: false,
+  })
+    .populate("auditLogs.actionBy")
+    .populate("employee");
+
+  if (!payroll) {
+    throw new AppError(404, "Payroll not found");
   }
 
   return {
-    payrollId: payroll._id,
-    payrollMonth: payroll.payrollMonth,
-    status: payroll.status,
-    isLocked: payroll.isLocked,
-    employee: payroll.employee,
-    auditLogs: payroll.auditLogs,
+    payrollId: payroll?._id,
+
+    employee: payroll?.employee,
+
+    payrollMonth: payroll?.payrollMonth,
+
+    status: payroll?.status,
+
+    auditLogs: payroll?.auditLogs || [],
   };
 };
 
-export const PayrollService = {
-  processPayrollByIdFromDB,
-  approvePayrollByIdFromDB,
-  markPayrollAsPaidFromDB,
-  lockPayrollByIdFromDB,
-  unlockPayrollByIdFromDB,
-  approveMonthlyPayrollBatchFromDB,
-  lockMonthlyPayrollBatchFromDB,
-  updatePayrollByIdFromDB,
+export const PayrollServices = {
+  /*
+    CREATE
+  */
+
+  createPayrollIntoDB,
+
+  /*
+    CONTROLLER COMPATIBILITY
+  */
+
+  processPayrollByIdFromDB: processPayrollIntoDB,
+
+  approvePayrollByIdFromDB: approvePayrollIntoDB,
+
+  lockPayrollByIdFromDB: lockPayrollIntoDB,
+
+  /*
+    TEMP PLACEHOLDER METHODS
+  */
+
+  async markPayrollAsPaidFromDB() {
+    throw new AppError(501, "markPayrollAsPaidFromDB is not implemented yet.");
+  },
+
+  async unlockPayrollByIdFromDB() {
+    throw new AppError(501, "unlockPayrollByIdFromDB is not implemented yet.");
+  },
+
+  async approveMonthlyPayrollBatchFromDB() {
+    throw new AppError(
+      501,
+      "approveMonthlyPayrollBatchFromDB is not implemented yet.",
+    );
+  },
+
+  async lockMonthlyPayrollBatchFromDB() {
+    throw new AppError(
+      501,
+      "lockMonthlyPayrollBatchFromDB is not implemented yet.",
+    );
+  },
+
+  async updatePayrollByIdFromDB() {
+    throw new AppError(501, "updatePayrollByIdFromDB is not implemented yet.");
+  },
+
+  /*
+    READ
+  */
+
+  getAllPayrollFromDB,
+
+  getSinglePayrollFromDB,
+
   getPayrollAuditTimelineFromDB,
 };

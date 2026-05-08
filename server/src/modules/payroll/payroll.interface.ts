@@ -13,10 +13,15 @@ export type TPayrollAuditAction =
 
 export interface TPayrollAuditLog {
   action: TPayrollAuditAction;
+
   fromStatus?: TPayrollStatus | null;
+
   toStatus?: TPayrollStatus | null;
+
   actionBy?: Types.ObjectId | null;
+
   actionAt: Date;
+
   note?: string;
 }
 
@@ -65,6 +70,18 @@ export type TPayrollSalarySnapshot = {
 
   payableSalary?: number;
 
+  /*
+      OT SNAPSHOT
+    */
+
+  otHours?: number;
+
+  otRate?: number;
+
+  otAmount?: number;
+
+  finalPayableSalary?: number;
+
   salaryStructureId?: string | null;
 };
 
@@ -112,6 +129,18 @@ export interface TPayroll {
   netSalary: number;
 
   payableSalary: number;
+
+  /*
+    OT ENGINE
+  */
+
+  otHours?: number;
+
+  otRate?: number;
+
+  otAmount?: number;
+
+  finalPayableSalary?: number;
 
   status: TPayrollStatus;
 
