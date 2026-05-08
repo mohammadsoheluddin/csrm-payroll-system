@@ -1,24 +1,19 @@
 import express from "express";
 
 import auth from "../../middleware/auth";
+import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
-
-import { USER_ROLE } from "../user/user.constant";
+import { PERMISSIONS } from "../user/user.constant";
 
 import { CompanyBankAccountControllers } from "./companyBankAccount.controller";
-
 import { CompanyBankAccountValidations } from "./companyBankAccount.validation";
 
 const router = express.Router();
 
 router.post(
   "/",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.accounts,
-    USER_ROLE.hr,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_MANAGE),
   validateRequest(
     CompanyBankAccountValidations.createCompanyBankAccountValidationSchema,
   ),
@@ -27,34 +22,22 @@ router.post(
 
 router.get(
   "/",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.accounts,
-    USER_ROLE.hr,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_READ),
   CompanyBankAccountControllers.getAllCompanyBankAccounts,
 );
 
 router.get(
   "/:id",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.accounts,
-    USER_ROLE.hr,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_READ),
   CompanyBankAccountControllers.getSingleCompanyBankAccount,
 );
 
 router.patch(
   "/:id",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.accounts,
-    USER_ROLE.hr,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_MANAGE),
   validateRequest(
     CompanyBankAccountValidations.updateCompanyBankAccountValidationSchema,
   ),
@@ -63,7 +46,8 @@ router.patch(
 
 router.delete(
   "/:id",
-  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.accounts),
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_MANAGE),
   CompanyBankAccountControllers.deleteCompanyBankAccount,
 );
 

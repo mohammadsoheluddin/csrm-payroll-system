@@ -5,6 +5,7 @@ import attendanceRoutes from "../modules/attendance/attendance.route";
 import authRoutes from "../modules/auth/auth.route";
 import branchRoutes from "../modules/branch/branch.route";
 import companyRoutes from "../modules/company/company.route";
+import { CompanyBankAccountRoutes } from "../modules/companyBankAccount/companyBankAccount.route";
 import departmentRoutes from "../modules/department/department.route";
 import designationRoutes from "../modules/designation/designation.route";
 import employeeBankInfoRoutes from "../modules/employeeBankInfo/employeeBankInfo.route";
@@ -41,6 +42,10 @@ const moduleRoutes = [
   {
     path: "/companies",
     route: companyRoutes,
+  },
+  {
+    path: "/company-bank-accounts",
+    route: CompanyBankAccountRoutes,
   },
   {
     path: "/major-departments",

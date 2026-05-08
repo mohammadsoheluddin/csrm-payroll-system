@@ -5,6 +5,15 @@ export const buildPayrollMonth = (month: number, year: number) => {
   return `${year}-${paddedMonth}`;
 };
 
+export const getMonthLabel = (month: number, year: number) => {
+  const date = new Date(year, month - 1, 1);
+
+  return date.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+};
+
 export const normalizeText = (value?: unknown) => {
   if (value === undefined || value === null) {
     return "";

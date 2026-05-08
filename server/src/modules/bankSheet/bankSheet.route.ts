@@ -18,5 +18,15 @@ router.get(
   BankSheetControllers.generateSalaryBankSheetPreview,
 );
 
+router.get(
+  "/salary/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.BANK_SHEET_EXPORT),
+  validateRequest(
+    BankSheetValidations.generateBankSheetPreviewValidationSchema,
+  ),
+  BankSheetControllers.exportSalaryBankSheetExcel,
+);
+
 export const BankSheetRoutes = router;
 export default router;

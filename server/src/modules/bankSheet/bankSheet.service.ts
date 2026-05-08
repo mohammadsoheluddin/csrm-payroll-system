@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import AppError from "../../errors/AppError";
+import { generateSalaryBankSheetExcel } from "./bankSheet.excel";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
 import { Payroll } from "../payroll/payroll.model";
 import {
@@ -8,6 +9,7 @@ import {
   BANK_SHEET_SUPPORTED_SOURCE_TYPE,
 } from "./bankSheet.constants";
 import {
+  TBankSheetExcelExportResult,
   TBankSheetExcludedRow,
   TBankSheetPaymentMode,
   TBankSheetPreview,
@@ -366,6 +368,30 @@ const generateSalaryBankSheetPreviewFromDB = async (
   };
 };
 
+const exportSalaryBankSheetExcelFromDB = async (
+  query: TGenerateBankSheetPreviewQuery,
+): Promise<TBankSheetExcelExportResult> => {
+  const preview = await generateSalaryBankSheetPreviewFromDB({
+    ...query,
+    paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
+  });
+
+  if (preview.summary.paymentMode !== "bank") {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Excel bank sheet export currently supports bank payment mode only.",
+    );
+  }
+
+  const excelFile = await generateSalaryBankSheetExcel(preview);
+
+  return {
+    ...excelFile,
+    reportData: preview,
+  };
+};
+
 export const BankSheetServices = {
   generateSalaryBankSheetPreviewFromDB,
+  exportSalaryBankSheetExcelFromDB,
 };

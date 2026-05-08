@@ -82,6 +82,13 @@ export type TBankSheetPreview = {
   excludedRows: TBankSheetExcludedRow[];
 };
 
+export type TBankSheetExcelExportResult = {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+  reportData: TBankSheetPreview;
+};
+
 export type TPopulatedPayrollForBankSheet = {
   _id: Types.ObjectId;
   employee: any;

@@ -20,33 +20,38 @@ const getSingleQueryValue = (value: unknown) => {
   return String(value);
 };
 
+const buildBankSheetQueryFromRequest = (req: Request) => {
+  const month = Number(getSingleQueryValue(req.query.month));
+  const year = Number(getSingleQueryValue(req.query.year));
+  const company = getSingleQueryValue(req.query.company) || "";
+  const department = getSingleQueryValue(req.query.department);
+  const branch = getSingleQueryValue(req.query.branch);
+  const bankName = getSingleQueryValue(req.query.bankName);
+  const sourceType = getSingleQueryValue(req.query.sourceType) as
+    | TBankSheetSourceType
+    | undefined;
+  const paymentMode = getSingleQueryValue(req.query.paymentMode) as
+    | TBankSheetPaymentMode
+    | undefined;
+
+  return {
+    sourceType,
+    month,
+    year,
+    company,
+    department,
+    branch,
+    bankName,
+    paymentMode,
+  };
+};
+
 const generateSalaryBankSheetPreview = catchAsync(
   async (req: Request, res: Response) => {
-    const month = Number(getSingleQueryValue(req.query.month));
-    const year = Number(getSingleQueryValue(req.query.year));
-    const company = getSingleQueryValue(req.query.company) || "";
-    const department = getSingleQueryValue(req.query.department);
-    const branch = getSingleQueryValue(req.query.branch);
-    const bankName = getSingleQueryValue(req.query.bankName);
-    const sourceType = getSingleQueryValue(req.query.sourceType) as
-      | TBankSheetSourceType
-      | undefined;
-    const paymentMode = getSingleQueryValue(req.query.paymentMode) as
-      | TBankSheetPaymentMode
-      | undefined;
+    const query = buildBankSheetQueryFromRequest(req);
 
-    const result = await BankSheetServices.generateSalaryBankSheetPreviewFromDB(
-      {
-        sourceType,
-        month,
-        year,
-        company,
-        department,
-        branch,
-        bankName,
-        paymentMode,
-      },
-    );
+    const result =
+      await BankSheetServices.generateSalaryBankSheetPreviewFromDB(query);
 
     await createAuditLogFromRequest(req, {
       module: "bank_sheet",
@@ -70,6 +75,38 @@ const generateSalaryBankSheetPreview = catchAsync(
   },
 );
 
+const exportSalaryBankSheetExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const query = buildBankSheetQueryFromRequest(req);
+
+    const result =
+      await BankSheetServices.exportSalaryBankSheetExcelFromDB(query);
+
+    await createAuditLogFromRequest(req, {
+      module: "bank_sheet",
+      action: "export",
+      entityName: result.reportData.summary.payrollMonth,
+      description: "Salary bank sheet Excel exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.reportData.filters,
+        summary: result.reportData.summary,
+        fileName: result.fileName,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const BankSheetControllers = {
   generateSalaryBankSheetPreview,
+  exportSalaryBankSheetExcel,
 };
