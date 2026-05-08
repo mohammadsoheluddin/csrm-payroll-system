@@ -326,6 +326,10 @@ const applyEmployeeMovementIntoDB = async (id: string, actionBy?: string) => {
 
   await employee.save();
 
+  /*
+      ENTERPRISE SALARY VERSIONING
+    */
+
   if (snapshot?.toSalary?.grossSalary) {
     const activeSalaryStructure = await SalaryStructure.findOne({
       employee: employee._id,
@@ -336,23 +340,45 @@ const applyEmployeeMovementIntoDB = async (id: string, actionBy?: string) => {
     });
 
     if (activeSalaryStructure) {
-      activeSalaryStructure.grossSalary = Number(
-        snapshot?.toSalary?.grossSalary || 0,
-      );
+      /*
+          OLD VERSION INACTIVE
+        */
 
-      if (snapshot?.toSalary?.basicSalary) {
-        activeSalaryStructure.basicSalary = Number(
-          snapshot?.toSalary?.basicSalary || 0,
-        );
-      }
-
-      if (snapshot?.toSalary?.netSalary) {
-        activeSalaryStructure.netSalary = Number(
-          snapshot?.toSalary?.netSalary || 0,
-        );
-      }
+      activeSalaryStructure.isActive = false;
 
       await activeSalaryStructure.save();
+
+      /*
+          CREATE NEW VERSION
+        */
+
+      await SalaryStructure.create({
+        employee: employee._id,
+
+        grossSalary: Number(snapshot?.toSalary?.grossSalary || 0),
+
+        basicSalary: Number(
+          snapshot?.toSalary?.basicSalary ||
+            activeSalaryStructure.basicSalary ||
+            0,
+        ),
+
+        houseRent: Number(activeSalaryStructure.houseRent || 0),
+
+        medicalAllowance: Number(activeSalaryStructure.medicalAllowance || 0),
+
+        netSalary: Number(
+          snapshot?.toSalary?.netSalary || activeSalaryStructure.netSalary || 0,
+        ),
+
+        taxDeduction: Number(activeSalaryStructure.taxDeduction || 0),
+
+        providentFund: Number(activeSalaryStructure.providentFund || 0),
+
+        isActive: true,
+
+        isDeleted: false,
+      });
     }
   }
 

@@ -1,19 +1,30 @@
 import mongoose from "mongoose";
+
 import AppError from "../../errors/AppError";
+
 import SalaryStructure from "./salaryStructure.model";
+
 import { TSalaryStructure } from "./salaryStructure.interface";
+
 import Employee from "../employee/employee.model";
 
 const calculateSalaryFields = (payload: Partial<TSalaryStructure>) => {
   const basicSalary = payload.basicSalary || 0;
+
   const houseRent = payload.houseRent || 0;
+
   const medicalAllowance = payload.medicalAllowance || 0;
+
   const transportAllowance = payload.transportAllowance || 0;
+
   const otherAllowance = payload.otherAllowance || 0;
 
   const taxDeduction = payload.taxDeduction || 0;
+
   const providentFund = payload.providentFund || 0;
+
   const loanDeduction = payload.loanDeduction || 0;
+
   const otherDeduction = payload.otherDeduction || 0;
 
   const grossSalary =
@@ -30,7 +41,9 @@ const calculateSalaryFields = (payload: Partial<TSalaryStructure>) => {
 
   return {
     grossSalary,
+
     totalDeduction,
+
     netSalary,
   };
 };
@@ -78,7 +91,9 @@ const createSalaryStructureIntoDB = async (payload: TSalaryStructure) => {
 };
 
 const getAllSalaryStructureFromDB = async (query: Record<string, unknown>) => {
-  const filter: Record<string, unknown> = { isDeleted: false };
+  const filter: Record<string, unknown> = {
+    isDeleted: false,
+  };
 
   if (query.employee) {
     filter.employee = query.employee;
@@ -97,7 +112,9 @@ const getAllSalaryStructureFromDB = async (query: Record<string, unknown>) => {
       path: "employee",
       populate: [{ path: "branch" }, { path: "department" }],
     })
-    .sort({ createdAt: -1 });
+    .sort({
+      createdAt: -1,
+    });
 
   return result;
 };
@@ -120,6 +137,74 @@ const getSingleSalaryStructureFromDB = async (id: string) => {
   }
 
   return result;
+};
+
+const getSalaryStructureHistoryFromDB = async (employeeId: string) => {
+  if (!mongoose.isValidObjectId(employeeId)) {
+    throw new AppError(400, "Invalid employee ID");
+  }
+
+  const employee = await Employee.findOne({
+    _id: employeeId,
+    isDeleted: false,
+  });
+
+  if (!employee) {
+    throw new AppError(404, "Employee not found");
+  }
+
+  const salaryHistory = await SalaryStructure.find({
+    employee: employeeId,
+    isDeleted: false,
+  })
+    .populate({
+      path: "employee",
+      populate: [
+        { path: "branch" },
+        { path: "department" },
+        { path: "designation" },
+      ],
+    })
+    .sort({
+      effectiveFrom: 1,
+      createdAt: 1,
+    });
+
+  return salaryHistory.map((item: any) => ({
+    salaryStructureId: item?._id?.toString(),
+
+    effectiveFrom: item?.effectiveFrom,
+
+    basicSalary: item?.basicSalary || 0,
+
+    grossSalary: item?.grossSalary || 0,
+
+    totalDeduction: item?.totalDeduction || 0,
+
+    netSalary: item?.netSalary || 0,
+
+    houseRent: item?.houseRent || 0,
+
+    medicalAllowance: item?.medicalAllowance || 0,
+
+    transportAllowance: item?.transportAllowance || 0,
+
+    otherAllowance: item?.otherAllowance || 0,
+
+    taxDeduction: item?.taxDeduction || 0,
+
+    providentFund: item?.providentFund || 0,
+
+    loanDeduction: item?.loanDeduction || 0,
+
+    otherDeduction: item?.otherDeduction || 0,
+
+    isActive: item?.isActive || false,
+
+    remarks: item?.remarks || "",
+
+    createdAt: item?.createdAt,
+  }));
 };
 
 const updateSalaryStructureIntoDB = async (
@@ -156,16 +241,25 @@ const updateSalaryStructureIntoDB = async (
 
   const mergedPayload = {
     employee: payload.employee ?? existingStructure.employee,
+
     basicSalary: payload.basicSalary ?? existingStructure.basicSalary,
+
     houseRent: payload.houseRent ?? existingStructure.houseRent,
+
     medicalAllowance:
       payload.medicalAllowance ?? existingStructure.medicalAllowance,
+
     transportAllowance:
       payload.transportAllowance ?? existingStructure.transportAllowance,
+
     otherAllowance: payload.otherAllowance ?? existingStructure.otherAllowance,
+
     taxDeduction: payload.taxDeduction ?? existingStructure.taxDeduction,
+
     providentFund: payload.providentFund ?? existingStructure.providentFund,
+
     loanDeduction: payload.loanDeduction ?? existingStructure.loanDeduction,
+
     otherDeduction: payload.otherDeduction ?? existingStructure.otherDeduction,
   };
 
@@ -174,9 +268,14 @@ const updateSalaryStructureIntoDB = async (
   if (payload.isActive === true) {
     const anotherActiveStructure = await SalaryStructure.findOne({
       employee: payload.employee ?? existingStructure.employee,
+
       isDeleted: false,
+
       isActive: true,
-      _id: { $ne: id },
+
+      _id: {
+        $ne: id,
+      },
     });
 
     if (anotherActiveStructure) {
@@ -188,12 +287,18 @@ const updateSalaryStructureIntoDB = async (
   }
 
   const result = await SalaryStructure.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+    {
+      _id: id,
+      isDeleted: false,
+    },
     {
       ...payload,
       ...calculatedFields,
     },
-    { new: true, runValidators: true },
+    {
+      new: true,
+      runValidators: true,
+    },
   ).populate({
     path: "employee",
     populate: [{ path: "branch" }, { path: "department" }],
@@ -212,9 +317,16 @@ const deleteSalaryStructureFromDB = async (id: string) => {
   }
 
   const result = await SalaryStructure.findOneAndUpdate(
-    { _id: id, isDeleted: false },
-    { isDeleted: true },
-    { new: true },
+    {
+      _id: id,
+      isDeleted: false,
+    },
+    {
+      isDeleted: true,
+    },
+    {
+      new: true,
+    },
   );
 
   if (!result) {
@@ -226,8 +338,14 @@ const deleteSalaryStructureFromDB = async (id: string) => {
 
 export const SalaryStructureServices = {
   createSalaryStructureIntoDB,
+
   getAllSalaryStructureFromDB,
+
   getSingleSalaryStructureFromDB,
+
+  getSalaryStructureHistoryFromDB,
+
   updateSalaryStructureIntoDB,
+
   deleteSalaryStructureFromDB,
 };

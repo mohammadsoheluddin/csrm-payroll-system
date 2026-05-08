@@ -1,45 +1,87 @@
 import express from "express";
-import { SalaryStructureControllers } from "./salaryStructure.controller";
+
 import auth from "../../middleware/auth";
-import requirePermission from "../../middleware/requirePermission";
-import { PERMISSIONS } from "../user/user.constant";
+
+import validateRequest from "../../middleware/validateRequest";
+
+import { USER_ROLE } from "../user/user.constant";
+
+import { SalaryStructureControllers } from "./salaryStructure.controller";
+
+import { SalaryStructureValidations } from "./salaryStructure.validation";
 
 const router = express.Router();
 
 router.post(
-  "/create-salary-structure",
-  auth(),
-  requirePermission(PERMISSIONS.SALARY_STRUCTURE_MANAGE),
+  "/create",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+  ),
+  validateRequest(
+    SalaryStructureValidations.createSalaryStructureValidationSchema,
+  ),
   SalaryStructureControllers.createSalaryStructure,
 );
 
 router.get(
+  "/history/:employeeId",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+    USER_ROLE.manager,
+  ),
+  SalaryStructureControllers.getSalaryStructureHistory,
+);
+
+router.get(
   "/",
-  auth(),
-  requirePermission(PERMISSIONS.SALARY_STRUCTURE_READ),
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+    USER_ROLE.manager,
+  ),
   SalaryStructureControllers.getAllSalaryStructure,
 );
 
 router.get(
   "/:id",
-  auth(),
-  requirePermission(PERMISSIONS.SALARY_STRUCTURE_READ),
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+    USER_ROLE.manager,
+  ),
   SalaryStructureControllers.getSingleSalaryStructure,
 );
 
 router.patch(
   "/:id",
-  auth(),
-  requirePermission(PERMISSIONS.SALARY_STRUCTURE_MANAGE),
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+  ),
+  validateRequest(
+    SalaryStructureValidations.updateSalaryStructureValidationSchema,
+  ),
   SalaryStructureControllers.updateSalaryStructure,
 );
 
 router.delete(
   "/:id",
-  auth(),
-  requirePermission(PERMISSIONS.SALARY_STRUCTURE_MANAGE),
+  auth(USER_ROLE.super_admin, USER_ROLE.admin),
   SalaryStructureControllers.deleteSalaryStructure,
 );
 
 export const SalaryStructureRoutes = router;
+
 export default router;
