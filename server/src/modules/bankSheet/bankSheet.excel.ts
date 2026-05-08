@@ -58,46 +58,71 @@ const applyMoneyFormat = (row: ExcelJS.Row, cellNumber: number) => {
   cell.alignment = { vertical: "middle", horizontal: "right" };
 };
 
+const setMergedValue = (
+  worksheet: ExcelJS.Worksheet,
+  range: string,
+  value: string,
+  isBold = false,
+) => {
+  worksheet.mergeCells(range);
+  const cell = worksheet.getCell(range.split(":")[0]);
+  cell.value = value;
+  cell.font = { bold: isBold };
+  cell.alignment = {
+    vertical: "middle",
+    horizontal: "center",
+    wrapText: true,
+  };
+};
+
 const addOfficialHeader = (
   worksheet: ExcelJS.Worksheet,
   preview: TBankSheetPreview,
 ) => {
   const monthLabel = getMonthLabel(preview.summary.month, preview.summary.year);
+  const sourceAccount = preview.sourceAccount;
 
-  worksheet.mergeCells("A1:G1");
-  worksheet.getCell("A1").value = "CSRM Payroll System";
+  setMergedValue(worksheet, "A1:G1", "CSRM Payroll System", true);
   worksheet.getCell("A1").font = { bold: true, size: 16 };
-  worksheet.getCell("A1").alignment = {
-    vertical: "middle",
-    horizontal: "center",
-  };
 
-  worksheet.mergeCells("A2:G2");
-  worksheet.getCell("A2").value = `Salary Bank Sheet - ${monthLabel}`;
+  setMergedValue(worksheet, "A2:G2", `Salary Bank Sheet - ${monthLabel}`, true);
   worksheet.getCell("A2").font = { bold: true, size: 13 };
-  worksheet.getCell("A2").alignment = {
-    vertical: "middle",
-    horizontal: "center",
-  };
 
-  worksheet.mergeCells("A3:G3");
-  worksheet.getCell("A3").value =
-    `Payment Mode: ${preview.summary.paymentMode} | Total Employees: ${preview.summary.totalIncluded} | Total Amount: ${preview.summary.totalAmount} | Generated: ${formatDateTimeForExcel()}`;
-  worksheet.getCell("A3").alignment = {
-    vertical: "middle",
-    horizontal: "center",
-  };
+  setMergedValue(
+    worksheet,
+    "A3:G3",
+    `Payment Mode: ${preview.summary.paymentMode} | Total Employees: ${preview.summary.totalIncluded} | Total Amount: ${preview.summary.totalAmount} | Generated: ${formatDateTimeForExcel()}`,
+  );
+
+  setMergedValue(
+    worksheet,
+    "A4:G4",
+    sourceAccount
+      ? `Company Source Account: ${sourceAccount.accountName} | ${sourceAccount.bankName} | ${sourceAccount.branchName} | A/C: ${sourceAccount.accountNo} | Type: ${sourceAccount.accountType}`
+      : "Company Source Account: Not mapped",
+    true,
+  );
+
+  setMergedValue(
+    worksheet,
+    "A5:G5",
+    sourceAccount
+      ? `Branch Code: ${sourceAccount.branchCode} | Process Bank Branch No: ${sourceAccount.processBankBranchNo} | Currency: ${sourceAccount.currency}`
+      : "Please configure company source bank account before official submission.",
+  );
 
   worksheet.getRow(1).height = 24;
   worksheet.getRow(2).height = 22;
   worksheet.getRow(3).height = 20;
+  worksheet.getRow(4).height = 22;
+  worksheet.getRow(5).height = 22;
 };
 
 const addBankSheetTable = (
   worksheet: ExcelJS.Worksheet,
   rows: TBankSheetRow[],
 ) => {
-  const headerRowNumber = 5;
+  const headerRowNumber = 7;
 
   BANK_SHEET_COLUMNS.forEach((column, index) => {
     const cell = worksheet.getCell(headerRowNumber, index + 1);
@@ -205,6 +230,45 @@ const addExcludedRowsSheet = (
   });
 };
 
+const addSourceAccountSheet = (
+  workbook: ExcelJS.Workbook,
+  preview: TBankSheetPreview,
+) => {
+  const worksheet = workbook.addWorksheet("Source Account");
+  const account = preview.sourceAccount;
+
+  worksheet.columns = [
+    { header: "Field", key: "field", width: 28 },
+    { header: "Value", key: "value", width: 60 },
+  ];
+
+  const rows = account
+    ? [
+        ["Source Account ID", account.sourceAccountId],
+        ["Account Type", account.accountType],
+        ["Account Name", account.accountName],
+        ["Bank Name", account.bankName],
+        ["Branch Name", account.branchName],
+        ["Branch Code", account.branchCode],
+        ["Routing No", account.routingNo],
+        ["Swift Code", account.swiftCode],
+        ["Account No", account.accountNo],
+        ["Process Bank Branch No", account.processBankBranchNo],
+        ["Currency", account.currency],
+        ["Primary", account.isPrimary ? "Yes" : "No"],
+      ]
+    : [["Source Account", "Not mapped"]];
+
+  rows.forEach(([field, value]) => {
+    worksheet.addRow({
+      field,
+      value,
+    });
+  });
+
+  worksheet.getRow(1).font = { bold: true };
+};
+
 export const generateSalaryBankSheetExcel = async (
   preview: TBankSheetPreview,
 ) => {
@@ -217,6 +281,7 @@ export const generateSalaryBankSheetExcel = async (
 
   addOfficialHeader(worksheet, preview);
   addBankSheetTable(worksheet, preview.rows);
+  addSourceAccountSheet(workbook, preview);
   addExcludedRowsSheet(workbook, preview);
 
   const buffer = Buffer.from(await workbook.xlsx.writeBuffer());

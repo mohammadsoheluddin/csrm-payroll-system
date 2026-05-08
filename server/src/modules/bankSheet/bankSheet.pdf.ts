@@ -108,12 +108,39 @@ const drawHorizontalLine = (doc: PDFKit.PDFDocument, y: number) => {
     .stroke();
 };
 
+const addSourceAccountBlock = (
+  doc: PDFKit.PDFDocument,
+  preview: TBankSheetPreview,
+) => {
+  const account = preview.sourceAccount;
+
+  doc.moveDown(0.8);
+  doc.font("Helvetica-Bold").text("Company Source / Debit Account:");
+  doc.moveDown(0.3);
+
+  if (!account) {
+    doc
+      .font("Helvetica")
+      .text("Source account is not mapped for this bank sheet.");
+    return;
+  }
+
+  doc.font("Helvetica").text(`Account Name: ${account.accountName}`);
+  doc.text(`Bank Name: ${account.bankName}`);
+  doc.text(`Branch Name: ${account.branchName}`);
+  doc.text(`Branch Code: ${account.branchCode}`);
+  doc.text(`Account No: ${account.accountNo}`);
+  doc.text(`Process Bank Branch No: ${account.processBankBranchNo}`);
+  doc.text(`Currency: ${account.currency}`);
+};
+
 const addForwardingLetterPage = (
   doc: PDFKit.PDFDocument,
   preview: TBankSheetPreview,
 ) => {
   const monthLabel = getMonthLabel(preview.summary.month, preview.summary.year);
   const totalAmount = preview.summary.totalAmount;
+  const sourceAccount = preview.sourceAccount;
 
   doc.fontSize(16).font("Helvetica-Bold").text(COMPANY_NAME, {
     align: "center",
@@ -135,7 +162,8 @@ const addForwardingLetterPage = (
   doc.moveDown(1.2);
   doc.fontSize(11).font("Helvetica-Bold").text("To");
   doc.font("Helvetica").text("The Manager");
-  doc.text("Concerned Bank Branch");
+  doc.text(sourceAccount?.bankName || "Concerned Bank");
+  doc.text(sourceAccount?.branchName || "Concerned Branch");
   doc.text("Bangladesh");
 
   doc.moveDown(1);
@@ -164,9 +192,13 @@ const addForwardingLetterPage = (
 
   doc.moveDown(0.8);
   doc.text(
-    "Please debit the company salary disbursement account as per bank instruction and credit the respective employee accounts accordingly.",
+    sourceAccount
+      ? `Please debit the company source account no. ${sourceAccount.accountNo}, maintained with ${sourceAccount.bankName}, ${sourceAccount.branchName}, and credit the respective employee accounts accordingly.`
+      : "Please debit the company salary disbursement account as per bank instruction and credit the respective employee accounts accordingly.",
     { align: "justify", lineGap: 3 },
   );
+
+  addSourceAccountBlock(doc, preview);
 
   doc.moveDown(1.2);
   doc.text("Thank you for your cooperation.");
@@ -190,6 +222,7 @@ const addSummaryPage = (
   preview: TBankSheetPreview,
 ) => {
   const monthLabel = getMonthLabel(preview.summary.month, preview.summary.year);
+  const sourceAccount = preview.sourceAccount;
 
   doc.addPage({ size: "A4", margin: 40 });
 
@@ -209,6 +242,10 @@ const addSummaryPage = (
     ["Total Excluded", String(preview.summary.totalExcluded)],
     ["Total Amount", `Tk. ${formatAmount(preview.summary.totalAmount)}`],
     ["Amount in Words", amountToWords(preview.summary.totalAmount)],
+    ["Source Account Name", sourceAccount?.accountName || "Not mapped"],
+    ["Source Bank", sourceAccount?.bankName || "Not mapped"],
+    ["Source Branch", sourceAccount?.branchName || "Not mapped"],
+    ["Source Account No", sourceAccount?.accountNo || "Not mapped"],
   ];
 
   summaryRows.forEach(([label, value]) => {

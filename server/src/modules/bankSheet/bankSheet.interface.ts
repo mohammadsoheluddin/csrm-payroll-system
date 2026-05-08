@@ -16,6 +16,7 @@ export type TGenerateBankSheetPreviewQuery = {
   branch?: string;
   bankName?: string;
   paymentMode?: TBankSheetPaymentMode;
+  sourceAccount?: string;
 };
 
 export type TBankSheetEmployeeInfo = {
@@ -26,6 +27,22 @@ export type TBankSheetEmployeeInfo = {
   department?: string;
   branch?: string;
   company?: string;
+};
+
+export type TBankSheetSourceAccountInfo = {
+  sourceAccountId: string;
+  company: string;
+  accountType: string;
+  accountName: string;
+  bankName: string;
+  branchName: string;
+  branchCode: string;
+  routingNo: string;
+  swiftCode: string;
+  accountNo: string;
+  processBankBranchNo: string;
+  currency: string;
+  isPrimary: boolean;
 };
 
 export type TBankSheetRow = {
@@ -76,7 +93,9 @@ export type TBankSheetPreview = {
     department: string | null;
     branch: string | null;
     bankName: string | null;
+    sourceAccount: string | null;
   };
+  sourceAccount: TBankSheetSourceAccountInfo | null;
   summary: TBankSheetSummary;
   rows: TBankSheetRow[];
   excludedRows: TBankSheetExcludedRow[];
@@ -103,4 +122,8 @@ export type TPopulatedPayrollForBankSheet = {
   payableSalary: number;
   status: string;
   isLocked: boolean;
+};
+
+export type TGenerateBankSheetPreviewOptions = {
+  requireSourceAccount?: boolean;
 };

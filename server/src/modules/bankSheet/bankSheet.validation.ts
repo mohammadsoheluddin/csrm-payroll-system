@@ -25,6 +25,7 @@ const generateBankSheetPreviewValidationSchema = z.object({
       company: objectIdSchema("company id"),
       department: objectIdSchema("department id").optional(),
       branch: objectIdSchema("branch id").optional(),
+      sourceAccount: objectIdSchema("source account id").optional(),
       bankName: z
         .string()
         .trim()

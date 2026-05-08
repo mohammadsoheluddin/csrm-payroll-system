@@ -27,6 +27,7 @@ const buildBankSheetQueryFromRequest = (req: Request) => {
   const department = getSingleQueryValue(req.query.department);
   const branch = getSingleQueryValue(req.query.branch);
   const bankName = getSingleQueryValue(req.query.bankName);
+  const sourceAccount = getSingleQueryValue(req.query.sourceAccount);
 
   const sourceType = getSingleQueryValue(req.query.sourceType) as
     | TBankSheetSourceType
@@ -45,6 +46,7 @@ const buildBankSheetQueryFromRequest = (req: Request) => {
     branch,
     bankName,
     paymentMode,
+    sourceAccount,
   };
 };
 
@@ -64,6 +66,7 @@ const generateSalaryBankSheetPreview = catchAsync(
       newData: null,
       metadata: {
         filters: result.filters,
+        sourceAccount: result.sourceAccount,
         summary: result.summary,
       },
     });
@@ -93,6 +96,7 @@ const exportSalaryBankSheetExcel = catchAsync(
       newData: null,
       metadata: {
         filters: result.reportData.filters,
+        sourceAccount: result.reportData.sourceAccount,
         summary: result.reportData.summary,
         fileName: result.fileName,
       },
@@ -126,6 +130,7 @@ const exportSalaryBankSheetForwardingLetterPDF = catchAsync(
       newData: null,
       metadata: {
         filters: result.reportData.filters,
+        sourceAccount: result.reportData.sourceAccount,
         summary: result.reportData.summary,
         fileName: result.fileName,
       },

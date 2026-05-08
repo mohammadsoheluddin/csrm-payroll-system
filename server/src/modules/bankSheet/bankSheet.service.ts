@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import AppError from "../../errors/AppError";
+import CompanyBankAccount from "../companyBankAccount/companyBankAccount.model";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
 import { Payroll } from "../payroll/payroll.model";
 import {
@@ -15,6 +16,8 @@ import {
   TBankSheetPaymentMode,
   TBankSheetPreview,
   TBankSheetRow,
+  TBankSheetSourceAccountInfo,
+  TGenerateBankSheetPreviewOptions,
   TGenerateBankSheetPreviewQuery,
   TPopulatedPayrollForBankSheet,
 } from "./bankSheet.interface";
@@ -68,6 +71,10 @@ const validateGenerateBankSheetQuery = (
   if (query.branch) {
     ensureValidObjectId(query.branch, "branch id");
   }
+
+  if (query.sourceAccount) {
+    ensureValidObjectId(query.sourceAccount, "source account id");
+  }
 };
 
 const isEmployeeActiveForBankSheet = (employee: any) => {
@@ -110,6 +117,115 @@ const buildExcludedRow = (
     payableSalary: Number(payroll?.payableSalary || 0),
     reason,
   };
+};
+
+const mapCompanyBankAccountToSourceInfo = (
+  account: any,
+): TBankSheetSourceAccountInfo => {
+  return {
+    sourceAccountId: account?._id?.toString() || "",
+    company: getObjectIdString(account?.company),
+    accountType: normalizeDisplayText(account?.accountType),
+    accountName: normalizeDisplayText(account?.accountName),
+    bankName: normalizeDisplayText(account?.bankName),
+    branchName: normalizeDisplayText(account?.branchName),
+    branchCode: normalizeDisplayText(account?.branchCode),
+    routingNo: normalizeDisplayText(account?.routingNo),
+    swiftCode: normalizeDisplayText(account?.swiftCode),
+    accountNo: normalizeDisplayText(account?.accountNo),
+    processBankBranchNo: normalizeDisplayText(account?.processBankBranchNo),
+    currency: normalizeDisplayText(account?.currency || "BDT"),
+    isPrimary: Boolean(account?.isPrimary),
+  };
+};
+
+const getSourceAccountTypeFromSourceType = (sourceType: string) => {
+  if (sourceType === "salary") {
+    return "salary";
+  }
+
+  if (sourceType === "ot") {
+    return "ot";
+  }
+
+  if (sourceType === "bonus") {
+    return "bonus";
+  }
+
+  if (sourceType === "tada") {
+    return "tada";
+  }
+
+  if (sourceType === "allowance") {
+    return "allowance";
+  }
+
+  return "general";
+};
+
+const getBankSheetSourceAccount = async ({
+  company,
+  sourceType,
+  sourceAccount,
+  requireSourceAccount,
+}: {
+  company: string;
+  sourceType: string;
+  sourceAccount?: string;
+  requireSourceAccount?: boolean;
+}) => {
+  const accountType = getSourceAccountTypeFromSourceType(sourceType);
+
+  if (sourceAccount) {
+    const selectedSourceAccount = await CompanyBankAccount.findOne({
+      _id: sourceAccount,
+      company,
+      accountType,
+      status: "active",
+      isDeleted: false,
+    });
+
+    if (!selectedSourceAccount) {
+      throw new AppError(
+        HTTP_STATUS.NOT_FOUND,
+        `Selected ${accountType} source bank account was not found or is not active.`,
+      );
+    }
+
+    return mapCompanyBankAccountToSourceInfo(selectedSourceAccount);
+  }
+
+  const primarySourceAccount = await CompanyBankAccount.findOne({
+    company,
+    accountType,
+    status: "active",
+    isDeleted: false,
+    isPrimary: true,
+  }).sort({ createdAt: -1 });
+
+  if (primarySourceAccount) {
+    return mapCompanyBankAccountToSourceInfo(primarySourceAccount);
+  }
+
+  const fallbackSourceAccount = await CompanyBankAccount.findOne({
+    company,
+    accountType,
+    status: "active",
+    isDeleted: false,
+  }).sort({ createdAt: -1 });
+
+  if (fallbackSourceAccount) {
+    return mapCompanyBankAccountToSourceInfo(fallbackSourceAccount);
+  }
+
+  if (requireSourceAccount) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      `Active ${accountType} company source bank account not found. Please create or activate a company ${accountType} bank account first.`,
+    );
+  }
+
+  return null;
 };
 
 const getPrimaryPaymentInfoMap = async (
@@ -292,6 +408,7 @@ const buildBankSheetRows = async ({
 
 const generateSalaryBankSheetPreviewFromDB = async (
   query: TGenerateBankSheetPreviewQuery,
+  options: TGenerateBankSheetPreviewOptions = {},
 ): Promise<TBankSheetPreview> => {
   validateGenerateBankSheetQuery(query);
 
@@ -306,6 +423,13 @@ const generateSalaryBankSheetPreviewFromDB = async (
   }
 
   const payrollMonth = buildPayrollMonth(query.month, query.year);
+
+  const sourceAccount = await getBankSheetSourceAccount({
+    company: query.company,
+    sourceType,
+    sourceAccount: query.sourceAccount,
+    requireSourceAccount: options.requireSourceAccount,
+  });
 
   const payrolls = (await Payroll.find({
     payrollMonth,
@@ -353,7 +477,10 @@ const generateSalaryBankSheetPreviewFromDB = async (
       department: query.department || null,
       branch: query.branch || null,
       bankName: query.bankName || null,
+      sourceAccount:
+        query.sourceAccount || sourceAccount?.sourceAccountId || null,
     },
+    sourceAccount,
     summary: {
       sourceType,
       payrollMonth,
@@ -373,10 +500,15 @@ const generateSalaryBankSheetPreviewFromDB = async (
 const exportSalaryBankSheetExcelFromDB = async (
   query: TGenerateBankSheetPreviewQuery,
 ): Promise<TBankSheetExcelExportResult> => {
-  const preview = await generateSalaryBankSheetPreviewFromDB({
-    ...query,
-    paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
-  });
+  const preview = await generateSalaryBankSheetPreviewFromDB(
+    {
+      ...query,
+      paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
+    },
+    {
+      requireSourceAccount: true,
+    },
+  );
 
   if (preview.summary.paymentMode !== "bank") {
     throw new AppError(
@@ -396,10 +528,15 @@ const exportSalaryBankSheetExcelFromDB = async (
 const exportSalaryBankSheetForwardingLetterPDFFromDB = async (
   query: TGenerateBankSheetPreviewQuery,
 ): Promise<TBankSheetPDFExportResult> => {
-  const preview = await generateSalaryBankSheetPreviewFromDB({
-    ...query,
-    paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
-  });
+  const preview = await generateSalaryBankSheetPreviewFromDB(
+    {
+      ...query,
+      paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
+    },
+    {
+      requireSourceAccount: true,
+    },
+  );
 
   if (preview.summary.paymentMode !== "bank") {
     throw new AppError(
