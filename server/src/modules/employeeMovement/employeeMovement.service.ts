@@ -27,6 +27,10 @@ const getEmployeeFullName = (employee: any) => {
     .trim();
 };
 
+const normalizeDateOnly = (date: Date) => {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 const createMovementSnapshot = async ({
   employee,
   movementType,
@@ -289,6 +293,17 @@ const applyEmployeeMovementIntoDB = async (id: string, actionBy?: string) => {
     );
   }
 
+  const today = normalizeDateOnly(new Date());
+
+  const effectiveDate = normalizeDateOnly(new Date(movement.effectiveDate));
+
+  if (today < effectiveDate) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Movement cannot be applied before effective date (${effectiveDate.toDateString()}).`,
+    );
+  }
+
   const employee = movement.employee as any;
 
   if (!employee) {
@@ -368,6 +383,63 @@ const applyEmployeeMovementIntoDB = async (id: string, actionBy?: string) => {
   return movement;
 };
 
+const getEmployeeMovementTimelineFromDB = async (employeeId: string) => {
+  if (!Types.ObjectId.isValid(employeeId)) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Invalid employee id.");
+  }
+
+  const employee = await Employee.findOne({
+    _id: employeeId,
+    isDeleted: false,
+  });
+
+  if (!employee) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee not found.");
+  }
+
+  const movements = await EmployeeMovement.find({
+    employee: employeeId,
+    isDeleted: false,
+  }).sort({
+    effectiveDate: 1,
+    createdAt: 1,
+  });
+
+  return movements.map((movement: any) => ({
+    movementId: movement?._id?.toString(),
+
+    movementType: movement?.movementType,
+
+    status: movement?.status,
+
+    effectiveDate: movement?.effectiveDate,
+
+    approvedAt: movement?.approvedAt,
+
+    appliedAt: movement?.appliedAt,
+
+    fromDepartment: movement?.snapshot?.fromDepartment?.name || "",
+
+    toDepartment: movement?.snapshot?.toDepartment?.name || "",
+
+    fromDesignation: movement?.snapshot?.fromDesignation?.name || "",
+
+    toDesignation: movement?.snapshot?.toDesignation?.name || "",
+
+    fromBranch: movement?.snapshot?.fromBranch?.name || "",
+
+    toBranch: movement?.snapshot?.toBranch?.name || "",
+
+    fromGrossSalary: movement?.snapshot?.fromSalary?.grossSalary || 0,
+
+    toGrossSalary: movement?.snapshot?.toSalary?.grossSalary || 0,
+
+    reason: movement?.reason || "",
+
+    remarks: movement?.remarks || "",
+  }));
+};
+
 const getAllEmployeeMovementsFromDB = async () => {
   return EmployeeMovement.find({
     isDeleted: false,
@@ -402,6 +474,8 @@ export const EmployeeMovementService = {
   approveEmployeeMovementIntoDB,
 
   applyEmployeeMovementIntoDB,
+
+  getEmployeeMovementTimelineFromDB,
 
   getAllEmployeeMovementsFromDB,
 

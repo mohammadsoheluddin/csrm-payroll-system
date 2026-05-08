@@ -34,6 +34,18 @@ router.patch(
 );
 
 router.get(
+  "/timeline/:employeeId",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.manager,
+    USER_ROLE.accounts,
+  ),
+  EmployeeMovementController.getEmployeeMovementTimeline,
+);
+
+router.get(
   "/",
   auth(
     USER_ROLE.super_admin,

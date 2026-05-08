@@ -119,6 +119,27 @@ const applyEmployeeMovement = catchAsync(
   },
 );
 
+const getEmployeeMovementTimeline = catchAsync(
+  async (req: Request, res: Response) => {
+    const employeeId = req.params.employeeId as string;
+
+    const result =
+      await EmployeeMovementService.getEmployeeMovementTimelineFromDB(
+        employeeId,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+
+      success: true,
+
+      message: "Employee movement timeline retrieved successfully",
+
+      data: result,
+    });
+  },
+);
+
 const getAllEmployeeMovements = catchAsync(
   async (req: Request, res: Response) => {
     const result =
@@ -161,6 +182,8 @@ export const EmployeeMovementController = {
   approveEmployeeMovement,
 
   applyEmployeeMovement,
+
+  getEmployeeMovementTimeline,
 
   getAllEmployeeMovements,
 
