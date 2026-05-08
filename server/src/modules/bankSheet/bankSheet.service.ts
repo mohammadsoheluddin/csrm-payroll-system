@@ -1,6 +1,5 @@
 import { Types } from "mongoose";
 import AppError from "../../errors/AppError";
-import { generateSalaryBankSheetExcel } from "./bankSheet.excel";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
 import { Payroll } from "../payroll/payroll.model";
 import {
@@ -8,15 +7,18 @@ import {
   BANK_SHEET_PAYROLL_ALLOWED_STATUSES,
   BANK_SHEET_SUPPORTED_SOURCE_TYPE,
 } from "./bankSheet.constants";
+import { generateSalaryBankSheetExcel } from "./bankSheet.excel";
 import {
   TBankSheetExcelExportResult,
   TBankSheetExcludedRow,
+  TBankSheetPDFExportResult,
   TBankSheetPaymentMode,
   TBankSheetPreview,
   TBankSheetRow,
   TGenerateBankSheetPreviewQuery,
   TPopulatedPayrollForBankSheet,
 } from "./bankSheet.interface";
+import { generateSalaryBankSheetForwardingLetterPDF } from "./bankSheet.pdf";
 import {
   buildPayrollMonth,
   calculateBankSheetTotalAmount,
@@ -391,7 +393,31 @@ const exportSalaryBankSheetExcelFromDB = async (
   };
 };
 
+const exportSalaryBankSheetForwardingLetterPDFFromDB = async (
+  query: TGenerateBankSheetPreviewQuery,
+): Promise<TBankSheetPDFExportResult> => {
+  const preview = await generateSalaryBankSheetPreviewFromDB({
+    ...query,
+    paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
+  });
+
+  if (preview.summary.paymentMode !== "bank") {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "PDF forwarding letter currently supports bank payment mode only.",
+    );
+  }
+
+  const pdfFile = await generateSalaryBankSheetForwardingLetterPDF(preview);
+
+  return {
+    ...pdfFile,
+    reportData: preview,
+  };
+};
+
 export const BankSheetServices = {
   generateSalaryBankSheetPreviewFromDB,
   exportSalaryBankSheetExcelFromDB,
+  exportSalaryBankSheetForwardingLetterPDFFromDB,
 };

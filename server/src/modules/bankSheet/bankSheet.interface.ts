@@ -89,6 +89,13 @@ export type TBankSheetExcelExportResult = {
   reportData: TBankSheetPreview;
 };
 
+export type TBankSheetPDFExportResult = {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+  reportData: TBankSheetPreview;
+};
+
 export type TPopulatedPayrollForBankSheet = {
   _id: Types.ObjectId;
   employee: any;

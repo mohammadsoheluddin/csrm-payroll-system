@@ -27,9 +27,11 @@ const buildBankSheetQueryFromRequest = (req: Request) => {
   const department = getSingleQueryValue(req.query.department);
   const branch = getSingleQueryValue(req.query.branch);
   const bankName = getSingleQueryValue(req.query.bankName);
+
   const sourceType = getSingleQueryValue(req.query.sourceType) as
     | TBankSheetSourceType
     | undefined;
+
   const paymentMode = getSingleQueryValue(req.query.paymentMode) as
     | TBankSheetPaymentMode
     | undefined;
@@ -106,7 +108,41 @@ const exportSalaryBankSheetExcel = catchAsync(
   },
 );
 
+const exportSalaryBankSheetForwardingLetterPDF = catchAsync(
+  async (req: Request, res: Response) => {
+    const query = buildBankSheetQueryFromRequest(req);
+
+    const result =
+      await BankSheetServices.exportSalaryBankSheetForwardingLetterPDFFromDB(
+        query,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "bank_sheet",
+      action: "export",
+      entityName: result.reportData.summary.payrollMonth,
+      description: "Salary bank sheet forwarding letter PDF exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.reportData.filters,
+        summary: result.reportData.summary,
+        fileName: result.fileName,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const BankSheetControllers = {
   generateSalaryBankSheetPreview,
   exportSalaryBankSheetExcel,
+  exportSalaryBankSheetForwardingLetterPDF,
 };
