@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import AppError from "../../errors/AppError";
+import BankSheetHistory from "../bankSheetHistory/bankSheetHistory.model";
 import CompanyBankAccount from "../companyBankAccount/companyBankAccount.model";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
 import { Payroll } from "../payroll/payroll.model";
@@ -406,8 +407,45 @@ const buildBankSheetRows = async ({
   };
 };
 
+const createBankSheetHistory = async ({
+  exportType,
+  preview,
+  company,
+  userId,
+  fileName,
+}: {
+  exportType: "preview" | "excel" | "pdf";
+  preview: TBankSheetPreview;
+  company: string;
+  userId: string;
+  fileName?: string;
+}) => {
+  await BankSheetHistory.create({
+    exportType,
+    sourceType: preview.summary.sourceType,
+    payrollMonth: preview.summary.payrollMonth,
+    month: preview.summary.month,
+    year: preview.summary.year,
+    company,
+    sourceAccount: preview.sourceAccount?.sourceAccountId || null,
+    generatedBy: userId,
+    paymentMode: preview.summary.paymentMode,
+    totalPayrollFound: preview.summary.totalPayrollFound,
+    totalIncluded: preview.summary.totalIncluded,
+    totalExcluded: preview.summary.totalExcluded,
+    totalAmount: preview.summary.totalAmount,
+    filters: {
+      department: preview.filters.department,
+      branch: preview.filters.branch,
+      bankName: preview.filters.bankName,
+    },
+    fileName,
+  });
+};
+
 const generateSalaryBankSheetPreviewFromDB = async (
   query: TGenerateBankSheetPreviewQuery,
+  userId: string,
   options: TGenerateBankSheetPreviewOptions = {},
 ): Promise<TBankSheetPreview> => {
   validateGenerateBankSheetQuery(query);
@@ -471,7 +509,7 @@ const generateSalaryBankSheetPreviewFromDB = async (
     );
   }
 
-  return {
+  const preview: TBankSheetPreview = {
     filters: {
       company: query.company,
       department: query.department || null,
@@ -495,16 +533,27 @@ const generateSalaryBankSheetPreviewFromDB = async (
     rows,
     excludedRows,
   };
+
+  await createBankSheetHistory({
+    exportType: "preview",
+    preview,
+    company: query.company,
+    userId,
+  });
+
+  return preview;
 };
 
 const exportSalaryBankSheetExcelFromDB = async (
   query: TGenerateBankSheetPreviewQuery,
+  userId: string,
 ): Promise<TBankSheetExcelExportResult> => {
   const preview = await generateSalaryBankSheetPreviewFromDB(
     {
       ...query,
       paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
     },
+    userId,
     {
       requireSourceAccount: true,
     },
@@ -519,6 +568,14 @@ const exportSalaryBankSheetExcelFromDB = async (
 
   const excelFile = await generateSalaryBankSheetExcel(preview);
 
+  await createBankSheetHistory({
+    exportType: "excel",
+    preview,
+    company: query.company,
+    userId,
+    fileName: excelFile.fileName,
+  });
+
   return {
     ...excelFile,
     reportData: preview,
@@ -527,12 +584,14 @@ const exportSalaryBankSheetExcelFromDB = async (
 
 const exportSalaryBankSheetForwardingLetterPDFFromDB = async (
   query: TGenerateBankSheetPreviewQuery,
+  userId: string,
 ): Promise<TBankSheetPDFExportResult> => {
   const preview = await generateSalaryBankSheetPreviewFromDB(
     {
       ...query,
       paymentMode: query.paymentMode || BANK_SHEET_DEFAULT_PAYMENT_MODE,
     },
+    userId,
     {
       requireSourceAccount: true,
     },
@@ -546,6 +605,14 @@ const exportSalaryBankSheetForwardingLetterPDFFromDB = async (
   }
 
   const pdfFile = await generateSalaryBankSheetForwardingLetterPDF(preview);
+
+  await createBankSheetHistory({
+    exportType: "pdf",
+    preview,
+    company: query.company,
+    userId,
+    fileName: pdfFile.fileName,
+  });
 
   return {
     ...pdfFile,

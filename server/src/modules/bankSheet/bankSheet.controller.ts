@@ -20,6 +20,20 @@ const getSingleQueryValue = (value: unknown) => {
   return String(value);
 };
 
+const getUserIdFromRequest = (req: Request) => {
+  const requestUser = (
+    req as Request & {
+      user?: {
+        userId?: string;
+        _id?: string;
+        id?: string;
+      };
+    }
+  ).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const buildBankSheetQueryFromRequest = (req: Request) => {
   const month = Number(getSingleQueryValue(req.query.month));
   const year = Number(getSingleQueryValue(req.query.year));
@@ -53,9 +67,12 @@ const buildBankSheetQueryFromRequest = (req: Request) => {
 const generateSalaryBankSheetPreview = catchAsync(
   async (req: Request, res: Response) => {
     const query = buildBankSheetQueryFromRequest(req);
+    const userId = getUserIdFromRequest(req);
 
-    const result =
-      await BankSheetServices.generateSalaryBankSheetPreviewFromDB(query);
+    const result = await BankSheetServices.generateSalaryBankSheetPreviewFromDB(
+      query,
+      userId,
+    );
 
     await createAuditLogFromRequest(req, {
       module: "bank_sheet",
@@ -83,9 +100,12 @@ const generateSalaryBankSheetPreview = catchAsync(
 const exportSalaryBankSheetExcel = catchAsync(
   async (req: Request, res: Response) => {
     const query = buildBankSheetQueryFromRequest(req);
+    const userId = getUserIdFromRequest(req);
 
-    const result =
-      await BankSheetServices.exportSalaryBankSheetExcelFromDB(query);
+    const result = await BankSheetServices.exportSalaryBankSheetExcelFromDB(
+      query,
+      userId,
+    );
 
     await createAuditLogFromRequest(req, {
       module: "bank_sheet",
@@ -103,6 +123,7 @@ const exportSalaryBankSheetExcel = catchAsync(
     });
 
     res.setHeader("Content-Type", result.mimeType);
+
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`,
@@ -115,10 +136,12 @@ const exportSalaryBankSheetExcel = catchAsync(
 const exportSalaryBankSheetForwardingLetterPDF = catchAsync(
   async (req: Request, res: Response) => {
     const query = buildBankSheetQueryFromRequest(req);
+    const userId = getUserIdFromRequest(req);
 
     const result =
       await BankSheetServices.exportSalaryBankSheetForwardingLetterPDFFromDB(
         query,
+        userId,
       );
 
     await createAuditLogFromRequest(req, {
@@ -137,6 +160,7 @@ const exportSalaryBankSheetForwardingLetterPDF = catchAsync(
     });
 
     res.setHeader("Content-Type", result.mimeType);
+
     res.setHeader(
       "Content-Disposition",
       `attachment; filename="${result.fileName}"`,

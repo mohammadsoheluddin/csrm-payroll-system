@@ -19,6 +19,7 @@ import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.ro
 import userRoutes from "../modules/user/user.route";
 import healthRoutes from "./health.route";
 import protectedRoutes from "./protected.route";
+import { BankSheetHistoryRoutes } from "../modules/bankSheetHistory/bankSheetHistory.route";
 
 const router = Router();
 
@@ -102,6 +103,10 @@ const moduleRoutes = [
   {
     path: "/audit-logs",
     route: auditLogRoutes,
+  },
+  {
+    path: "/bank-sheet-history",
+    route: BankSheetHistoryRoutes,
   },
 ];
 
