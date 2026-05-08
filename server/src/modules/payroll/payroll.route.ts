@@ -1,72 +1,50 @@
 import express from "express";
 import auth from "../../middleware/auth";
-import requirePermission from "../../middleware/requirePermission";
-import { PERMISSIONS } from "../user/user.constant";
+import validateRequest from "../../middleware/validateRequest";
+import { USER_ROLE } from "../user/user.constant";
 import { PayrollController } from "./payroll.controller";
+import { PayrollGenerateController } from "./payroll.generate.controller";
+import { PayrollGenerateValidation } from "./payroll.generate.validation";
 
 const router = express.Router();
 
-router.patch(
-  "/batch/approve",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_BATCH_APPROVE),
-  PayrollController.approveMonthlyPayrollBatch,
-);
-
-router.patch(
-  "/batch/lock",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_BATCH_LOCK),
-  PayrollController.lockMonthlyPayrollBatch,
-);
-
-router.patch(
-  "/:id",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_UPDATE),
-  PayrollController.updatePayrollById,
+router.post(
+  "/generate",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+  ),
+  validateRequest(
+    PayrollGenerateValidation.generateMonthlyPayrollValidationSchema,
+  ),
+  PayrollGenerateController.generateMonthlyPayroll,
 );
 
 router.patch(
   "/:id/process",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_PROCESS),
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+  ),
   PayrollController.processPayrollById,
 );
 
 router.patch(
   "/:id/approve",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_APPROVE),
+  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.accounts),
   PayrollController.approvePayrollById,
 );
 
 router.patch(
-  "/:id/pay",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_PAY),
-  PayrollController.markPayrollAsPaid,
-);
-
-router.patch(
   "/:id/lock",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_LOCK),
+  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.accounts),
   PayrollController.lockPayrollById,
 );
 
-router.patch(
-  "/:id/unlock",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_UNLOCK),
-  PayrollController.unlockPayrollById,
-);
-
-router.get(
-  "/:id/audit-timeline",
-  auth(),
-  requirePermission(PERMISSIONS.PAYROLL_AUDIT_READ),
-  PayrollController.getPayrollAuditTimeline,
-);
-
 export const payrollRoutes = router;
+
+export default router;
