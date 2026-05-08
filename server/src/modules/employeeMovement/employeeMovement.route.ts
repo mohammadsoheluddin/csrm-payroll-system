@@ -21,6 +21,18 @@ router.post(
   EmployeeMovementController.createEmployeeMovement,
 );
 
+router.patch(
+  "/approve/:id",
+  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.manager),
+  EmployeeMovementController.approveEmployeeMovement,
+);
+
+router.patch(
+  "/apply/:id",
+  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.hr),
+  EmployeeMovementController.applyEmployeeMovement,
+);
+
 router.get(
   "/",
   auth(

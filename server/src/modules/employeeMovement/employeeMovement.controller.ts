@@ -73,6 +73,52 @@ const createEmployeeMovement = catchAsync(
   },
 );
 
+const approveEmployeeMovement = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const movementId = req.params.id as string;
+
+    const result = await EmployeeMovementService.approveEmployeeMovementIntoDB(
+      movementId,
+      userId,
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+
+      success: true,
+
+      message: "Employee movement approved successfully",
+
+      data: result,
+    });
+  },
+);
+
+const applyEmployeeMovement = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const movementId = req.params.id as string;
+
+    const result = await EmployeeMovementService.applyEmployeeMovementIntoDB(
+      movementId,
+      userId,
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+
+      success: true,
+
+      message: "Employee movement applied successfully",
+
+      data: result,
+    });
+  },
+);
+
 const getAllEmployeeMovements = catchAsync(
   async (req: Request, res: Response) => {
     const result =
@@ -111,6 +157,10 @@ const getSingleEmployeeMovement = catchAsync(
 
 export const EmployeeMovementController = {
   createEmployeeMovement,
+
+  approveEmployeeMovement,
+
+  applyEmployeeMovement,
 
   getAllEmployeeMovements,
 
