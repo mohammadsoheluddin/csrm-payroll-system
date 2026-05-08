@@ -1,4 +1,3 @@
-import httpStatus = require("http-status");
 import mongoose from "mongoose";
 
 import AppError from "../../errors/AppError";
@@ -9,20 +8,37 @@ import Company from "../company/company.model";
 import { TEmployeeBankInfo } from "./employeeBankInfo.interface";
 import EmployeeBankInfo from "./employeeBankInfo.model";
 
-const createEmployeeBankInfo = async (
+/**
+ * =====================================================
+ * Local HTTP Status Codes
+ * =====================================================
+ */
+
+const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  INTERNAL_SERVER_ERROR: 500,
+};
+
+const createEmployeeBankInfoIntoDB = async (
   payload: TEmployeeBankInfo,
-  createdBy?: mongoose.Types.ObjectId,
+  _createdBy?: mongoose.Types.ObjectId,
 ) => {
   const employee = await Employee.findById(payload.employee);
 
   if (!employee) {
-    throw new AppError(httpStatus.NOT_FOUND, "Employee not found");
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee not found");
   }
 
   const company = await Company.findById(payload.company);
 
   if (!company) {
-    throw new AppError(httpStatus.NOT_FOUND, "Company not found");
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Company not found");
   }
 
   /**
@@ -44,7 +60,7 @@ const createEmployeeBankInfo = async (
 
     if (existingBankInfo) {
       throw new AppError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         "Same bank account information already exists for this employee",
       );
     }
@@ -61,7 +77,7 @@ const createEmployeeBankInfo = async (
 
     if (existingMobileInfo) {
       throw new AppError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         "Same mobile banking information already exists for this employee",
       );
     }
@@ -77,7 +93,7 @@ const createEmployeeBankInfo = async (
 
     if (existingCashInfo) {
       throw new AppError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         "Same cash payment setup already exists for this employee",
       );
     }
@@ -101,6 +117,7 @@ const createEmployeeBankInfo = async (
   /**
    * First active payment info
    */
+
   if (!existingPrimary && payload.status === "active") {
     isPrimary = true;
   }
@@ -108,6 +125,7 @@ const createEmployeeBankInfo = async (
   /**
    * Explicit primary request
    */
+
   if (payload.isPrimary === true) {
     isPrimary = true;
 
@@ -127,13 +145,14 @@ const createEmployeeBankInfo = async (
   const result = await EmployeeBankInfo.create({
     ...payload,
     isPrimary,
-    createdBy,
   });
 
   return result;
 };
 
-const getAllEmployeeBankInfos = async (query: Record<string, unknown>) => {
+const getAllEmployeeBankInfosFromDB = async (
+  query: Record<string, unknown>,
+) => {
   const filter: Record<string, unknown> = {
     isDeleted: false,
   };
@@ -162,7 +181,7 @@ const getAllEmployeeBankInfos = async (query: Record<string, unknown>) => {
   return result;
 };
 
-const getSingleEmployeeBankInfo = async (id: string) => {
+const getSingleEmployeeBankInfoFromDB = async (id: string) => {
   const result = await EmployeeBankInfo.findOne({
     _id: id,
     isDeleted: false,
@@ -171,13 +190,13 @@ const getSingleEmployeeBankInfo = async (id: string) => {
     .populate("company");
 
   if (!result) {
-    throw new AppError(httpStatus.NOT_FOUND, "Employee bank info not found");
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee bank info not found");
   }
 
   return result;
 };
 
-const updateEmployeeBankInfo = async (
+const updateEmployeeBankInfoIntoDB = async (
   id: string,
   payload: Partial<TEmployeeBankInfo>,
 ) => {
@@ -187,7 +206,7 @@ const updateEmployeeBankInfo = async (
   });
 
   if (!existingData) {
-    throw new AppError(httpStatus.NOT_FOUND, "Employee bank info not found");
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee bank info not found");
   }
 
   /**
@@ -215,7 +234,7 @@ const updateEmployeeBankInfo = async (
 
     if (duplicateBank) {
       throw new AppError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         "Same bank account information already exists for this employee",
       );
     }
@@ -234,7 +253,7 @@ const updateEmployeeBankInfo = async (
 
     if (duplicateMobile) {
       throw new AppError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         "Same mobile banking information already exists for this employee",
       );
     }
@@ -251,7 +270,7 @@ const updateEmployeeBankInfo = async (
 
     if (duplicateCash) {
       throw new AppError(
-        httpStatus.CONFLICT,
+        HTTP_STATUS.CONFLICT,
         "Same cash payment setup already exists for this employee",
       );
     }
@@ -286,14 +305,14 @@ const updateEmployeeBankInfo = async (
   return result;
 };
 
-const deleteEmployeeBankInfo = async (id: string) => {
+const deleteEmployeeBankInfoFromDB = async (id: string) => {
   const existingData = await EmployeeBankInfo.findOne({
     _id: id,
     isDeleted: false,
   });
 
   if (!existingData) {
-    throw new AppError(httpStatus.NOT_FOUND, "Employee bank info not found");
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee bank info not found");
   }
 
   const result = await EmployeeBankInfo.findByIdAndUpdate(
@@ -330,9 +349,9 @@ const deleteEmployeeBankInfo = async (id: string) => {
 };
 
 export const EmployeeBankInfoServices = {
-  createEmployeeBankInfo,
-  getAllEmployeeBankInfos,
-  getSingleEmployeeBankInfo,
-  updateEmployeeBankInfo,
-  deleteEmployeeBankInfo,
+  createEmployeeBankInfoIntoDB,
+  getAllEmployeeBankInfosFromDB,
+  getSingleEmployeeBankInfoFromDB,
+  updateEmployeeBankInfoIntoDB,
+  deleteEmployeeBankInfoFromDB,
 };
