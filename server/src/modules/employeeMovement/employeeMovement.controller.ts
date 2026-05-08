@@ -6,6 +6,8 @@ import sendResponse from "../../utils/sendResponse";
 
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 
+import { generateEmployeeMovementPDF } from "./employeeMovement.pdf";
+
 import { EmployeeMovementService } from "./employeeMovement.service";
 
 const getUserIdFromRequest = (req: Request) => {
@@ -140,6 +142,20 @@ const getEmployeeMovementTimeline = catchAsync(
   },
 );
 
+const downloadEmployeeMovementPDF = catchAsync(
+  async (req: Request, res: Response) => {
+    const movementId = req.params.id as string;
+
+    const movement =
+      await EmployeeMovementService.getSingleEmployeeMovementFromDB(movementId);
+
+    await generateEmployeeMovementPDF({
+      movement,
+      res,
+    });
+  },
+);
+
 const getAllEmployeeMovements = catchAsync(
   async (req: Request, res: Response) => {
     const result =
@@ -184,6 +200,8 @@ export const EmployeeMovementController = {
   applyEmployeeMovement,
 
   getEmployeeMovementTimeline,
+
+  downloadEmployeeMovementPDF,
 
   getAllEmployeeMovements,
 

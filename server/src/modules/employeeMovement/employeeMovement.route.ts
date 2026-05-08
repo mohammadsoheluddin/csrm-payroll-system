@@ -46,6 +46,12 @@ router.get(
 );
 
 router.get(
+  "/:id/pdf",
+  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.hr, USER_ROLE.manager),
+  EmployeeMovementController.downloadEmployeeMovementPDF,
+);
+
+router.get(
   "/",
   auth(
     USER_ROLE.super_admin,
