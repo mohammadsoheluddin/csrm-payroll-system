@@ -593,3 +593,213 @@ Complete Enterprise Ecosystem:
 - Reports
 - Analytics
 - ERP Integration
+
+# CSRM Payroll System
+
+# Master Project Continuity & Architecture Document
+
+Project Owner:
+Sohel
+(HR/Admin Professional)
+
+Project Type:
+Enterprise HRIS + Payroll + Industrial Payment Processing Platform
+
+Main Context:
+This is NOT a generic tutorial payroll project.
+This system is being designed based on REAL industrial payroll workflow used in:
+
+- CSRM
+- TSL
+- steel mills
+- manufacturing industries
+- worker/staff mixed payroll environments in Bangladesh.
+
+The system architecture, business logic, Excel formats, PDF statements, OT sheets, bank sheets, leave rules, and reporting structures are inspired by REAL company workflow.
+
+---
+
+# CORE PURPOSE OF THE SYSTEM
+
+Main goal:
+
+Manage:
+
+- employee salary
+- worker wage
+- overtime
+- tiffin bill
+- festival bonus
+- bank payment
+- cash payment
+- payroll statements
+- attendance
+- leave
+- salary deduction
+- loan/advance deduction
+- payroll audit
+- approval workflow
+- HR reporting
+
+in a scalable enterprise architecture.
+
+---
+
+# IMPORTANT BUSINESS REALIZATION
+
+The system is NOT a single merged payroll engine.
+
+Real architecture:
+
+1. Salary Sheet
+2. Time Bill / OT Sheet
+3. Salary Statement
+4. Cash Statement
+5. Bank Sheet
+6. Bonus Sheet
+7. Leave Summary
+8. Attendance Summary
+9. Increment / Salary Revision
+10. Payment Distribution
+
+These are connected but separate processing systems.
+
+---
+
+# CURRENT STACK
+
+Backend:
+
+- Node.js
+- Express.js
+- TypeScript
+- MongoDB
+- Mongoose
+
+Validation:
+
+- Zod
+
+Authentication:
+
+- JWT
+
+Exports:
+
+- PDFKit
+- ExcelJS
+
+Frontend (planned):
+
+- React
+- Vite
+- TypeScript
+- Tailwind
+
+---
+
+# CURRENT BACKEND STRUCTURE
+
+server/src/modules/<moduleName>/
+
+Each module:
+
+- interface
+- model
+- validation
+- service
+- controller
+- route
+
+Shared utilities:
+
+- AppError
+- catchAsync
+- sendResponse
+- validateRequest
+- auth middleware
+- audit log utilities
+
+---
+
+# COMPLETED / MOSTLY COMPLETED MODULES
+
+## Core
+
+- Auth
+- User
+- RBAC
+- Audit Log
+
+## Organization
+
+- Company
+- Major Department
+- Department
+- Designation
+- Branch
+
+## HR
+
+- Employee
+- Attendance
+- Leave
+- Holiday
+- Employee Movement
+
+## Payroll
+
+- Salary Structure
+- Payroll
+- Payroll Approval
+- Payroll Lock
+- Payroll Reports
+- Payslip JSON/PDF
+- CSV Export
+- Excel Export
+- Salary History Engine
+
+## Banking
+
+- Employee Bank Info
+- Company Bank Account (planned)
+- Bank Sheet Engine (planned)
+
+---
+
+# IMPORTANT PAYROLL ARCHITECTURE RULE
+
+Salary Sheet and Time Bill remain separate systems.
+
+DO NOT tightly merge OT into core salary calculation.
+
+Reason:
+real industrial workflow uses:
+
+- separate OT processing
+- separate OT statement
+- separate OT bank distribution
+
+---
+
+# CURRENT DEVELOPMENT STRATEGY
+
+IMPORTANT:
+
+- Always give full updated files
+- Mention exact file paths
+- Preserve APIs
+- Avoid unnecessary architectural breakage
+- Maintain TypeScript safety
+- Maintain modular structure
+- Give Postman tests
+- Give Git commands
+- Use Bangla + English mixed explanation
+
+---
+
+# CURRENT PROJECT STAGE
+
+Enterprise HRIS + Payroll + Industrial Payment Platform
+
+NOT tutorial-level project anymore.
