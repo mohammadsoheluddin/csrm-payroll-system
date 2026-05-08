@@ -44,6 +44,7 @@ const buildPayrollMonth = (month: number, year: number) => {
 
 const getMonthLabel = (month: number, year: number) => {
   const date = new Date(year, month - 1, 1);
+
   return date.toLocaleString("en-US", {
     month: "long",
     year: "numeric",
@@ -90,6 +91,106 @@ const getEmployeeCode = (employee: any) => {
     employee?.idNo ||
     ""
   );
+};
+
+const getSnapshotEmployee = (payroll: any) => {
+  return payroll?.snapshot?.employee || null;
+};
+
+const getSnapshotSalary = (payroll: any) => {
+  return payroll?.snapshot?.salary || null;
+};
+
+const getEmployeeFullNameFromPayroll = (payroll: any) => {
+  const snapshotEmployee = getSnapshotEmployee(payroll);
+
+  if (snapshotEmployee?.employeeName) {
+    return snapshotEmployee.employeeName;
+  }
+
+  return getEmployeeFullName(payroll?.employee);
+};
+
+const getEmployeeCodeFromPayroll = (payroll: any) => {
+  const snapshotEmployee = getSnapshotEmployee(payroll);
+
+  if (snapshotEmployee?.employeeId) {
+    return snapshotEmployee.employeeId;
+  }
+
+  return getEmployeeCode(payroll?.employee);
+};
+
+const getEmployeeDesignationFromPayroll = (payroll: any) => {
+  const snapshotEmployee = getSnapshotEmployee(payroll);
+
+  if (snapshotEmployee?.designation?.name) {
+    return snapshotEmployee.designation.name;
+  }
+
+  const employee = payroll?.employee;
+
+  return (
+    employee?.designation?.title ||
+    employee?.designation?.name ||
+    employee?.designation ||
+    ""
+  );
+};
+
+const getEmployeeDepartmentFromPayroll = (payroll: any) => {
+  const snapshotEmployee = getSnapshotEmployee(payroll);
+
+  if (snapshotEmployee?.department?.name) {
+    return snapshotEmployee.department.name;
+  }
+
+  const employee = payroll?.employee;
+
+  return (
+    employee?.department?.title ||
+    employee?.department?.name ||
+    employee?.department ||
+    ""
+  );
+};
+
+const getEmployeeBranchFromPayroll = (payroll: any) => {
+  const snapshotEmployee = getSnapshotEmployee(payroll);
+
+  if (snapshotEmployee?.branch?.name) {
+    return snapshotEmployee.branch.name;
+  }
+
+  const employee = payroll?.employee;
+
+  return (
+    employee?.branch?.title || employee?.branch?.name || employee?.branch || ""
+  );
+};
+
+const getPayrollSalaryValues = (payroll: any) => {
+  const snapshotSalary = getSnapshotSalary(payroll);
+
+  return {
+    grossSalary: Number(
+      snapshotSalary?.grossSalary || payroll?.grossSalary || 0,
+    ),
+
+    fixedDeduction: Number(
+      snapshotSalary?.fixedDeduction || payroll?.fixedDeduction || 0,
+    ),
+
+    attendanceDeduction: Number(
+      snapshotSalary?.attendanceDeduction || payroll?.attendanceDeduction || 0,
+    ),
+
+    netSalary: Number(snapshotSalary?.netSalary || payroll?.netSalary || 0),
+
+    payableSalary: Number(
+      snapshotSalary?.payableSalary || payroll?.payableSalary || 0,
+    ),
+  };
 };
 
 const escapeCsvValue = (value: string | number) => {
@@ -181,11 +282,13 @@ const getEmployeePayslipFromDB = async ({
   const employee = payroll?.employee as any;
   const salaryStructure = payroll?.salaryStructure as any;
 
-  const grossSalary = Number(payroll?.grossSalary || 0);
-  const fixedDeduction = Number(payroll?.fixedDeduction || 0);
-  const attendanceDeduction = Number(payroll?.attendanceDeduction || 0);
-  const netSalary = Number(payroll?.netSalary || 0);
-  const payableSalary = Number(payroll?.payableSalary || 0);
+  const {
+    grossSalary,
+    fixedDeduction,
+    attendanceDeduction,
+    netSalary,
+    payableSalary,
+  } = getPayrollSalaryValues(payroll);
 
   return {
     payrollId: payroll?._id?.toString(),
@@ -193,43 +296,50 @@ const getEmployeePayslipFromDB = async ({
     month,
     year,
     monthLabel: getMonthLabel(month, year),
+
     employee: {
       id: employee?._id?.toString() || "",
-      employeeCode: getEmployeeCode(employee),
-      fullName: getEmployeeFullName(employee),
+
+      employeeCode: getEmployeeCodeFromPayroll(payroll),
+
+      fullName: getEmployeeFullNameFromPayroll(payroll),
+
       firstName: employee?.name?.firstName || "",
+
       middleName: employee?.name?.middleName || "",
+
       lastName: employee?.name?.lastName || "",
-      designation:
-        employee?.designation?.title ||
-        employee?.designation?.name ||
-        employee?.designation ||
-        "",
-      department:
-        employee?.department?.title ||
-        employee?.department?.name ||
-        employee?.department ||
-        "",
-      branch:
-        employee?.branch?.title ||
-        employee?.branch?.name ||
-        employee?.branch ||
-        "",
+
+      designation: getEmployeeDesignationFromPayroll(payroll),
+
+      department: getEmployeeDepartmentFromPayroll(payroll),
+
+      branch: getEmployeeBranchFromPayroll(payroll),
     },
+
     salaryStructure: salaryStructure
       ? {
           id: salaryStructure?._id?.toString() || "",
+
           grossSalary: Number(salaryStructure?.grossSalary || grossSalary),
         }
       : null,
+
     payroll: {
       grossSalary,
+
       fixedDeduction,
+
       attendanceDeduction,
+
       totalDeduction: fixedDeduction + attendanceDeduction,
+
       netSalary,
+
       payableSalary,
+
       status: payroll?.status || "",
+
       remarks: payroll?.remarks || "",
     },
   };
@@ -255,10 +365,7 @@ const getMonthlyPayrollReportFromDB = async ({
     query.status = status;
   }
 
-  const payrolls = await Payroll.find({
-    payrollMonth,
-    isDeleted: false,
-  })
+  const payrolls = await Payroll.find(query)
     .populate({
       path: "employee",
       populate: [
@@ -271,10 +378,17 @@ const getMonthlyPayrollReportFromDB = async ({
     .sort({ createdAt: 1 });
 
   const filteredPayrolls = payrolls.filter((payroll: any) => {
+    const snapshotEmployee = payroll?.snapshot?.employee;
+
     const employee = payroll?.employee;
 
-    const employeeBranchId = employee?.branch?._id?.toString?.() || "";
-    const employeeDepartmentId = employee?.department?._id?.toString?.() || "";
+    const employeeBranchId =
+      snapshotEmployee?.branch?.id || employee?.branch?._id?.toString?.() || "";
+
+    const employeeDepartmentId =
+      snapshotEmployee?.department?.id ||
+      employee?.department?._id?.toString?.() ||
+      "";
 
     if (branch && employeeBranchId !== branch) {
       return false;
@@ -296,43 +410,50 @@ const getMonthlyPayrollReportFromDB = async ({
 
   const data = filteredPayrolls.map((payroll: any, index: number) => {
     const employee = payroll?.employee;
-    const grossSalary = Number(payroll?.grossSalary || 0);
-    const fixedDeduction = Number(payroll?.fixedDeduction || 0);
-    const attendanceDeduction = Number(payroll?.attendanceDeduction || 0);
-    const netSalary = Number(payroll?.netSalary || 0);
-    const payableSalary = Number(payroll?.payableSalary || 0);
 
-    return {
-      sl: index + 1,
-      payrollId: payroll?._id?.toString() || "",
-      employee: {
-        id: employee?._id?.toString() || "",
-        employeeCode: getEmployeeCode(employee),
-        fullName: getEmployeeFullName(employee),
-        designation:
-          employee?.designation?.title ||
-          employee?.designation?.name ||
-          employee?.designation ||
-          "",
-        branch:
-          employee?.branch?.title ||
-          employee?.branch?.name ||
-          employee?.branch ||
-          "",
-        department:
-          employee?.department?.title ||
-          employee?.department?.name ||
-          employee?.department ||
-          "",
-      },
-      payrollMonth: payroll?.payrollMonth || "",
+    const {
       grossSalary,
       fixedDeduction,
       attendanceDeduction,
-      totalDeduction: fixedDeduction + attendanceDeduction,
       netSalary,
       payableSalary,
+    } = getPayrollSalaryValues(payroll);
+
+    return {
+      sl: index + 1,
+
+      payrollId: payroll?._id?.toString() || "",
+
+      employee: {
+        id: employee?._id?.toString() || "",
+
+        employeeCode: getEmployeeCodeFromPayroll(payroll),
+
+        fullName: getEmployeeFullNameFromPayroll(payroll),
+
+        designation: getEmployeeDesignationFromPayroll(payroll),
+
+        branch: getEmployeeBranchFromPayroll(payroll),
+
+        department: getEmployeeDepartmentFromPayroll(payroll),
+      },
+
+      payrollMonth: payroll?.payrollMonth || "",
+
+      grossSalary,
+
+      fixedDeduction,
+
+      attendanceDeduction,
+
+      totalDeduction: fixedDeduction + attendanceDeduction,
+
+      netSalary,
+
+      payableSalary,
+
       status: payroll?.status || "",
+
       remarks: payroll?.remarks || "",
     };
   });
@@ -346,6 +467,7 @@ const getMonthlyPayrollReportFromDB = async ({
       acc.totalDeduction += row.totalDeduction;
       acc.totalNetSalary += row.netSalary;
       acc.totalPayableSalary += row.payableSalary;
+
       return acc;
     },
     {
@@ -363,13 +485,17 @@ const getMonthlyPayrollReportFromDB = async ({
     payrollMonth,
     month,
     year,
+
     monthLabel: getMonthLabel(month, year),
+
     filters: {
       branch: branch || null,
       department: department || null,
       status: status || null,
     },
+
     summary,
+
     data,
   };
 };
@@ -397,25 +523,39 @@ const getMonthlyPayrollRows = async (month: number, year: number) => {
   const rows: TExportRow[] = payrolls.map((payroll: any, index: number) => {
     const employee = payroll?.employee;
 
-    const grossSalary = Number(payroll?.grossSalary || 0);
-    const fixedDeduction = Number(payroll?.fixedDeduction || 0);
-    const attendanceDeduction = Number(payroll?.attendanceDeduction || 0);
-    const netSalary = Number(payroll?.netSalary || 0);
-    const payableSalary = Number(payroll?.payableSalary || 0);
-
-    return {
-      sl: index + 1,
-      employeeDbId: employee?._id?.toString() || "",
-      employeeCode: getEmployeeCode(employee),
-      employeeName: getEmployeeFullName(employee),
-      payrollMonth: payroll?.payrollMonth || "",
+    const {
       grossSalary,
       fixedDeduction,
       attendanceDeduction,
-      totalDeduction: fixedDeduction + attendanceDeduction,
       netSalary,
       payableSalary,
+    } = getPayrollSalaryValues(payroll);
+
+    return {
+      sl: index + 1,
+
+      employeeDbId: employee?._id?.toString() || "",
+
+      employeeCode: getEmployeeCodeFromPayroll(payroll),
+
+      employeeName: getEmployeeFullNameFromPayroll(payroll),
+
+      payrollMonth: payroll?.payrollMonth || "",
+
+      grossSalary,
+
+      fixedDeduction,
+
+      attendanceDeduction,
+
+      totalDeduction: fixedDeduction + attendanceDeduction,
+
+      netSalary,
+
+      payableSalary,
+
       status: payroll?.status || "",
+
       remarks: payroll?.remarks || "",
     };
   });
@@ -429,6 +569,7 @@ const getMonthlyPayrollRows = async (month: number, year: number) => {
       acc.totalDeduction += row.totalDeduction;
       acc.totalNetSalary += row.netSalary;
       acc.totalPayableSalary += row.payableSalary;
+
       return acc;
     },
     {
@@ -446,20 +587,27 @@ const getMonthlyPayrollRows = async (month: number, year: number) => {
     payrollMonth,
     month,
     year,
+
     monthLabel: getMonthLabel(month, year),
+
     rows,
+
     summary,
   };
 };
 
 const exportMonthlyPayrollReportCsv = async (month: number, year: number) => {
   const reportData = await getMonthlyPayrollRows(month, year);
+
   const csv = buildCsvContent(reportData.rows);
 
   return {
     fileName: `monthly-payroll-report-${reportData.payrollMonth}.csv`,
+
     mimeType: "text/csv; charset=utf-8",
+
     buffer: Buffer.from(csv, "utf-8"),
+
     reportData,
   };
 };
@@ -468,38 +616,105 @@ const exportMonthlyPayrollReportExcel = async (month: number, year: number) => {
   const reportData = await getMonthlyPayrollRows(month, year);
 
   const workbook = new ExcelJS.Workbook();
+
   const worksheet = workbook.addWorksheet("Monthly Payroll Report");
 
   worksheet.columns = [
     { header: "SL", key: "sl", width: 8 },
-    { header: "Employee DB ID", key: "employeeDbId", width: 28 },
-    { header: "Employee Code", key: "employeeCode", width: 18 },
-    { header: "Employee Name", key: "employeeName", width: 28 },
-    { header: "Payroll Month", key: "payrollMonth", width: 16 },
-    { header: "Gross Salary", key: "grossSalary", width: 16 },
-    { header: "Fixed Deduction", key: "fixedDeduction", width: 18 },
-    { header: "Attendance Deduction", key: "attendanceDeduction", width: 22 },
-    { header: "Total Deduction", key: "totalDeduction", width: 18 },
-    { header: "Net Salary", key: "netSalary", width: 16 },
-    { header: "Payable Salary", key: "payableSalary", width: 18 },
+
+    {
+      header: "Employee DB ID",
+      key: "employeeDbId",
+      width: 28,
+    },
+
+    {
+      header: "Employee Code",
+      key: "employeeCode",
+      width: 18,
+    },
+
+    {
+      header: "Employee Name",
+      key: "employeeName",
+      width: 28,
+    },
+
+    {
+      header: "Payroll Month",
+      key: "payrollMonth",
+      width: 16,
+    },
+
+    {
+      header: "Gross Salary",
+      key: "grossSalary",
+      width: 16,
+    },
+
+    {
+      header: "Fixed Deduction",
+      key: "fixedDeduction",
+      width: 18,
+    },
+
+    {
+      header: "Attendance Deduction",
+      key: "attendanceDeduction",
+      width: 22,
+    },
+
+    {
+      header: "Total Deduction",
+      key: "totalDeduction",
+      width: 18,
+    },
+
+    {
+      header: "Net Salary",
+      key: "netSalary",
+      width: 16,
+    },
+
+    {
+      header: "Payable Salary",
+      key: "payableSalary",
+      width: 18,
+    },
+
     { header: "Status", key: "status", width: 14 },
-    { header: "Remarks", key: "remarks", width: 24 },
+
+    {
+      header: "Remarks",
+      key: "remarks",
+      width: 24,
+    },
   ];
 
   worksheet.addRows(reportData.rows);
 
   const headerRow = worksheet.getRow(1);
+
   headerRow.font = { bold: true };
-  headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+  headerRow.alignment = {
+    vertical: "middle",
+    horizontal: "center",
+  };
 
   worksheet.eachRow((row, rowNumber) => {
-    row.alignment = { vertical: "middle" };
+    row.alignment = {
+      vertical: "middle",
+    };
 
     row.eachCell((cell) => {
       cell.border = {
         top: { style: "thin" },
+
         left: { style: "thin" },
+
         bottom: { style: "thin" },
+
         right: { style: "thin" },
       };
     });
@@ -514,15 +729,24 @@ const exportMonthlyPayrollReportExcel = async (month: number, year: number) => {
   const summaryStartRow = worksheet.rowCount + 2;
 
   worksheet.getCell(`A${summaryStartRow}`).value = "Summary";
-  worksheet.getCell(`A${summaryStartRow}`).font = { bold: true };
+
+  worksheet.getCell(`A${summaryStartRow}`).font = {
+    bold: true,
+  };
 
   const summaryRows = [
     ["Total Employees", reportData.summary.totalEmployees],
+
     ["Total Gross Salary", reportData.summary.totalGrossSalary],
+
     ["Total Fixed Deduction", reportData.summary.totalFixedDeduction],
+
     ["Total Attendance Deduction", reportData.summary.totalAttendanceDeduction],
+
     ["Total Deduction", reportData.summary.totalDeduction],
+
     ["Total Net Salary", reportData.summary.totalNetSalary],
+
     ["Total Payable Salary", reportData.summary.totalPayableSalary],
   ];
 
@@ -530,21 +754,30 @@ const exportMonthlyPayrollReportExcel = async (month: number, year: number) => {
     const rowNumber = summaryStartRow + 1 + index;
 
     worksheet.getCell(`A${rowNumber}`).value = item[0];
+
     worksheet.getCell(`B${rowNumber}`).value = item[1];
 
-    worksheet.getCell(`A${rowNumber}`).font = { bold: true };
+    worksheet.getCell(`A${rowNumber}`).font = {
+      bold: true,
+    };
 
     worksheet.getCell(`A${rowNumber}`).border = {
       top: { style: "thin" },
+
       left: { style: "thin" },
+
       bottom: { style: "thin" },
+
       right: { style: "thin" },
     };
 
     worksheet.getCell(`B${rowNumber}`).border = {
       top: { style: "thin" },
+
       left: { style: "thin" },
+
       bottom: { style: "thin" },
+
       right: { style: "thin" },
     };
   });
@@ -553,9 +786,12 @@ const exportMonthlyPayrollReportExcel = async (month: number, year: number) => {
 
   return {
     fileName: `monthly-payroll-report-${reportData.payrollMonth}.xlsx`,
+
     mimeType:
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
     buffer,
+
     reportData,
   };
 };
