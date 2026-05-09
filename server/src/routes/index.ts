@@ -40,6 +40,8 @@ import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.ro
 
 import timeBillRoutes from "../modules/timeBill/timeBill.route";
 
+import otStatementRoutes from "../modules/otStatement/otStatement.route";
+
 import userRoutes from "../modules/user/user.route";
 
 import healthRoutes from "./health.route";
@@ -154,6 +156,11 @@ const moduleRoutes = [
   {
     path: "/time-bills",
     route: timeBillRoutes,
+  },
+
+  {
+    path: "/ot-statements",
+    route: otStatementRoutes,
   },
 
   {
