@@ -12,6 +12,8 @@ import authRoutes from "../modules/auth/auth.route";
 
 import branchRoutes from "../modules/branch/branch.route";
 
+import bonusSheetRoutes from "../modules/bonusSheet/bonusSheet.route";
+
 import companyRoutes from "../modules/company/company.route";
 
 import { CompanyBankAccountRoutes } from "../modules/companyBankAccount/companyBankAccount.route";
@@ -196,6 +198,11 @@ const moduleRoutes = [
   {
     path: "/month-end-process-control",
     route: monthEndProcessControlRoutes,
+  },
+
+  {
+    path: "/bonus-sheets",
+    route: bonusSheetRoutes,
   },
 
   {

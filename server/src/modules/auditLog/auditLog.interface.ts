@@ -33,6 +33,7 @@ export type TAuditLogModule =
   | "ot_statement"
   | "ot_payment_distribution"
   | "month_end_process_control"
+  | "bonus_sheet"
   | "payslip"
   | "rbac"
   | "system";
