@@ -173,6 +173,98 @@ export interface TBonusPaymentDistributionSummaryQuery {
   paymentMode?: TBonusPaymentDistributionPaymentMode;
 }
 
+export interface TBonusPaymentDistributionExportQuery {
+  bonusMonth?: string;
+  month?: string;
+  year?: string;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+  bonusName?: string;
+  bonusType?: TBonusType;
+  paymentMode: TBonusPaymentDistributionPaymentMode;
+}
+
+export interface TBonusPaymentDistributionExportRow {
+  slNo: number;
+  bonusPaymentDistributionId: string;
+  employeeId: string;
+  employeeName: string;
+  officeId?: string;
+  cardNo?: string;
+  designation: string;
+  department: string;
+  majorDepartment: string;
+  branch: string;
+  bonusName: string;
+  bonusType: TBonusType;
+  calculationBasis: TBonusCalculationBasis;
+  paymentMode: TBonusPaymentDistributionPaymentMode;
+  accountName?: string;
+  bankName?: string;
+  bankBranchName?: string;
+  bankBranchCode?: string;
+  accountNo?: string;
+  processBankBranchNo?: string;
+  routingNo?: string;
+  mobileBankingProvider?: string;
+  mobileBankingNo?: string;
+  cashPayReason?: string;
+  paymentInfoSource: "employee_payment_info" | "fallback_cash";
+  paymentInfoWarning?: string;
+  basicSalary: number;
+  grossSalary: number;
+  calculatedBonusAmount: number;
+  payableBonusAmount: number;
+  payableAmount: number;
+}
+
+export interface TBonusPaymentDistributionExportSummary {
+  bonusMonth: string;
+  month: number;
+  year: number;
+  bonusName: string | null;
+  bonusType: TBonusType | null;
+  paymentMode: TBonusPaymentDistributionPaymentMode;
+  totalEmployees: number;
+  totalAmount: number;
+  totalBasicSalary: number;
+  totalGrossSalary: number;
+  totalCalculatedBonusAmount: number;
+  totalPayableBonusAmount: number;
+  fallbackCashCount: number;
+  generatedAt: string;
+}
+
+export interface TBonusPaymentDistributionExportPreview {
+  bonusMonth: string;
+  filters: {
+    company: string;
+    majorDepartment: string | null;
+    department: string | null;
+    branch: string | null;
+    employee: string | null;
+    bonusName: string | null;
+    bonusType: TBonusType | null;
+    paymentMode: TBonusPaymentDistributionPaymentMode;
+  };
+  summary: TBonusPaymentDistributionExportSummary;
+  readiness: {
+    canExport: boolean;
+    blockers: string[];
+  };
+  rows: TBonusPaymentDistributionExportRow[];
+}
+
+export interface TBonusPaymentDistributionExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TBonusPaymentDistributionExportPreview;
+}
+
 export interface TBonusPaymentDistributionActionPayload {
   note?: string;
 }

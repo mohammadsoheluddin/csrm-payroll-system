@@ -1,12 +1,18 @@
 import { Types } from "mongoose";
 import { buildPayrollImmutableSealFromRecord } from "../../utils/payrollImmutableSeal";
 import AppError from "../../errors/AppError";
+import {
+  generateBonusPaymentDistributionCsv,
+  generateBonusPaymentDistributionExcel,
+  generateBonusPaymentDistributionPDF,
+} from "./bonusPaymentDistribution.export";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
 import BonusStatement from "../bonusStatement/bonusStatement.model";
 import type { TBonusStatement } from "../bonusStatement/bonusStatement.interface";
 import {
   TBonusPaymentDistribution,
   TBonusPaymentDistributionActionPayload,
+  TBonusPaymentDistributionExportQuery,
   TBonusPaymentDistributionBulkActionPayload,
   TBonusPaymentDistributionBulkActionType,
   TBonusPaymentDistributionPaymentMode,
@@ -54,6 +60,22 @@ const getObjectIdString = (value: unknown) => {
   }
 
   return "";
+};
+
+const getEmployeeFullName = (employee: any) => {
+  if (!employee) {
+    return "";
+  }
+
+  const fullName = [
+    employee.name?.firstName,
+    employee.name?.middleName,
+    employee.name?.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return fullName || employee.fullName || employee.employeeName || "";
 };
 
 const buildActionBy = (actionBy?: string) => {
@@ -1157,6 +1179,237 @@ const bulkUnlockBonusPaymentDistributionsIntoDB = async (
   });
 };
 
+const getExportPayableAmount = (row: any) => {
+  if (row.paymentMode === "bank") {
+    return Number(row.bankAmount || 0);
+  }
+
+  if (row.paymentMode === "mobile_banking") {
+    return Number(row.mobileBankingAmount || 0);
+  }
+
+  return Number(row.cashAmount || 0);
+};
+
+const getSnapshotName = (row: any, fieldName: string) => {
+  const sourceSnapshotValue =
+    row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.[fieldName]?.name;
+
+  if (sourceSnapshotValue) {
+    return sourceSnapshotValue;
+  }
+
+  return row?.[fieldName]?.name || "";
+};
+
+const buildBonusPaymentDistributionExportRows = (rows: any[]) => {
+  return rows.map((row, index) => ({
+    slNo: index + 1,
+    bonusPaymentDistributionId: getObjectIdString(row?._id),
+    employeeId:
+      row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.employeeId ||
+      row?.employee?.employeeId ||
+      "",
+    employeeName:
+      row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.employeeName ||
+      getEmployeeFullName(row?.employee),
+    officeId:
+      row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.officeId ||
+      row?.employee?.officeId ||
+      "",
+    cardNo:
+      row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.cardNo ||
+      row?.employee?.cardNo ||
+      "",
+    designation: getSnapshotName(row, "designation"),
+    department: getSnapshotName(row, "department"),
+    majorDepartment: getSnapshotName(row, "majorDepartment"),
+    branch: getSnapshotName(row, "branch"),
+    bonusName: row.bonusName || "",
+    bonusType: row.bonusType,
+    calculationBasis: row.calculationBasis,
+    paymentMode: row.paymentMode,
+    accountName: row.accountName || "",
+    bankName: row.bankName || "",
+    bankBranchName: row.bankBranchName || "",
+    bankBranchCode: row.bankBranchCode || "",
+    accountNo: row.accountNo || "",
+    processBankBranchNo: row.processBankBranchNo || "",
+    routingNo: row.routingNo || "",
+    mobileBankingProvider: row.mobileBankingProvider || "",
+    mobileBankingNo: row.mobileBankingNo || "",
+    cashPayReason: row.cashPayReason || "",
+    paymentInfoSource: row.paymentInfoSource,
+    paymentInfoWarning: row.paymentInfoWarning || "",
+    basicSalary: Number(row.basicSalary || 0),
+    grossSalary: Number(row.grossSalary || 0),
+    calculatedBonusAmount: Number(row.calculatedBonusAmount || 0),
+    payableBonusAmount: Number(row.payableBonusAmount || 0),
+    payableAmount: getExportPayableAmount(row),
+  }));
+};
+
+const ensureRowsReadyForExport = ({ rows }: { rows: any[] }) => {
+  const blockers = rows
+    .filter((row) => row.status !== "locked" || !row.isLocked)
+    .map((row) => ({
+      employeeId:
+        row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.employeeId ||
+        row?.employee?.employeeId ||
+        "",
+      employeeName:
+        row?.snapshot?.bonusStatement?.sourceSnapshot?.employee?.employeeName ||
+        getEmployeeFullName(row?.employee),
+      reason: `Bonus Payment Distribution is ${row.status} and locked=${row.isLocked}.`,
+    }));
+
+  if (blockers.length) {
+    const blockerPreview = blockers
+      .slice(0, 10)
+      .map(
+        (blocker) =>
+          `${blocker.employeeId} - ${blocker.employeeName}: ${blocker.reason}`,
+      )
+      .join("; ");
+
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      `Bonus Bank/Cash/Mobile sheet export blocked. Locked Bonus Payment Distribution is required for every selected employee. Blockers: ${blockerPreview}${
+        blockers.length > 10 ? `; and ${blockers.length - 10} more.` : "."
+      }`,
+    );
+  }
+};
+
+const buildBonusPaymentDistributionExportPreviewFromDB = async (
+  query: TBonusPaymentDistributionExportQuery,
+) => {
+  validateMonthlyPayload(query);
+
+  if (!query.paymentMode) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Payment mode is required.");
+  }
+
+  const bonusMonth = normalizeBonusMonthFromPayload(query);
+  const filter = buildBaseFilter({
+    bonusMonth,
+    company: query.company,
+    majorDepartment: query.majorDepartment,
+    department: query.department,
+    branch: query.branch,
+    employee: query.employee,
+    bonusName: query.bonusName,
+    bonusType: query.bonusType,
+    paymentMode: query.paymentMode,
+  });
+
+  const rows = await populateBonusPaymentDistributionQuery(
+    BonusPaymentDistribution.find(filter).sort({
+      bonusName: 1,
+      "snapshot.bonusStatement.sourceSnapshot.employee.employeeId": 1,
+    }),
+  );
+
+  if (!rows.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No Bonus Payment Distribution records found for selected export filters.",
+    );
+  }
+
+  ensureRowsReadyForExport({ rows });
+
+  const exportRows = buildBonusPaymentDistributionExportRows(rows).filter(
+    (row) => row.payableAmount > 0,
+  );
+
+  if (!exportRows.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No payable bonus rows found for selected payment mode.",
+    );
+  }
+
+  const month = Number(bonusMonth.split("-")[1]);
+  const year = Number(bonusMonth.split("-")[0]);
+
+  return {
+    bonusMonth,
+    filters: {
+      company: query.company,
+      majorDepartment: query.majorDepartment || null,
+      department: query.department || null,
+      branch: query.branch || null,
+      employee: query.employee || null,
+      bonusName: query.bonusName || null,
+      bonusType: query.bonusType || null,
+      paymentMode: query.paymentMode,
+    },
+    summary: {
+      bonusMonth,
+      month,
+      year,
+      bonusName: query.bonusName || null,
+      bonusType: query.bonusType || null,
+      paymentMode: query.paymentMode,
+      totalEmployees: exportRows.length,
+      totalAmount: exportRows.reduce(
+        (sum, row) => sum + Number(row.payableAmount || 0),
+        0,
+      ),
+      totalBasicSalary: exportRows.reduce(
+        (sum, row) => sum + Number(row.basicSalary || 0),
+        0,
+      ),
+      totalGrossSalary: exportRows.reduce(
+        (sum, row) => sum + Number(row.grossSalary || 0),
+        0,
+      ),
+      totalCalculatedBonusAmount: exportRows.reduce(
+        (sum, row) => sum + Number(row.calculatedBonusAmount || 0),
+        0,
+      ),
+      totalPayableBonusAmount: exportRows.reduce(
+        (sum, row) => sum + Number(row.payableBonusAmount || 0),
+        0,
+      ),
+      fallbackCashCount: exportRows.filter(
+        (row) => row.paymentInfoSource === "fallback_cash",
+      ).length,
+      generatedAt: new Date().toISOString(),
+    },
+    readiness: {
+      canExport: true,
+      blockers: [],
+    },
+    rows: exportRows,
+  };
+};
+
+const exportBonusPaymentDistributionCsvFromDB = async (
+  query: TBonusPaymentDistributionExportQuery,
+) => {
+  const preview = await buildBonusPaymentDistributionExportPreviewFromDB(query);
+
+  return generateBonusPaymentDistributionCsv(preview);
+};
+
+const exportBonusPaymentDistributionExcelFromDB = async (
+  query: TBonusPaymentDistributionExportQuery,
+) => {
+  const preview = await buildBonusPaymentDistributionExportPreviewFromDB(query);
+
+  return generateBonusPaymentDistributionExcel(preview);
+};
+
+const exportBonusPaymentDistributionPdfFromDB = async (
+  query: TBonusPaymentDistributionExportQuery,
+) => {
+  const preview = await buildBonusPaymentDistributionExportPreviewFromDB(query);
+
+  return generateBonusPaymentDistributionPDF(preview);
+};
+
 export const BonusPaymentDistributionServices = {
   generateMonthlyBonusPaymentDistributionIntoDB,
   getAllBonusPaymentDistributionsFromDB,
@@ -1170,4 +1423,8 @@ export const BonusPaymentDistributionServices = {
   bulkApproveBonusPaymentDistributionsIntoDB,
   bulkLockBonusPaymentDistributionsIntoDB,
   bulkUnlockBonusPaymentDistributionsIntoDB,
+  buildBonusPaymentDistributionExportPreviewFromDB,
+  exportBonusPaymentDistributionCsvFromDB,
+  exportBonusPaymentDistributionExcelFromDB,
+  exportBonusPaymentDistributionPdfFromDB,
 };

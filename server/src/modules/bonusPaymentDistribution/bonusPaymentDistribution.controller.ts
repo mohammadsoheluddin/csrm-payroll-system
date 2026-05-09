@@ -378,6 +378,128 @@ const unlockBonusPaymentDistribution = catchAsync(
   },
 );
 
+const getBonusPaymentDistributionExportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await BonusPaymentDistributionServices.buildBonusPaymentDistributionExportPreviewFromDB(
+        req.query as any,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "bonus_payment_distribution",
+      action: "read",
+      entityName: result.bonusMonth,
+      description: "Bonus Bank/Cash/Mobile sheet export preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Bonus Payment Distribution export preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createBonusPaymentDistributionExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "bonus_payment_distribution",
+    action: "export",
+    entityName: result.reportData.bonusMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.reportData.filters,
+      summary: result.reportData.summary,
+      fileName: result.fileName,
+    },
+  });
+};
+
+const exportBonusPaymentDistributionCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await BonusPaymentDistributionServices.exportBonusPaymentDistributionCsvFromDB(
+        req.query as any,
+      );
+
+    await createBonusPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "Bonus Bank/Cash/Mobile sheet CSV exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportBonusPaymentDistributionExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await BonusPaymentDistributionServices.exportBonusPaymentDistributionExcelFromDB(
+        req.query as any,
+      );
+
+    await createBonusPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "Bonus Bank/Cash/Mobile sheet Excel exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportBonusPaymentDistributionPdf = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await BonusPaymentDistributionServices.exportBonusPaymentDistributionPdfFromDB(
+        req.query as any,
+      );
+
+    await createBonusPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "Bonus Bank/Cash/Mobile sheet PDF exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const BonusPaymentDistributionControllers = {
   generateMonthlyBonusPaymentDistribution,
   getAllBonusPaymentDistributions,
@@ -391,4 +513,8 @@ export const BonusPaymentDistributionControllers = {
   approveBonusPaymentDistribution,
   lockBonusPaymentDistribution,
   unlockBonusPaymentDistribution,
+  getBonusPaymentDistributionExportPreview,
+  exportBonusPaymentDistributionCsv,
+  exportBonusPaymentDistributionExcel,
+  exportBonusPaymentDistributionPdf,
 };

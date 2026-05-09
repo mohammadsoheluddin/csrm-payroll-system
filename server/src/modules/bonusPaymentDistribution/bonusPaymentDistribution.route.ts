@@ -76,6 +76,46 @@ router.patch(
 );
 
 router.get(
+  "/export/preview",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_READ),
+  validateRequest(
+    BonusPaymentDistributionValidations.bonusPaymentDistributionExportQueryValidationSchema,
+  ),
+  BonusPaymentDistributionControllers.getBonusPaymentDistributionExportPreview,
+);
+
+router.get(
+  "/export/csv",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    BonusPaymentDistributionValidations.bonusPaymentDistributionExportQueryValidationSchema,
+  ),
+  BonusPaymentDistributionControllers.exportBonusPaymentDistributionCsv,
+);
+
+router.get(
+  "/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    BonusPaymentDistributionValidations.bonusPaymentDistributionExportQueryValidationSchema,
+  ),
+  BonusPaymentDistributionControllers.exportBonusPaymentDistributionExcel,
+);
+
+router.get(
+  "/export/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    BonusPaymentDistributionValidations.bonusPaymentDistributionExportQueryValidationSchema,
+  ),
+  BonusPaymentDistributionControllers.exportBonusPaymentDistributionPdf,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_READ),
