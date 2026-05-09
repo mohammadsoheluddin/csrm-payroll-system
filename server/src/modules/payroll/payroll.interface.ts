@@ -62,6 +62,8 @@ export type TPayrollEmployeeSnapshot = {
 export type TPayrollSalarySnapshot = {
   grossSalary?: number;
 
+  perDaySalary?: number;
+
   fixedDeduction?: number;
 
   attendanceDeduction?: number;
@@ -83,6 +85,40 @@ export type TPayrollSalarySnapshot = {
   finalPayableSalary?: number;
 
   salaryStructureId?: string | null;
+};
+
+export type TPayrollAttendanceFinalizationSnapshot = {
+  attendanceFinalizationId?: string;
+
+  payrollMonth?: string;
+
+  status?: string;
+
+  isLocked?: boolean;
+
+  periodStartDate?: string;
+
+  periodEndDate?: string;
+
+  totalCalendarDays?: number;
+
+  totalPayableDays?: number;
+
+  totalDeductionDays?: number;
+
+  totalAbsentDays?: number;
+
+  totalPaidLeaveDays?: number;
+
+  totalUnpaidLeaveDays?: number;
+
+  totalDutyDays?: number;
+
+  totalOtHours?: number;
+
+  totalTiffinDays?: number;
+
+  generatedRuleVersion?: string;
 };
 
 export type TPayrollPaymentSnapshot = {
@@ -110,6 +146,8 @@ export type TPayrollSnapshot = {
 
   salary?: TPayrollSalarySnapshot | null;
 
+  attendanceFinalization?: TPayrollAttendanceFinalizationSnapshot | null;
+
   payment?: TPayrollPaymentSnapshot | null;
 };
 
@@ -119,6 +157,18 @@ export interface TPayroll {
   payrollMonth: string;
 
   salaryStructure: Types.ObjectId;
+
+  attendanceFinalization?: Types.ObjectId | null;
+
+  totalPayableDays?: number;
+
+  totalDeductionDays?: number;
+
+  totalAbsentDays?: number;
+
+  totalPaidLeaveDays?: number;
+
+  totalUnpaidLeaveDays?: number;
 
   grossSalary: number;
 

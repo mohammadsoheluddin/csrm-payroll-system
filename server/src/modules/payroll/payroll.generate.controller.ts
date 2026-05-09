@@ -40,12 +40,16 @@ const generateMonthlyPayroll = catchAsync(
         totalEmployees: result.totalEmployees,
         totalGenerated: result.totalGenerated,
         totalSkipped: result.totalSkipped,
+        attendanceFinalizationReadiness:
+          result.attendanceFinalizationReadiness,
       },
       metadata: {
         payrollMonth: result.payrollMonth,
         totalEmployees: result.totalEmployees,
         totalGenerated: result.totalGenerated,
         totalSkipped: result.totalSkipped,
+        attendanceFinalizationReadiness:
+          result.attendanceFinalizationReadiness,
       },
     });
 

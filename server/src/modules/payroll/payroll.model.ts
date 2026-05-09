@@ -168,6 +168,12 @@ const payrollSnapshotSchema = new Schema(
         default: 0,
       },
 
+      perDaySalary: {
+        type: Number,
+
+        default: 0,
+      },
+
       fixedDeduction: {
         type: Number,
 
@@ -221,6 +227,104 @@ const payrollSnapshotSchema = new Schema(
       },
 
       salaryStructureId: {
+        type: String,
+
+        default: "",
+      },
+    },
+
+    attendanceFinalization: {
+      attendanceFinalizationId: {
+        type: String,
+
+        default: "",
+      },
+
+      payrollMonth: {
+        type: String,
+
+        default: "",
+      },
+
+      status: {
+        type: String,
+
+        default: "",
+      },
+
+      isLocked: {
+        type: Boolean,
+
+        default: false,
+      },
+
+      periodStartDate: {
+        type: String,
+
+        default: "",
+      },
+
+      periodEndDate: {
+        type: String,
+
+        default: "",
+      },
+
+      totalCalendarDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalPayableDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalDeductionDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalAbsentDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalPaidLeaveDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalUnpaidLeaveDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalDutyDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalOtHours: {
+        type: Number,
+
+        default: 0,
+      },
+
+      totalTiffinDays: {
+        type: Number,
+
+        default: 0,
+      },
+
+      generatedRuleVersion: {
         type: String,
 
         default: "",
@@ -312,6 +416,54 @@ const payrollSchema = new Schema<TPayroll, PayrollModel>(
       ref: "SalaryStructure",
 
       required: true,
+    },
+
+    attendanceFinalization: {
+      type: Schema.Types.ObjectId,
+
+      ref: "AttendanceFinalization",
+
+      default: null,
+    },
+
+    totalPayableDays: {
+      type: Number,
+
+      default: 0,
+
+      min: 0,
+    },
+
+    totalDeductionDays: {
+      type: Number,
+
+      default: 0,
+
+      min: 0,
+    },
+
+    totalAbsentDays: {
+      type: Number,
+
+      default: 0,
+
+      min: 0,
+    },
+
+    totalPaidLeaveDays: {
+      type: Number,
+
+      default: 0,
+
+      min: 0,
+    },
+
+    totalUnpaidLeaveDays: {
+      type: Number,
+
+      default: 0,
+
+      min: 0,
     },
 
     grossSalary: {
@@ -476,5 +628,11 @@ payrollSchema.index(
     unique: true,
   },
 );
+
+payrollSchema.index({
+  attendanceFinalization: 1,
+  payrollMonth: 1,
+  isDeleted: 1,
+});
 
 export const Payroll = model<TPayroll, PayrollModel>("Payroll", payrollSchema);
