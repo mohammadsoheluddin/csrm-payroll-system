@@ -14,6 +14,10 @@ import branchRoutes from "../modules/branch/branch.route";
 
 import bonusSheetRoutes from "../modules/bonusSheet/bonusSheet.route";
 
+import bonusStatementRoutes from "../modules/bonusStatement/bonusStatement.route";
+
+import bonusPaymentDistributionRoutes from "../modules/bonusPaymentDistribution/bonusPaymentDistribution.route";
+
 import companyRoutes from "../modules/company/company.route";
 
 import { CompanyBankAccountRoutes } from "../modules/companyBankAccount/companyBankAccount.route";
@@ -203,6 +207,16 @@ const moduleRoutes = [
   {
     path: "/bonus-sheets",
     route: bonusSheetRoutes,
+  },
+
+  {
+    path: "/bonus-statements",
+    route: bonusStatementRoutes,
+  },
+
+  {
+    path: "/bonus-payment-distributions",
+    route: bonusPaymentDistributionRoutes,
   },
 
   {
