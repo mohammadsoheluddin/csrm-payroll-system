@@ -102,6 +102,131 @@ const getSalarySheetOperationalSummary = catchAsync(
   },
 );
 
+
+const createSalarySheetBulkAudit = async ({
+  req,
+  action,
+  description,
+  result,
+}: {
+  req: Request;
+  action: "process" | "approve" | "lock" | "unlock";
+  description: string;
+  result: any;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "salary_sheet",
+    action,
+    entityName: result.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.filters,
+      summary: result.summary,
+      salaryStatementReadiness: result.salaryStatementReadiness,
+    },
+  });
+};
+
+const bulkProcessSalarySheets = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result = await SalarySheetServices.bulkProcessSalarySheetsIntoDB(
+      req.body,
+      userId,
+    );
+
+    await createSalarySheetBulkAudit({
+      req,
+      action: "process",
+      description: "Salary Sheets bulk processed",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Sheets bulk processed successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkApproveSalarySheets = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result = await SalarySheetServices.bulkApproveSalarySheetsIntoDB(
+      req.body,
+      userId,
+    );
+
+    await createSalarySheetBulkAudit({
+      req,
+      action: "approve",
+      description: "Salary Sheets bulk approved",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Sheets bulk approved successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkLockSalarySheets = catchAsync(async (req: Request, res: Response) => {
+  const userId = getUserIdFromRequest(req);
+
+  const result = await SalarySheetServices.bulkLockSalarySheetsIntoDB(
+    req.body,
+    userId,
+  );
+
+  await createSalarySheetBulkAudit({
+    req,
+    action: "lock",
+    description: "Salary Sheets bulk locked for Salary Statement processing",
+    result,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Sheets bulk locked successfully",
+    data: result,
+  });
+});
+
+const bulkUnlockSalarySheets = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result = await SalarySheetServices.bulkUnlockSalarySheetsIntoDB(
+      req.body,
+      userId,
+    );
+
+    await createSalarySheetBulkAudit({
+      req,
+      action: "unlock",
+      description: "Salary Sheets bulk unlocked",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Sheets bulk unlocked successfully",
+      data: result,
+    });
+  },
+);
+
 const createSalarySheetAudit = async ({
   req,
   action,
@@ -232,6 +357,10 @@ export const SalarySheetControllers = {
   getAllSalarySheets,
   getSingleSalarySheet,
   getSalarySheetOperationalSummary,
+  bulkProcessSalarySheets,
+  bulkApproveSalarySheets,
+  bulkLockSalarySheets,
+  bulkUnlockSalarySheets,
   processSalarySheet,
   approveSalarySheet,
   lockSalarySheet,

@@ -31,6 +31,39 @@ router.get(
   SalarySheetControllers.getAllSalarySheets,
 );
 
+
+router.patch(
+  "/bulk/process",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_PROCESS),
+  validateRequest(SalarySheetValidations.salarySheetBulkActionValidationSchema),
+  SalarySheetControllers.bulkProcessSalarySheets,
+);
+
+router.patch(
+  "/bulk/approve",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_APPROVE),
+  validateRequest(SalarySheetValidations.salarySheetBulkActionValidationSchema),
+  SalarySheetControllers.bulkApproveSalarySheets,
+);
+
+router.patch(
+  "/bulk/lock",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_LOCK),
+  validateRequest(SalarySheetValidations.salarySheetBulkActionValidationSchema),
+  SalarySheetControllers.bulkLockSalarySheets,
+);
+
+router.patch(
+  "/bulk/unlock",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_UNLOCK),
+  validateRequest(SalarySheetValidations.salarySheetBulkActionValidationSchema),
+  SalarySheetControllers.bulkUnlockSalarySheets,
+);
+
 router.get(
   "/:id",
   auth(),

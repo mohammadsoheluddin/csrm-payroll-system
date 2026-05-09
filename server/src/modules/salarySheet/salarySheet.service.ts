@@ -9,6 +9,8 @@ import {
   TGenerateSalarySheetPayload,
   TSalarySheet,
   TSalarySheetActionPayload,
+  TSalarySheetBulkActionPayload,
+  TSalarySheetBulkActionType,
   TSalarySheetQuery,
   TSalarySheetStatus,
   TSalarySheetSummaryQuery,
@@ -949,6 +951,359 @@ const getSalarySheetOperationalSummaryFromDB = async (
   };
 };
 
+
+const buildSalarySheetBulkActionFilter = (
+  payload: TSalarySheetBulkActionPayload,
+) => {
+  if (!payload.company) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Company is required.");
+  }
+
+  assertObjectId(payload.company, "Company");
+  assertObjectId(payload.majorDepartment, "Major department");
+  assertObjectId(payload.department, "Department");
+  assertObjectId(payload.branch, "Branch");
+  assertObjectId(payload.employee, "Employee");
+
+  let payrollMonth = payload.payrollMonth;
+
+  if (!payrollMonth) {
+    if (!payload.month || !payload.year) {
+      throw new AppError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Either payrollMonth or both month and year are required.",
+      );
+    }
+
+    payrollMonth = buildPayrollMonth(payload.month, payload.year);
+  }
+
+  const filter: Record<string, unknown> = {
+    payrollMonth,
+    company: new Types.ObjectId(payload.company),
+    isDeleted: false,
+  };
+
+  if (payload.majorDepartment) {
+    filter.majorDepartment = new Types.ObjectId(payload.majorDepartment);
+  }
+
+  if (payload.department) {
+    filter.department = new Types.ObjectId(payload.department);
+  }
+
+  if (payload.branch) {
+    filter.branch = new Types.ObjectId(payload.branch);
+  }
+
+  if (payload.employee) {
+    filter.employee = new Types.ObjectId(payload.employee);
+  }
+
+  return {
+    payrollMonth,
+    filter,
+  };
+};
+
+const buildSalarySheetStatusSummary = (records: TSalarySheet[]) => {
+  const statusSummary: Record<TSalarySheetStatus, number> = {
+    draft: 0,
+    processed: 0,
+    approved: 0,
+    locked: 0,
+  };
+
+  for (const record of records) {
+    statusSummary[record.status] += 1;
+  }
+
+  return statusSummary;
+};
+
+const getSalarySheetBulkActionConfig = (
+  action: TSalarySheetBulkActionType,
+) => {
+  const config: Record<
+    TSalarySheetBulkActionType,
+    {
+      auditAction: "processed" | "approved" | "locked" | "unlocked";
+      allowedStatus: TSalarySheetStatus;
+      targetStatus: TSalarySheetStatus;
+      description: string;
+    }
+  > = {
+    process: {
+      auditAction: "processed",
+      allowedStatus: "draft",
+      targetStatus: "processed",
+      description: "Bulk processed",
+    },
+    approve: {
+      auditAction: "approved",
+      allowedStatus: "processed",
+      targetStatus: "approved",
+      description: "Bulk approved",
+    },
+    lock: {
+      auditAction: "locked",
+      allowedStatus: "approved",
+      targetStatus: "locked",
+      description: "Bulk locked",
+    },
+    unlock: {
+      auditAction: "unlocked",
+      allowedStatus: "locked",
+      targetStatus: "approved",
+      description: "Bulk unlocked",
+    },
+  };
+
+  return config[action];
+};
+
+const isSalarySheetEligibleForBulkAction = (
+  record: TSalarySheet,
+  action: TSalarySheetBulkActionType,
+) => {
+  const config = getSalarySheetBulkActionConfig(action);
+
+  if (action === "unlock") {
+    return record.status === "locked" && record.isLocked;
+  }
+
+  if (record.isLocked) {
+    return false;
+  }
+
+  return record.status === config.allowedStatus;
+};
+
+const buildSalarySheetBulkSkippedReason = (
+  record: TSalarySheet,
+  action: TSalarySheetBulkActionType,
+) => {
+  if (action !== "unlock" && record.isLocked) {
+    return "Record is locked.";
+  }
+
+  if (action === "unlock") {
+    return "Only locked Salary Sheet records can be unlocked.";
+  }
+
+  const config = getSalarySheetBulkActionConfig(action);
+  return `Only ${config.allowedStatus} Salary Sheet records can be ${config.description.toLowerCase()}.`;
+};
+
+const buildSalarySheetBulkUpdatePayload = ({
+  record,
+  action,
+  actionBy,
+  note,
+}: {
+  record: TSalarySheet;
+  action: TSalarySheetBulkActionType;
+  actionBy?: string;
+  note?: string;
+}): Partial<TSalarySheet> => {
+  const config = getSalarySheetBulkActionConfig(action);
+  const now = new Date();
+  const userObjectId = buildActionBy(actionBy);
+
+  const updatePayload: Partial<TSalarySheet> = {
+    status: config.targetStatus,
+    isLocked:
+      action === "lock" ? true : action === "unlock" ? false : record.isLocked,
+    auditLogs: [
+      ...record.auditLogs,
+      {
+        action: config.auditAction,
+        fromStatus: record.status,
+        toStatus: config.targetStatus,
+        actionBy: userObjectId,
+        actionAt: now,
+        note: note || `${config.description} for ${record.payrollMonth}.`,
+      },
+    ],
+  };
+
+  if (action === "process") {
+    updatePayload.processedBy = userObjectId;
+    updatePayload.processedAt = now;
+  }
+
+  if (action === "approve") {
+    updatePayload.approvedBy = userObjectId;
+    updatePayload.approvedAt = now;
+  }
+
+  if (action === "lock") {
+    updatePayload.lockedBy = userObjectId;
+    updatePayload.lockedAt = now;
+  }
+
+  if (action === "unlock") {
+    updatePayload.lockedBy = null;
+    updatePayload.lockedAt = null;
+  }
+
+  return updatePayload;
+};
+
+const buildSalarySheetBulkResultItem = (record: any) => {
+  return {
+    id: getObjectIdString(record._id),
+    employee: getObjectIdString(record.employee),
+    employeeId: record.snapshot?.employee?.employeeId || "",
+    employeeName: record.snapshot?.employee?.employeeName || "",
+    payrollMonth: record.payrollMonth,
+    status: record.status,
+    isLocked: record.isLocked,
+    grossSalary: record.grossSalary,
+    fixedDeduction: record.fixedDeduction,
+    attendanceDeduction: record.attendanceDeduction,
+    totalDeduction: record.totalDeduction,
+    payableSalary: record.payableSalary,
+  };
+};
+
+const bulkChangeSalarySheetStatusIntoDB = async ({
+  action,
+  payload,
+  actionBy,
+}: {
+  action: TSalarySheetBulkActionType;
+  payload: TSalarySheetBulkActionPayload;
+  actionBy?: string;
+}) => {
+  const { payrollMonth, filter } = buildSalarySheetBulkActionFilter(payload);
+  const records = await SalarySheet.find(filter).sort({
+    "snapshot.employee.employeeId": 1,
+    createdAt: 1,
+  });
+
+  if (!records.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No Salary Sheet records found for the selected month and filters.",
+    );
+  }
+
+  const statusSummaryBefore = buildSalarySheetStatusSummary(
+    records as TSalarySheet[],
+  );
+
+  if (action === "lock" && payload.strict !== false) {
+    const blockers = records.filter(
+      (record) => record.status !== "approved" || record.isLocked,
+    );
+
+    if (blockers.length) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        `Salary Statement readiness lock rejected. ${blockers.length} Salary Sheet record(s) are not ready for lock. Process and approve every selected Salary Sheet first, or pass strict=false for partial lock.`,
+      );
+    }
+  }
+
+  const processedRecords = [];
+  const skippedRecords = [];
+
+  for (const record of records) {
+    if (!isSalarySheetEligibleForBulkAction(record as TSalarySheet, action)) {
+      skippedRecords.push({
+        ...buildSalarySheetBulkResultItem(record),
+        reason: buildSalarySheetBulkSkippedReason(
+          record as TSalarySheet,
+          action,
+        ),
+      });
+      continue;
+    }
+
+    const updatedRecord = await SalarySheet.findOneAndUpdate(
+      {
+        _id: record._id,
+        isDeleted: false,
+      },
+      buildSalarySheetBulkUpdatePayload({
+        record: record as TSalarySheet,
+        action,
+        actionBy,
+        note: payload.note,
+      }),
+      {
+        new: true,
+        runValidators: true,
+      },
+    )
+      .populate("employee")
+      .populate("company")
+      .populate("majorDepartment")
+      .populate("department")
+      .populate("designation")
+      .populate("branch")
+      .populate("attendanceFinalization")
+      .populate("salaryStructure");
+
+    if (updatedRecord) {
+      processedRecords.push(updatedRecord);
+    }
+  }
+
+  const refreshedRecords = await SalarySheet.find(filter).sort({
+    "snapshot.employee.employeeId": 1,
+    createdAt: 1,
+  });
+
+  const refreshedStatusSummary = buildSalarySheetStatusSummary(
+    refreshedRecords as TSalarySheet[],
+  );
+  const totalLocked = refreshedRecords.filter((record) => record.isLocked).length;
+  const isFullyLocked =
+    refreshedRecords.length > 0 && totalLocked === refreshedRecords.length;
+
+  return {
+    payrollMonth,
+    action,
+    filters: {
+      company: payload.company,
+      majorDepartment: payload.majorDepartment || null,
+      department: payload.department || null,
+      branch: payload.branch || null,
+      employee: payload.employee || null,
+    },
+    salaryStatementReadiness: {
+      canProcessSalaryStatement: isFullyLocked,
+      canProcessSalaryPaymentDistribution: isFullyLocked,
+      canProcessBankSheet: isFullyLocked,
+      canProcessCashSheet: isFullyLocked,
+      canProcessMobileBankingSheet: isFullyLocked,
+      totalRecords: refreshedRecords.length,
+      totalLocked,
+      blockers: isFullyLocked
+        ? []
+        : [
+            "All selected Salary Sheet records must be locked before Salary Statement processing.",
+          ],
+    },
+    summary: {
+      totalMatched: records.length,
+      totalProcessed: processedRecords.length,
+      totalSkipped: skippedRecords.length,
+      statusSummaryBefore,
+      statusSummaryAfter: refreshedStatusSummary,
+      lockSummaryAfter: {
+        locked: totalLocked,
+        unlocked: refreshedRecords.length - totalLocked,
+      },
+      strictLock: action === "lock" ? payload.strict !== false : null,
+    },
+    processedRecords,
+    skippedRecords,
+  };
+};
+
 const applySingleAction = async ({
   id,
   payload,
@@ -1085,6 +1440,51 @@ const unlockSalarySheetIntoDB = async (
   });
 };
 
+
+const bulkProcessSalarySheetsIntoDB = async (
+  payload: TSalarySheetBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeSalarySheetStatusIntoDB({
+    action: "process",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkApproveSalarySheetsIntoDB = async (
+  payload: TSalarySheetBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeSalarySheetStatusIntoDB({
+    action: "approve",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkLockSalarySheetsIntoDB = async (
+  payload: TSalarySheetBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeSalarySheetStatusIntoDB({
+    action: "lock",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkUnlockSalarySheetsIntoDB = async (
+  payload: TSalarySheetBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeSalarySheetStatusIntoDB({
+    action: "unlock",
+    payload,
+    actionBy,
+  });
+};
+
 export const SalarySheetServices = {
   generateMonthlySalarySheetIntoDB,
   getAllSalarySheetsFromDB,
@@ -1094,4 +1494,8 @@ export const SalarySheetServices = {
   approveSalarySheetIntoDB,
   lockSalarySheetIntoDB,
   unlockSalarySheetIntoDB,
+  bulkProcessSalarySheetsIntoDB,
+  bulkApproveSalarySheetsIntoDB,
+  bulkLockSalarySheetsIntoDB,
+  bulkUnlockSalarySheetsIntoDB,
 };
