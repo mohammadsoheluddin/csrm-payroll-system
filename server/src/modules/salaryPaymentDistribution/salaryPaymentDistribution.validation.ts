@@ -107,6 +107,34 @@ const salaryPaymentDistributionBulkActionValidationSchema = z.object({
     }),
 });
 
+
+const salaryPaymentDistributionExportQueryValidationSchema = z.object({
+  query: z
+    .object({
+      payrollMonth: payrollMonthSchema.optional(),
+      month: queryMonthSchema,
+      year: queryYearSchema,
+      company: objectIdSchema("Company"),
+      majorDepartment: optionalObjectIdSchema("Major department"),
+      department: optionalObjectIdSchema("Department"),
+      branch: optionalObjectIdSchema("Branch"),
+      employee: optionalObjectIdSchema("Employee"),
+      paymentMode: paymentModeSchema,
+    })
+    .refine((data) => Boolean(data.payrollMonth || (data.month && data.year)), {
+      message: "Either payrollMonth or both month and year are required.",
+      path: ["payrollMonth"],
+    })
+    .refine((data) => !(data.month && !data.year), {
+      message: "Year is required when month is provided.",
+      path: ["year"],
+    })
+    .refine((data) => !(data.year && !data.month), {
+      message: "Month is required when year is provided.",
+      path: ["month"],
+    }),
+});
+
 const salaryPaymentDistributionSummaryQueryValidationSchema = z.object({
   query: z
     .object({
@@ -138,5 +166,6 @@ export const SalaryPaymentDistributionValidations = {
   generateSalaryPaymentDistributionValidationSchema,
   salaryPaymentDistributionActionValidationSchema,
   salaryPaymentDistributionBulkActionValidationSchema,
+  salaryPaymentDistributionExportQueryValidationSchema,
   salaryPaymentDistributionSummaryQueryValidationSchema,
 };

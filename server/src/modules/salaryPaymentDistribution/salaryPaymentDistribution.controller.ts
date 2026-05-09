@@ -384,6 +384,129 @@ const unlockSalaryPaymentDistribution = catchAsync(
   },
 );
 
+
+const getSalaryPaymentDistributionExportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await SalaryPaymentDistributionServices.buildSalaryPaymentDistributionExportPreviewFromDB(
+        req.query as any,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "salary_payment_distribution",
+      action: "read",
+      entityName: result.payrollMonth,
+      description: "Salary Bank/Cash/Mobile sheet export preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Payment Distribution export preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createSalaryPaymentDistributionExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "salary_payment_distribution",
+    action: "export",
+    entityName: result.reportData.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.reportData.filters,
+      summary: result.reportData.summary,
+      fileName: result.fileName,
+    },
+  });
+};
+
+const exportSalaryPaymentDistributionCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await SalaryPaymentDistributionServices.exportSalaryPaymentDistributionCsvFromDB(
+        req.query as any,
+      );
+
+    await createSalaryPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "Salary Bank/Cash/Mobile sheet CSV exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportSalaryPaymentDistributionExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await SalaryPaymentDistributionServices.exportSalaryPaymentDistributionExcelFromDB(
+        req.query as any,
+      );
+
+    await createSalaryPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "Salary Bank/Cash/Mobile sheet Excel exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportSalaryPaymentDistributionPdf = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await SalaryPaymentDistributionServices.exportSalaryPaymentDistributionPdfFromDB(
+        req.query as any,
+      );
+
+    await createSalaryPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "Salary Bank/Cash/Mobile sheet PDF exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const SalaryPaymentDistributionControllers = {
   generateMonthlySalaryPaymentDistribution,
   getAllSalaryPaymentDistributions,
@@ -397,4 +520,8 @@ export const SalaryPaymentDistributionControllers = {
   bulkApproveSalaryPaymentDistributions,
   bulkLockSalaryPaymentDistributions,
   bulkUnlockSalaryPaymentDistributions,
+  getSalaryPaymentDistributionExportPreview,
+  exportSalaryPaymentDistributionCsv,
+  exportSalaryPaymentDistributionExcel,
+  exportSalaryPaymentDistributionPdf,
 };

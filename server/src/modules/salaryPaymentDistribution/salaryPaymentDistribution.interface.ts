@@ -228,6 +228,92 @@ export interface TSalaryPaymentDistributionSummaryQuery {
   paymentMode?: TSalaryPaymentDistributionPaymentMode;
 }
 
+
+
+export interface TSalaryPaymentDistributionExportQuery {
+  payrollMonth?: string;
+  month?: string;
+  year?: string;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+  paymentMode: TSalaryPaymentDistributionPaymentMode;
+}
+
+export interface TSalaryPaymentDistributionExportRow {
+  slNo: number;
+  salaryPaymentDistributionId: string;
+  employeeId: string;
+  employeeName: string;
+  officeId?: string;
+  cardNo?: string;
+  designation: string;
+  department: string;
+  majorDepartment: string;
+  branch: string;
+  paymentMode: TSalaryPaymentDistributionPaymentMode;
+  accountName?: string;
+  bankName?: string;
+  bankBranchName?: string;
+  bankBranchCode?: string;
+  accountNo?: string;
+  processBankBranchNo?: string;
+  routingNo?: string;
+  mobileBankingProvider?: string;
+  mobileBankingNo?: string;
+  cashPayReason?: string;
+  paymentInfoSource: "employee_payment_info" | "fallback_cash";
+  paymentInfoWarning?: string;
+  grossSalary: number;
+  attendanceDeduction: number;
+  fixedDeduction: number;
+  totalDeduction: number;
+  netSalary: number;
+  payableSalary: number;
+  payableAmount: number;
+}
+
+export interface TSalaryPaymentDistributionExportSummary {
+  payrollMonth: string;
+  month: number;
+  year: number;
+  paymentMode: TSalaryPaymentDistributionPaymentMode;
+  totalEmployees: number;
+  totalAmount: number;
+  totalGrossSalary: number;
+  totalDeduction: number;
+  totalNetSalary: number;
+  fallbackCashCount: number;
+  generatedAt: string;
+}
+
+export interface TSalaryPaymentDistributionExportPreview {
+  payrollMonth: string;
+  filters: {
+    company: string;
+    majorDepartment: string | null;
+    department: string | null;
+    branch: string | null;
+    employee: string | null;
+    paymentMode: TSalaryPaymentDistributionPaymentMode;
+  };
+  summary: TSalaryPaymentDistributionExportSummary;
+  readiness: {
+    canExport: boolean;
+    blockers: string[];
+  };
+  rows: TSalaryPaymentDistributionExportRow[];
+}
+
+export interface TSalaryPaymentDistributionExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TSalaryPaymentDistributionExportPreview;
+}
+
 export interface TSalaryPaymentDistributionActionPayload {
   note?: string;
 }

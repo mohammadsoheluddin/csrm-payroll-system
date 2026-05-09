@@ -75,6 +75,47 @@ router.patch(
   SalaryPaymentDistributionControllers.bulkUnlockSalaryPaymentDistributions,
 );
 
+
+router.get(
+  "/export/preview",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_READ),
+  validateRequest(
+    SalaryPaymentDistributionValidations.salaryPaymentDistributionExportQueryValidationSchema,
+  ),
+  SalaryPaymentDistributionControllers.getSalaryPaymentDistributionExportPreview,
+);
+
+router.get(
+  "/export/csv",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    SalaryPaymentDistributionValidations.salaryPaymentDistributionExportQueryValidationSchema,
+  ),
+  SalaryPaymentDistributionControllers.exportSalaryPaymentDistributionCsv,
+);
+
+router.get(
+  "/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    SalaryPaymentDistributionValidations.salaryPaymentDistributionExportQueryValidationSchema,
+  ),
+  SalaryPaymentDistributionControllers.exportSalaryPaymentDistributionExcel,
+);
+
+router.get(
+  "/export/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    SalaryPaymentDistributionValidations.salaryPaymentDistributionExportQueryValidationSchema,
+  ),
+  SalaryPaymentDistributionControllers.exportSalaryPaymentDistributionPdf,
+);
+
 router.get(
   "/:id",
   auth(),
