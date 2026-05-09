@@ -384,6 +384,128 @@ const unlockOtPaymentDistribution = catchAsync(
   },
 );
 
+const getOtPaymentDistributionExportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await OtPaymentDistributionServices.buildOtPaymentDistributionExportPreviewFromDB(
+        req.query as any,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "ot_payment_distribution",
+      action: "read",
+      entityName: result.payrollMonth,
+      description: "OT Bank/Cash/Mobile sheet export preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "OT Payment Distribution export preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createOtPaymentDistributionExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "ot_payment_distribution",
+    action: "export",
+    entityName: result.reportData.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.reportData.filters,
+      summary: result.reportData.summary,
+      fileName: result.fileName,
+    },
+  });
+};
+
+const exportOtPaymentDistributionCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await OtPaymentDistributionServices.exportOtPaymentDistributionCsvFromDB(
+        req.query as any,
+      );
+
+    await createOtPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "OT Bank/Cash/Mobile sheet CSV exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportOtPaymentDistributionExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await OtPaymentDistributionServices.exportOtPaymentDistributionExcelFromDB(
+        req.query as any,
+      );
+
+    await createOtPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "OT Bank/Cash/Mobile sheet Excel exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportOtPaymentDistributionPdf = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await OtPaymentDistributionServices.exportOtPaymentDistributionPdfFromDB(
+        req.query as any,
+      );
+
+    await createOtPaymentDistributionExportAudit({
+      req,
+      result,
+      description: "OT Bank/Cash/Mobile sheet PDF exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.fileName}"`,
+    );
+
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const OtPaymentDistributionControllers = {
   generateMonthlyOtPaymentDistribution,
   getAllOtPaymentDistributions,
@@ -397,4 +519,8 @@ export const OtPaymentDistributionControllers = {
   bulkApproveOtPaymentDistributions,
   bulkLockOtPaymentDistributions,
   bulkUnlockOtPaymentDistributions,
+  getOtPaymentDistributionExportPreview,
+  exportOtPaymentDistributionCsv,
+  exportOtPaymentDistributionExcel,
+  exportOtPaymentDistributionPdf,
 };

@@ -7,11 +7,17 @@ import {
   TOtPaymentDistributionActionPayload,
   TOtPaymentDistributionBulkActionPayload,
   TOtPaymentDistributionBulkActionType,
+  TOtPaymentDistributionExportQuery,
   TOtPaymentDistributionPaymentMode,
   TOtPaymentDistributionQuery,
   TOtPaymentDistributionStatus,
   TOtPaymentDistributionSummaryQuery,
 } from "./otPaymentDistribution.interface";
+import {
+  generateOtPaymentDistributionCsv,
+  generateOtPaymentDistributionExcel,
+  generateOtPaymentDistributionPDF,
+} from "./otPaymentDistribution.export";
 import OtPaymentDistribution from "./otPaymentDistribution.model";
 
 const HTTP_STATUS = {
@@ -1330,6 +1336,203 @@ const bulkUnlockOtPaymentDistributionsIntoDB = async (
   return applyBulkAction({ payload, actionBy, actionType: "unlock" });
 };
 
+const getExportPayableAmount = (row: any) => {
+  if (row.paymentMode === "bank") {
+    return Number(row.bankAmount || 0);
+  }
+
+  if (row.paymentMode === "mobile_banking") {
+    return Number(row.mobileBankingAmount || 0);
+  }
+
+  return Number(row.cashAmount || 0);
+};
+
+const getSnapshotName = (row: any, fieldName: string) => {
+  const snapshotValue = row?.snapshot?.employee?.[fieldName]?.name;
+
+  if (snapshotValue) {
+    return snapshotValue;
+  }
+
+  return row?.[fieldName]?.name || "";
+};
+
+const buildOtPaymentDistributionExportRows = (rows: any[]) => {
+  return rows.map((row, index) => ({
+    slNo: index + 1,
+    otPaymentDistributionId: getObjectIdString(row?._id),
+    employeeId:
+      row?.snapshot?.employee?.employeeId || row?.employee?.employeeId || "",
+    employeeName:
+      row?.snapshot?.employee?.employeeName || getEmployeeFullName(row?.employee),
+    officeId: row?.snapshot?.employee?.officeId || row?.employee?.officeId || "",
+    cardNo: row?.snapshot?.employee?.cardNo || row?.employee?.cardNo || "",
+    designation: getSnapshotName(row, "designation"),
+    department: getSnapshotName(row, "department"),
+    majorDepartment: getSnapshotName(row, "majorDepartment"),
+    branch: getSnapshotName(row, "branch"),
+    paymentMode: row.paymentMode,
+    accountName: row.accountName || "",
+    bankName: row.bankName || "",
+    bankBranchName: row.bankBranchName || "",
+    bankBranchCode: row.bankBranchCode || "",
+    accountNo: row.accountNo || "",
+    processBankBranchNo: row.processBankBranchNo || "",
+    routingNo: row.routingNo || "",
+    mobileBankingProvider: row.mobileBankingProvider || "",
+    mobileBankingNo: row.mobileBankingNo || "",
+    cashPayReason: row.cashPayReason || "",
+    paymentInfoSource: row.paymentInfoSource,
+    paymentInfoWarning: row.paymentInfoWarning || "",
+    otHours: Number(row.otHours || 0),
+    otAmount: Number(row.otAmount || 0),
+    tiffinDays: Number(row.tiffinDays || 0),
+    tiffinAmount: Number(row.tiffinAmount || 0),
+    payableAmount: getExportPayableAmount(row),
+  }));
+};
+
+const ensureRowsReadyForExport = ({ rows }: { rows: any[] }) => {
+  const blockers = rows
+    .filter((row) => row.status !== "locked" || !row.isLocked)
+    .map((row) => ({
+      employeeId:
+        row?.snapshot?.employee?.employeeId || row?.employee?.employeeId || "",
+      employeeName:
+        row?.snapshot?.employee?.employeeName || getEmployeeFullName(row?.employee),
+      reason: `OT Payment Distribution is ${row.status} and locked=${row.isLocked}.`,
+    }));
+
+  if (blockers.length) {
+    const blockerPreview = blockers
+      .slice(0, 10)
+      .map(
+        (blocker) =>
+          `${blocker.employeeId} - ${blocker.employeeName}: ${blocker.reason}`,
+      )
+      .join("; ");
+
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      `OT Bank/Cash/Mobile sheet export blocked. Locked OT Payment Distribution is required for every selected employee. Blockers: ${blockerPreview}${
+        blockers.length > 10 ? `; and ${blockers.length - 10} more.` : "."
+      }`,
+    );
+  }
+};
+
+const buildOtPaymentDistributionExportPreviewFromDB = async (
+  query: TOtPaymentDistributionExportQuery,
+) => {
+  validateMonthlyQuery(query);
+
+  if (!query.paymentMode) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Payment mode is required.");
+  }
+
+  const payrollMonth = normalizePayrollMonthFromQuery(query);
+  const filter = buildBaseFilter({
+    payrollMonth,
+    company: query.company,
+    majorDepartment: query.majorDepartment,
+    department: query.department,
+    branch: query.branch,
+    employee: query.employee,
+    paymentMode: query.paymentMode,
+  });
+
+  const rows = await populateOtPaymentDistributionQuery(
+    OtPaymentDistribution.find(filter).sort({ employee: 1 }),
+  );
+
+  if (!rows.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No OT Payment Distribution records found for selected export filters.",
+    );
+  }
+
+  ensureRowsReadyForExport({ rows });
+
+  const exportRows = buildOtPaymentDistributionExportRows(rows).filter(
+    (row) => row.payableAmount > 0,
+  );
+
+  if (!exportRows.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No payable OT rows found for selected payment mode.",
+    );
+  }
+
+  const { month, year } = parsePayrollMonth(payrollMonth);
+
+  return {
+    payrollMonth,
+    filters: {
+      company: query.company,
+      majorDepartment: query.majorDepartment || null,
+      department: query.department || null,
+      branch: query.branch || null,
+      employee: query.employee || null,
+      paymentMode: query.paymentMode,
+    },
+    summary: {
+      payrollMonth,
+      month,
+      year,
+      paymentMode: query.paymentMode,
+      totalEmployees: exportRows.length,
+      totalAmount: exportRows.reduce(
+        (sum, row) => sum + Number(row.payableAmount || 0),
+        0,
+      ),
+      totalOtAmount: exportRows.reduce(
+        (sum, row) => sum + Number(row.otAmount || 0),
+        0,
+      ),
+      totalTiffinAmount: exportRows.reduce(
+        (sum, row) => sum + Number(row.tiffinAmount || 0),
+        0,
+      ),
+      fallbackCashCount: exportRows.filter(
+        (row) => row.paymentInfoSource === "fallback_cash",
+      ).length,
+      generatedAt: new Date().toISOString(),
+    },
+    readiness: {
+      canExport: true,
+      blockers: [],
+    },
+    rows: exportRows,
+  };
+};
+
+const exportOtPaymentDistributionCsvFromDB = async (
+  query: TOtPaymentDistributionExportQuery,
+) => {
+  const preview = await buildOtPaymentDistributionExportPreviewFromDB(query);
+
+  return generateOtPaymentDistributionCsv(preview);
+};
+
+const exportOtPaymentDistributionExcelFromDB = async (
+  query: TOtPaymentDistributionExportQuery,
+) => {
+  const preview = await buildOtPaymentDistributionExportPreviewFromDB(query);
+
+  return generateOtPaymentDistributionExcel(preview);
+};
+
+const exportOtPaymentDistributionPdfFromDB = async (
+  query: TOtPaymentDistributionExportQuery,
+) => {
+  const preview = await buildOtPaymentDistributionExportPreviewFromDB(query);
+
+  return generateOtPaymentDistributionPDF(preview);
+};
+
 export const OtPaymentDistributionServices = {
   generateMonthlyOtPaymentDistributionIntoDB,
   getAllOtPaymentDistributionsFromDB,
@@ -1343,4 +1546,8 @@ export const OtPaymentDistributionServices = {
   bulkApproveOtPaymentDistributionsIntoDB,
   bulkLockOtPaymentDistributionsIntoDB,
   bulkUnlockOtPaymentDistributionsIntoDB,
+  buildOtPaymentDistributionExportPreviewFromDB,
+  exportOtPaymentDistributionCsvFromDB,
+  exportOtPaymentDistributionExcelFromDB,
+  exportOtPaymentDistributionPdfFromDB,
 };

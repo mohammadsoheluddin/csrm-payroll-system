@@ -214,6 +214,88 @@ export interface TOtPaymentDistributionSummaryQuery {
   paymentMode?: TOtPaymentDistributionPaymentMode;
 }
 
+
+export interface TOtPaymentDistributionExportQuery {
+  payrollMonth?: string;
+  month?: string;
+  year?: string;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+  paymentMode: TOtPaymentDistributionPaymentMode;
+}
+
+export interface TOtPaymentDistributionExportRow {
+  slNo: number;
+  otPaymentDistributionId: string;
+  employeeId: string;
+  employeeName: string;
+  officeId?: string;
+  cardNo?: string;
+  designation: string;
+  department: string;
+  majorDepartment: string;
+  branch: string;
+  paymentMode: TOtPaymentDistributionPaymentMode;
+  accountName?: string;
+  bankName?: string;
+  bankBranchName?: string;
+  bankBranchCode?: string;
+  accountNo?: string;
+  processBankBranchNo?: string;
+  routingNo?: string;
+  mobileBankingProvider?: string;
+  mobileBankingNo?: string;
+  cashPayReason?: string;
+  paymentInfoSource: "employee_payment_info" | "fallback_cash";
+  paymentInfoWarning?: string;
+  otHours: number;
+  otAmount: number;
+  tiffinDays: number;
+  tiffinAmount: number;
+  payableAmount: number;
+}
+
+export interface TOtPaymentDistributionExportSummary {
+  payrollMonth: string;
+  month: number;
+  year: number;
+  paymentMode: TOtPaymentDistributionPaymentMode;
+  totalEmployees: number;
+  totalAmount: number;
+  totalOtAmount: number;
+  totalTiffinAmount: number;
+  fallbackCashCount: number;
+  generatedAt: string;
+}
+
+export interface TOtPaymentDistributionExportPreview {
+  payrollMonth: string;
+  filters: {
+    company: string;
+    majorDepartment: string | null;
+    department: string | null;
+    branch: string | null;
+    employee: string | null;
+    paymentMode: TOtPaymentDistributionPaymentMode;
+  };
+  summary: TOtPaymentDistributionExportSummary;
+  readiness: {
+    canExport: boolean;
+    blockers: string[];
+  };
+  rows: TOtPaymentDistributionExportRow[];
+}
+
+export interface TOtPaymentDistributionExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TOtPaymentDistributionExportPreview;
+}
+
 export interface TOtPaymentDistributionActionPayload {
   note?: string;
 }

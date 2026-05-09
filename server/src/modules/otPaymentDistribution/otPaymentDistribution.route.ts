@@ -73,6 +73,46 @@ router.patch(
 );
 
 router.get(
+  "/export/preview",
+  auth(),
+  requirePermission(PERMISSIONS.OT_PAYMENT_DISTRIBUTION_READ),
+  validateRequest(
+    OtPaymentDistributionValidations.otPaymentDistributionExportQueryValidationSchema,
+  ),
+  OtPaymentDistributionControllers.getOtPaymentDistributionExportPreview,
+);
+
+router.get(
+  "/export/csv",
+  auth(),
+  requirePermission(PERMISSIONS.OT_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    OtPaymentDistributionValidations.otPaymentDistributionExportQueryValidationSchema,
+  ),
+  OtPaymentDistributionControllers.exportOtPaymentDistributionCsv,
+);
+
+router.get(
+  "/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.OT_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    OtPaymentDistributionValidations.otPaymentDistributionExportQueryValidationSchema,
+  ),
+  OtPaymentDistributionControllers.exportOtPaymentDistributionExcel,
+);
+
+router.get(
+  "/export/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.OT_PAYMENT_DISTRIBUTION_EXPORT),
+  validateRequest(
+    OtPaymentDistributionValidations.otPaymentDistributionExportQueryValidationSchema,
+  ),
+  OtPaymentDistributionControllers.exportOtPaymentDistributionPdf,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.OT_PAYMENT_DISTRIBUTION_READ),
