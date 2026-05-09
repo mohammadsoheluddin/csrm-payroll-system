@@ -6,6 +6,8 @@ import bankSheetRoutes from "../modules/bankSheet/bankSheet.route";
 
 import attendanceRoutes from "../modules/attendance/attendance.route";
 
+import attendanceFinalizationRoutes from "../modules/attendanceFinalization/attendanceFinalization.route";
+
 import authRoutes from "../modules/auth/auth.route";
 
 import branchRoutes from "../modules/branch/branch.route";
@@ -115,6 +117,11 @@ const moduleRoutes = [
   {
     path: "/attendance",
     route: attendanceRoutes,
+  },
+
+  {
+    path: "/attendance-finalizations",
+    route: attendanceFinalizationRoutes,
   },
 
   {

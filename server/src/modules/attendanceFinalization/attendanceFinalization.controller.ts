@@ -1,0 +1,257 @@
+import type { Request, Response } from "express";
+import catchAsync from "../../utils/catchAsync";
+import sendResponse from "../../utils/sendResponse";
+import {
+  createAuditLogFromRequest,
+  getAuditEntityId,
+  toAuditData,
+} from "../auditLog/auditLog.utils";
+import { AttendanceFinalizationServices } from "./attendanceFinalization.service";
+
+const getUserIdFromRequest = (req: Request) => {
+  const requestUser = (
+    req as Request & {
+      user?: {
+        userId?: string;
+        _id?: string;
+        id?: string;
+      };
+    }
+  ).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
+const generateMonthlyAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await AttendanceFinalizationServices.generateMonthlyAttendanceFinalizationIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "process",
+      entityName: result.payrollMonth,
+      description: "Monthly attendance finalization generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+        periodStartDate: result.periodStartDate,
+        periodEndDate: result.periodEndDate,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 201,
+      success: true,
+      message: "Monthly attendance finalization generated successfully",
+      data: result,
+    });
+  },
+);
+
+const getAllAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await AttendanceFinalizationServices.getAllAttendanceFinalizationFromDB(
+        req.query as unknown as Record<string, string>,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalizations retrieved successfully",
+      data: result,
+    });
+  },
+);
+
+const getSingleAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+
+    const result =
+      await AttendanceFinalizationServices.getSingleAttendanceFinalizationFromDB(
+        finalizationId,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization retrieved successfully",
+      data: result,
+    });
+  },
+);
+
+const finalizeAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+    const userId = getUserIdFromRequest(req);
+
+    const previousFinalization =
+      await AttendanceFinalizationServices.getSingleAttendanceFinalizationFromDB(
+        finalizationId,
+      );
+
+    const result =
+      await AttendanceFinalizationServices.finalizeAttendanceFinalizationIntoDB(
+        finalizationId,
+        req.body || {},
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "process",
+      entityId: getAuditEntityId(result, finalizationId),
+      entityName: result.payrollMonth,
+      description: "Attendance finalization status changed to finalized",
+      previousData: toAuditData(previousFinalization),
+      newData: toAuditData(result),
+      metadata: {
+        note: req.body?.note || "",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization finalized successfully",
+      data: result,
+    });
+  },
+);
+
+const approveAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+    const userId = getUserIdFromRequest(req);
+
+    const previousFinalization =
+      await AttendanceFinalizationServices.getSingleAttendanceFinalizationFromDB(
+        finalizationId,
+      );
+
+    const result =
+      await AttendanceFinalizationServices.approveAttendanceFinalizationIntoDB(
+        finalizationId,
+        req.body || {},
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "approve",
+      entityId: getAuditEntityId(result, finalizationId),
+      entityName: result.payrollMonth,
+      description: "Attendance finalization approved",
+      previousData: toAuditData(previousFinalization),
+      newData: toAuditData(result),
+      metadata: {
+        note: req.body?.note || "",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization approved successfully",
+      data: result,
+    });
+  },
+);
+
+const lockAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+    const userId = getUserIdFromRequest(req);
+
+    const previousFinalization =
+      await AttendanceFinalizationServices.getSingleAttendanceFinalizationFromDB(
+        finalizationId,
+      );
+
+    const result =
+      await AttendanceFinalizationServices.lockAttendanceFinalizationIntoDB(
+        finalizationId,
+        req.body || {},
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "lock",
+      entityId: getAuditEntityId(result, finalizationId),
+      entityName: result.payrollMonth,
+      description: "Attendance finalization locked",
+      previousData: toAuditData(previousFinalization),
+      newData: toAuditData(result),
+      metadata: {
+        note: req.body?.note || "",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization locked successfully",
+      data: result,
+    });
+  },
+);
+
+const unlockAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+    const userId = getUserIdFromRequest(req);
+
+    const previousFinalization =
+      await AttendanceFinalizationServices.getSingleAttendanceFinalizationFromDB(
+        finalizationId,
+      );
+
+    const result =
+      await AttendanceFinalizationServices.unlockAttendanceFinalizationIntoDB(
+        finalizationId,
+        req.body || {},
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "unlock",
+      entityId: getAuditEntityId(result, finalizationId),
+      entityName: result.payrollMonth,
+      description: "Attendance finalization unlocked",
+      previousData: toAuditData(previousFinalization),
+      newData: toAuditData(result),
+      metadata: {
+        note: req.body?.note || "",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization unlocked successfully",
+      data: result,
+    });
+  },
+);
+
+export const AttendanceFinalizationControllers = {
+  generateMonthlyAttendanceFinalization,
+  getAllAttendanceFinalization,
+  getSingleAttendanceFinalization,
+  finalizeAttendanceFinalization,
+  approveAttendanceFinalization,
+  lockAttendanceFinalization,
+  unlockAttendanceFinalization,
+};
