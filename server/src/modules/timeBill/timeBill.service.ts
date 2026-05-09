@@ -9,6 +9,8 @@ import {
   TGenerateTimeBillPayload,
   TTimeBill,
   TTimeBillActionPayload,
+  TTimeBillBulkActionPayload,
+  TTimeBillBulkActionType,
   TTimeBillQuery,
   TTimeBillStatus,
   TTimeBillSummaryQuery,
@@ -918,11 +920,22 @@ const getTimeBillOperationalSummaryFromDB = async (
     filters: query,
     readiness: {
       canProcessOtStatement: isFullyLocked,
+      canProcessOtPaymentSheet: isFullyLocked,
       canProcessOtBankSheet: isFullyLocked,
+      canProcessOtCashSheet: isFullyLocked,
       isGenerated,
       isFullyProcessed,
       isFullyApproved,
       isFullyLocked,
+      nextRequiredAction: !isGenerated
+        ? "generate_time_bill"
+        : !isFullyProcessed
+          ? "process_time_bill"
+          : !isFullyApproved
+            ? "approve_time_bill"
+            : !isFullyLocked
+              ? "lock_time_bill"
+              : "ready_for_ot_statement",
       blockers,
     },
     statusSummary,
@@ -933,6 +946,343 @@ const getTimeBillOperationalSummaryFromDB = async (
       byDepartment: Object.values(byDepartment),
       byBranch: Object.values(byBranch),
     },
+  };
+};
+
+
+const buildTimeBillBulkActionFilter = (payload: TTimeBillBulkActionPayload) => {
+  if (!payload.company) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Company is required.");
+  }
+
+  assertObjectId(payload.company, "Company");
+  assertObjectId(payload.majorDepartment, "Major department");
+  assertObjectId(payload.department, "Department");
+  assertObjectId(payload.branch, "Branch");
+  assertObjectId(payload.employee, "Employee");
+
+  let payrollMonth = payload.payrollMonth;
+
+  if (!payrollMonth) {
+    if (!payload.month || !payload.year) {
+      throw new AppError(
+        HTTP_STATUS.BAD_REQUEST,
+        "Either payrollMonth or both month and year are required.",
+      );
+    }
+
+    payrollMonth = buildPayrollMonth(payload.month, payload.year);
+  }
+
+  const filter: Record<string, unknown> = {
+    payrollMonth,
+    company: new Types.ObjectId(payload.company),
+    isDeleted: false,
+  };
+
+  if (payload.majorDepartment) {
+    filter.majorDepartment = new Types.ObjectId(payload.majorDepartment);
+  }
+
+  if (payload.department) {
+    filter.department = new Types.ObjectId(payload.department);
+  }
+
+  if (payload.branch) {
+    filter.branch = new Types.ObjectId(payload.branch);
+  }
+
+  if (payload.employee) {
+    filter.employee = new Types.ObjectId(payload.employee);
+  }
+
+  return {
+    payrollMonth,
+    filter,
+  };
+};
+
+const buildTimeBillStatusSummary = (records: TTimeBill[]) => {
+  const statusSummary: Record<TTimeBillStatus, number> = {
+    draft: 0,
+    processed: 0,
+    approved: 0,
+    locked: 0,
+  };
+
+  for (const record of records) {
+    statusSummary[record.status] += 1;
+  }
+
+  return statusSummary;
+};
+
+const getTimeBillBulkActionConfig = (action: TTimeBillBulkActionType) => {
+  const config: Record<
+    TTimeBillBulkActionType,
+    {
+      auditAction: "processed" | "approved" | "locked" | "unlocked";
+      allowedStatus: TTimeBillStatus;
+      targetStatus: TTimeBillStatus;
+      description: string;
+    }
+  > = {
+    process: {
+      auditAction: "processed",
+      allowedStatus: "draft",
+      targetStatus: "processed",
+      description: "Bulk processed",
+    },
+    approve: {
+      auditAction: "approved",
+      allowedStatus: "processed",
+      targetStatus: "approved",
+      description: "Bulk approved",
+    },
+    lock: {
+      auditAction: "locked",
+      allowedStatus: "approved",
+      targetStatus: "locked",
+      description: "Bulk locked",
+    },
+    unlock: {
+      auditAction: "unlocked",
+      allowedStatus: "locked",
+      targetStatus: "approved",
+      description: "Bulk unlocked",
+    },
+  };
+
+  return config[action];
+};
+
+const isTimeBillEligibleForBulkAction = (
+  record: TTimeBill,
+  action: TTimeBillBulkActionType,
+) => {
+  const config = getTimeBillBulkActionConfig(action);
+
+  if (action === "unlock") {
+    return record.status === "locked" && record.isLocked;
+  }
+
+  if (record.isLocked) {
+    return false;
+  }
+
+  return record.status === config.allowedStatus;
+};
+
+const buildTimeBillBulkSkippedReason = (
+  record: TTimeBill,
+  action: TTimeBillBulkActionType,
+) => {
+  if (action !== "unlock" && record.isLocked) {
+    return "Record is locked.";
+  }
+
+  if (action === "unlock") {
+    return "Only locked Time Bill records can be unlocked.";
+  }
+
+  const config = getTimeBillBulkActionConfig(action);
+  return `Only ${config.allowedStatus} Time Bill records can be ${config.description.toLowerCase()}.`;
+};
+
+const buildTimeBillBulkUpdatePayload = ({
+  record,
+  action,
+  actionBy,
+  note,
+}: {
+  record: TTimeBill;
+  action: TTimeBillBulkActionType;
+  actionBy?: string;
+  note?: string;
+}): Partial<TTimeBill> => {
+  const config = getTimeBillBulkActionConfig(action);
+  const now = new Date();
+  const userObjectId = buildActionBy(actionBy);
+
+  const updatePayload: Partial<TTimeBill> = {
+    status: config.targetStatus,
+    isLocked: action === "lock" ? true : action === "unlock" ? false : record.isLocked,
+    auditLogs: [
+      ...record.auditLogs,
+      {
+        action: config.auditAction,
+        fromStatus: record.status,
+        toStatus: config.targetStatus,
+        actionBy: userObjectId,
+        actionAt: now,
+        note: note || `${config.description} for ${record.payrollMonth}.`,
+      },
+    ],
+  };
+
+  if (action === "process") {
+    updatePayload.processedBy = userObjectId;
+    updatePayload.processedAt = now;
+  }
+
+  if (action === "approve") {
+    updatePayload.approvedBy = userObjectId;
+    updatePayload.approvedAt = now;
+  }
+
+  if (action === "lock") {
+    updatePayload.lockedBy = userObjectId;
+    updatePayload.lockedAt = now;
+  }
+
+  if (action === "unlock") {
+    updatePayload.lockedBy = null;
+    updatePayload.lockedAt = null;
+  }
+
+  return updatePayload;
+};
+
+const buildTimeBillBulkResultItem = (record: any) => {
+  return {
+    id: getObjectIdString(record._id),
+    employee: getObjectIdString(record.employee),
+    employeeId: record.snapshot?.employee?.employeeId || "",
+    employeeName: record.snapshot?.employee?.employeeName || "",
+    payrollMonth: record.payrollMonth,
+    status: record.status,
+    isLocked: record.isLocked,
+    otHours: record.otHours,
+    otAmount: record.otAmount,
+    tiffinDays: record.tiffinDays,
+    tiffinAmount: record.tiffinAmount,
+    totalPayableAmount: record.totalPayableAmount,
+  };
+};
+
+const bulkChangeTimeBillStatusIntoDB = async ({
+  action,
+  payload,
+  actionBy,
+}: {
+  action: TTimeBillBulkActionType;
+  payload: TTimeBillBulkActionPayload;
+  actionBy?: string;
+}) => {
+  const { payrollMonth, filter } = buildTimeBillBulkActionFilter(payload);
+  const records = await TimeBill.find(filter).sort({
+    "snapshot.employee.employeeId": 1,
+    createdAt: 1,
+  });
+
+  if (!records.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No Time Bill records found for the selected month and filters.",
+    );
+  }
+
+  const statusSummaryBefore = buildTimeBillStatusSummary(records as TTimeBill[]);
+
+  if (action === "lock" && payload.strict !== false) {
+    const blockers = records.filter(
+      (record) => record.status !== "approved" || record.isLocked,
+    );
+
+    if (blockers.length) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        `OT Statement readiness lock rejected. ${blockers.length} Time Bill record(s) are not ready for lock. Process and approve every selected Time Bill first, or pass strict=false for partial lock.`,
+      );
+    }
+  }
+
+  const processedRecords = [];
+  const skippedRecords = [];
+
+  for (const record of records) {
+    if (!isTimeBillEligibleForBulkAction(record as TTimeBill, action)) {
+      skippedRecords.push({
+        ...buildTimeBillBulkResultItem(record),
+        reason: buildTimeBillBulkSkippedReason(record as TTimeBill, action),
+      });
+      continue;
+    }
+
+    const updatedRecord = await TimeBill.findOneAndUpdate(
+      {
+        _id: record._id,
+        isDeleted: false,
+      },
+      buildTimeBillBulkUpdatePayload({
+        record: record as TTimeBill,
+        action,
+        actionBy,
+        note: payload.note,
+      }),
+      {
+        new: true,
+        runValidators: true,
+      },
+    )
+      .populate("employee")
+      .populate("company")
+      .populate("majorDepartment")
+      .populate("department")
+      .populate("designation")
+      .populate("branch")
+      .populate("attendanceFinalization")
+      .populate("salaryStructure");
+
+    if (updatedRecord) {
+      processedRecords.push(updatedRecord);
+    }
+  }
+
+  const refreshedRecords = await TimeBill.find(filter).sort({
+    "snapshot.employee.employeeId": 1,
+    createdAt: 1,
+  });
+
+  const refreshedStatusSummary = buildTimeBillStatusSummary(
+    refreshedRecords as TTimeBill[],
+  );
+  const totalLocked = refreshedRecords.filter((record) => record.isLocked).length;
+  const isFullyLocked = refreshedRecords.length > 0 && totalLocked === refreshedRecords.length;
+
+  return {
+    payrollMonth,
+    action,
+    filters: {
+      company: payload.company,
+      majorDepartment: payload.majorDepartment || null,
+      department: payload.department || null,
+      branch: payload.branch || null,
+      employee: payload.employee || null,
+    },
+    otStatementReadiness: {
+      canProcessOtStatement: isFullyLocked,
+      canProcessOtPaymentSheet: isFullyLocked,
+      totalRecords: refreshedRecords.length,
+      totalLocked,
+      blockers: isFullyLocked
+        ? []
+        : ["All selected Time Bill records must be locked before OT Statement processing."],
+    },
+    summary: {
+      totalMatched: records.length,
+      totalProcessed: processedRecords.length,
+      totalSkipped: skippedRecords.length,
+      statusSummaryBefore,
+      statusSummaryAfter: refreshedStatusSummary,
+      lockSummaryAfter: {
+        locked: totalLocked,
+        unlocked: refreshedRecords.length - totalLocked,
+      },
+      strictLock: action === "lock" ? payload.strict !== false : null,
+    },
+    processedRecords,
+    skippedRecords,
   };
 };
 
@@ -1085,6 +1435,51 @@ const unlockTimeBillIntoDB = async (
   });
 };
 
+
+const bulkProcessTimeBillsIntoDB = async (
+  payload: TTimeBillBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeTimeBillStatusIntoDB({
+    action: "process",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkApproveTimeBillsIntoDB = async (
+  payload: TTimeBillBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeTimeBillStatusIntoDB({
+    action: "approve",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkLockTimeBillsIntoDB = async (
+  payload: TTimeBillBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeTimeBillStatusIntoDB({
+    action: "lock",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkUnlockTimeBillsIntoDB = async (
+  payload: TTimeBillBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeTimeBillStatusIntoDB({
+    action: "unlock",
+    payload,
+    actionBy,
+  });
+};
+
 export const TimeBillServices = {
   generateMonthlyTimeBillIntoDB,
   getAllTimeBillsFromDB,
@@ -1094,4 +1489,8 @@ export const TimeBillServices = {
   approveTimeBillIntoDB,
   lockTimeBillIntoDB,
   unlockTimeBillIntoDB,
+  bulkProcessTimeBillsIntoDB,
+  bulkApproveTimeBillsIntoDB,
+  bulkLockTimeBillsIntoDB,
+  bulkUnlockTimeBillsIntoDB,
 };

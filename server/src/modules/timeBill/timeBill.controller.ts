@@ -4,7 +4,6 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { TimeBillServices } from "./timeBill.service";
 
-
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -72,7 +71,9 @@ const getAllTimeBills = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getSingleTimeBill = catchAsync(async (req: Request, res: Response) => {
-  const result = await TimeBillServices.getSingleTimeBillFromDB(getParamId(req, "id"));
+  const result = await TimeBillServices.getSingleTimeBillFromDB(
+    getParamId(req, "id"),
+  );
 
   sendResponse(res, {
     statusCode: 200,
@@ -96,6 +97,122 @@ const getTimeBillOperationalSummary = catchAsync(
     });
   },
 );
+
+const createBulkTimeBillAudit = async ({
+  req,
+  action,
+  description,
+  result,
+}: {
+  req: Request;
+  action: "process" | "approve" | "lock" | "unlock";
+  description: string;
+  result: any;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "time_bill",
+    action,
+    entityName: result.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.filters,
+      summary: result.summary,
+      otStatementReadiness: result.otStatementReadiness,
+      note: req.body?.note || "",
+    },
+  });
+};
+
+const bulkProcessTimeBills = catchAsync(async (req: Request, res: Response) => {
+  const userId = getUserIdFromRequest(req);
+
+  const result = await TimeBillServices.bulkProcessTimeBillsIntoDB(
+    req.body,
+    userId,
+  );
+
+  await createBulkTimeBillAudit({
+    req,
+    action: "process",
+    description: "Bulk Time Bills processed",
+    result,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Time Bills processed successfully",
+    data: result,
+  });
+});
+
+const bulkApproveTimeBills = catchAsync(async (req: Request, res: Response) => {
+  const userId = getUserIdFromRequest(req);
+
+  const result = await TimeBillServices.bulkApproveTimeBillsIntoDB(
+    req.body,
+    userId,
+  );
+
+  await createBulkTimeBillAudit({
+    req,
+    action: "approve",
+    description: "Bulk Time Bills approved",
+    result,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Time Bills approved successfully",
+    data: result,
+  });
+});
+
+const bulkLockTimeBills = catchAsync(async (req: Request, res: Response) => {
+  const userId = getUserIdFromRequest(req);
+
+  const result = await TimeBillServices.bulkLockTimeBillsIntoDB(req.body, userId);
+
+  await createBulkTimeBillAudit({
+    req,
+    action: "lock",
+    description: "Bulk Time Bills locked for OT Statement processing",
+    result,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Time Bills locked successfully",
+    data: result,
+  });
+});
+
+const bulkUnlockTimeBills = catchAsync(async (req: Request, res: Response) => {
+  const userId = getUserIdFromRequest(req);
+
+  const result = await TimeBillServices.bulkUnlockTimeBillsIntoDB(
+    req.body,
+    userId,
+  );
+
+  await createBulkTimeBillAudit({
+    req,
+    action: "unlock",
+    description: "Bulk Time Bills unlocked",
+    result,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Time Bills unlocked successfully",
+    data: result,
+  });
+});
 
 const processTimeBill = catchAsync(async (req: Request, res: Response) => {
   const userId = getUserIdFromRequest(req);
@@ -226,6 +343,10 @@ export const TimeBillControllers = {
   getAllTimeBills,
   getSingleTimeBill,
   getTimeBillOperationalSummary,
+  bulkProcessTimeBills,
+  bulkApproveTimeBills,
+  bulkLockTimeBills,
+  bulkUnlockTimeBills,
   processTimeBill,
   approveTimeBill,
   lockTimeBill,

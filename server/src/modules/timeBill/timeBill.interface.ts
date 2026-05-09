@@ -171,4 +171,27 @@ export interface TTimeBillActionPayload {
   note?: string;
 }
 
+export type TTimeBillBulkActionType =
+  | "process"
+  | "approve"
+  | "lock"
+  | "unlock";
+
+export interface TTimeBillBulkActionPayload {
+  payrollMonth?: string;
+  month?: number;
+  year?: number;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+  note?: string;
+  /**
+   * For bulk lock, strict=true prevents partial OT Statement readiness.
+   * Default behavior is strict, so every selected Time Bill must already be approved.
+   */
+  strict?: boolean;
+}
+
 export interface TimeBillModel extends Model<TTimeBill> {}

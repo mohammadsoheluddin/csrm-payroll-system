@@ -30,6 +30,39 @@ router.get(
   TimeBillControllers.getAllTimeBills,
 );
 
+
+router.patch(
+  "/bulk/process",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_PROCESS),
+  validateRequest(TimeBillValidations.timeBillBulkActionValidationSchema),
+  TimeBillControllers.bulkProcessTimeBills,
+);
+
+router.patch(
+  "/bulk/approve",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_APPROVE),
+  validateRequest(TimeBillValidations.timeBillBulkActionValidationSchema),
+  TimeBillControllers.bulkApproveTimeBills,
+);
+
+router.patch(
+  "/bulk/lock",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_LOCK),
+  validateRequest(TimeBillValidations.timeBillBulkActionValidationSchema),
+  TimeBillControllers.bulkLockTimeBills,
+);
+
+router.patch(
+  "/bulk/unlock",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_UNLOCK),
+  validateRequest(TimeBillValidations.timeBillBulkActionValidationSchema),
+  TimeBillControllers.bulkUnlockTimeBills,
+);
+
 router.get(
   "/:id",
   auth(),
