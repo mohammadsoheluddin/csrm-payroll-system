@@ -68,6 +68,17 @@ router.patch(
   AttendanceFinalizationControllers.bulkUnlockAttendanceFinalizations,
 );
 
+
+router.get(
+  "/summary",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_READ),
+  validateRequest(
+    AttendanceFinalizationValidations.attendanceFinalizationOperationalSummaryValidationSchema,
+  ),
+  AttendanceFinalizationControllers.getAttendanceFinalizationOperationalSummary,
+);
+
 router.get(
   "/:id",
   auth(),

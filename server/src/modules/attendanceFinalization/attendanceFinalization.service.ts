@@ -11,6 +11,7 @@ import type {
   TAttendanceFinalizationAuditAction,
   TAttendanceFinalizationBulkActionPayload,
   TAttendanceFinalizationBulkActionType,
+  TAttendanceFinalizationOperationalSummaryQuery,
   TAttendanceFinalizationQuery,
   TAttendanceFinalizationStatus,
   TGenerateAttendanceFinalizationPayload,
@@ -1403,6 +1404,366 @@ const unlockAttendanceFinalizationIntoDB = async (
 };
 
 
+
+const getPayrollMonthFromSummaryQuery = (
+  query: TAttendanceFinalizationOperationalSummaryQuery,
+) => {
+  if (query.payrollMonth) {
+    parsePayrollMonth(query.payrollMonth);
+    return query.payrollMonth;
+  }
+
+  if (!query.month || !query.year) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Either payrollMonth or both month and year are required.",
+    );
+  }
+
+  const month = Number(query.month);
+  const year = Number(query.year);
+  validateMonthYear(month, year);
+
+  return buildPayrollMonth(month, year);
+};
+
+const buildOperationalSummaryFilter = (
+  query: TAttendanceFinalizationOperationalSummaryQuery,
+) => {
+  const payrollMonth = getPayrollMonthFromSummaryQuery(query);
+  const filter: Record<string, unknown> = {
+    payrollMonth,
+    company: toObjectId(query.company, "company id"),
+    isDeleted: false,
+  };
+
+  if (query.majorDepartment) {
+    filter.majorDepartment = toObjectId(
+      query.majorDepartment,
+      "major department id",
+    );
+  }
+
+  if (query.department) {
+    filter.department = toObjectId(query.department, "department id");
+  }
+
+  if (query.branch) {
+    filter.branch = toObjectId(query.branch, "branch id");
+  }
+
+  if (query.employee) {
+    filter.employee = toObjectId(query.employee, "employee id");
+  }
+
+  return {
+    payrollMonth,
+    filter,
+  };
+};
+
+type TAttendanceFinalizationNumericTotals = {
+  totalCalendarDays: number;
+  totalPresentDays: number;
+  totalLateDays: number;
+  totalAbsentDays: number;
+  totalLeaveDays: number;
+  totalPaidLeaveDays: number;
+  totalUnpaidLeaveDays: number;
+  totalHolidayDays: number;
+  totalWeekendDays: number;
+  totalHalfDays: number;
+  totalDutyDays: number;
+  totalPayableDays: number;
+  totalDeductionDays: number;
+  totalOtHours: number;
+  totalTiffinDays: number;
+  totalHolidayDutyDays: number;
+  rawAttendanceCount: number;
+  approvedLeaveCount: number;
+  holidayCount: number;
+  missingAttendanceDays: number;
+  missingApprovedLeaveDays: number;
+};
+
+const createEmptyNumericTotals = (): TAttendanceFinalizationNumericTotals => ({
+  totalCalendarDays: 0,
+  totalPresentDays: 0,
+  totalLateDays: 0,
+  totalAbsentDays: 0,
+  totalLeaveDays: 0,
+  totalPaidLeaveDays: 0,
+  totalUnpaidLeaveDays: 0,
+  totalHolidayDays: 0,
+  totalWeekendDays: 0,
+  totalHalfDays: 0,
+  totalDutyDays: 0,
+  totalPayableDays: 0,
+  totalDeductionDays: 0,
+  totalOtHours: 0,
+  totalTiffinDays: 0,
+  totalHolidayDutyDays: 0,
+  rawAttendanceCount: 0,
+  approvedLeaveCount: 0,
+  holidayCount: 0,
+  missingAttendanceDays: 0,
+  missingApprovedLeaveDays: 0,
+});
+
+const addRecordToNumericTotals = (
+  totals: TAttendanceFinalizationNumericTotals,
+  record: TAttendanceFinalization,
+) => {
+  totals.totalCalendarDays += record.totalCalendarDays || 0;
+  totals.totalPresentDays += record.totalPresentDays || 0;
+  totals.totalLateDays += record.totalLateDays || 0;
+  totals.totalAbsentDays += record.totalAbsentDays || 0;
+  totals.totalLeaveDays += record.totalLeaveDays || 0;
+  totals.totalPaidLeaveDays += record.totalPaidLeaveDays || 0;
+  totals.totalUnpaidLeaveDays += record.totalUnpaidLeaveDays || 0;
+  totals.totalHolidayDays += record.totalHolidayDays || 0;
+  totals.totalWeekendDays += record.totalWeekendDays || 0;
+  totals.totalHalfDays += record.totalHalfDays || 0;
+  totals.totalDutyDays += record.totalDutyDays || 0;
+  totals.totalPayableDays += record.totalPayableDays || 0;
+  totals.totalDeductionDays += record.totalDeductionDays || 0;
+  totals.totalOtHours += record.totalOtHours || 0;
+  totals.totalTiffinDays += record.totalTiffinDays || 0;
+  totals.totalHolidayDutyDays += record.totalHolidayDutyDays || 0;
+  totals.rawAttendanceCount += record.sourceSummary?.rawAttendanceCount || 0;
+  totals.approvedLeaveCount += record.sourceSummary?.approvedLeaveCount || 0;
+  totals.holidayCount += record.sourceSummary?.holidayCount || 0;
+  totals.missingAttendanceDays += record.sourceSummary?.missingAttendanceDays || 0;
+  totals.missingApprovedLeaveDays +=
+    record.sourceSummary?.missingApprovedLeaveDays || 0;
+};
+
+const normalizeNumericTotals = (totals: TAttendanceFinalizationNumericTotals) => {
+  return {
+    totalCalendarDays: roundToTwoDecimals(totals.totalCalendarDays),
+    totalPresentDays: roundToTwoDecimals(totals.totalPresentDays),
+    totalLateDays: roundToTwoDecimals(totals.totalLateDays),
+    totalAbsentDays: roundToTwoDecimals(totals.totalAbsentDays),
+    totalLeaveDays: roundToTwoDecimals(totals.totalLeaveDays),
+    totalPaidLeaveDays: roundToTwoDecimals(totals.totalPaidLeaveDays),
+    totalUnpaidLeaveDays: roundToTwoDecimals(totals.totalUnpaidLeaveDays),
+    totalHolidayDays: roundToTwoDecimals(totals.totalHolidayDays),
+    totalWeekendDays: roundToTwoDecimals(totals.totalWeekendDays),
+    totalHalfDays: roundToTwoDecimals(totals.totalHalfDays),
+    totalDutyDays: roundToTwoDecimals(totals.totalDutyDays),
+    totalPayableDays: roundToTwoDecimals(totals.totalPayableDays),
+    totalDeductionDays: roundToTwoDecimals(totals.totalDeductionDays),
+    totalOtHours: roundToTwoDecimals(totals.totalOtHours),
+    totalTiffinDays: roundToTwoDecimals(totals.totalTiffinDays),
+    totalHolidayDutyDays: roundToTwoDecimals(totals.totalHolidayDutyDays),
+    rawAttendanceCount: roundToTwoDecimals(totals.rawAttendanceCount),
+    approvedLeaveCount: roundToTwoDecimals(totals.approvedLeaveCount),
+    holidayCount: roundToTwoDecimals(totals.holidayCount),
+    missingAttendanceDays: roundToTwoDecimals(totals.missingAttendanceDays),
+    missingApprovedLeaveDays: roundToTwoDecimals(
+      totals.missingApprovedLeaveDays,
+    ),
+  };
+};
+
+const buildLockSummary = (records: TAttendanceFinalization[]) => {
+  let locked = 0;
+  let unlocked = 0;
+
+  for (const record of records) {
+    if (record.isLocked) {
+      locked += 1;
+    } else {
+      unlocked += 1;
+    }
+  }
+
+  return {
+    locked,
+    unlocked,
+  };
+};
+
+const buildReadinessSummary = (records: TAttendanceFinalization[]) => {
+  const totalRecords = records.length;
+  const draftCount = records.filter((record) => record.status === "draft").length;
+  const finalizedCount = records.filter(
+    (record) => record.status === "finalized",
+  ).length;
+  const approvedCount = records.filter(
+    (record) => record.status === "approved",
+  ).length;
+  const lockedCount = records.filter(
+    (record) => record.status === "locked" && record.isLocked,
+  ).length;
+  const unlockedCount = totalRecords - lockedCount;
+  const recordsWithMissingAttendance = records.filter(
+    (record) => (record.sourceSummary?.missingAttendanceDays || 0) > 0,
+  ).length;
+  const recordsWithMissingApprovedLeave = records.filter(
+    (record) => (record.sourceSummary?.missingApprovedLeaveDays || 0) > 0,
+  ).length;
+
+  const blockers: string[] = [];
+
+  if (!totalRecords) {
+    blockers.push("Attendance finalization has not been generated for this selection.");
+  }
+
+  if (draftCount) {
+    blockers.push(`${draftCount} record(s) are still in draft status.`);
+  }
+
+  if (finalizedCount) {
+    blockers.push(`${finalizedCount} record(s) are finalized but not approved.`);
+  }
+
+  if (approvedCount) {
+    blockers.push(`${approvedCount} record(s) are approved but not locked.`);
+  }
+
+  if (unlockedCount && totalRecords) {
+    blockers.push(`${unlockedCount} record(s) are not locked.`);
+  }
+
+  if (recordsWithMissingAttendance) {
+    blockers.push(
+      `${recordsWithMissingAttendance} record(s) have missing raw attendance days.`,
+    );
+  }
+
+  if (recordsWithMissingApprovedLeave) {
+    blockers.push(
+      `${recordsWithMissingApprovedLeave} record(s) have leave status without approved leave record.`,
+    );
+  }
+
+  const isFullyLocked = totalRecords > 0 && lockedCount === totalRecords;
+
+  return {
+    totalRecords,
+    isGenerated: totalRecords > 0,
+    isFullyFinalized: totalRecords > 0 && draftCount === 0,
+    isFullyApproved:
+      totalRecords > 0 && draftCount === 0 && finalizedCount === 0,
+    isFullyLocked,
+    canProcessSalarySheet: isFullyLocked,
+    canProcessTimeBill: isFullyLocked,
+    blockers,
+  };
+};
+
+const getSnapshotGroupValue = (
+  record: TAttendanceFinalization,
+  groupBy: "majorDepartment" | "department" | "branch",
+) => {
+  const snapshotValue = record.employeeSnapshot?.[groupBy];
+
+  return {
+    id: snapshotValue?.id || getObjectIdString(record[groupBy]),
+    name: snapshotValue?.name || "Unassigned",
+  };
+};
+
+const buildGroupedOperationalSummary = (
+  records: TAttendanceFinalization[],
+  groupBy: "majorDepartment" | "department" | "branch",
+) => {
+  const groups = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      totalEmployees: number;
+      statusSummary: Record<TAttendanceFinalizationStatus, number>;
+      lockSummary: {
+        locked: number;
+        unlocked: number;
+      };
+      totals: TAttendanceFinalizationNumericTotals;
+    }
+  >();
+
+  for (const record of records) {
+    const groupValue = getSnapshotGroupValue(record, groupBy);
+    const groupKey = groupValue.id || "unassigned";
+    const existingGroup = groups.get(groupKey) || {
+      id: groupValue.id,
+      name: groupValue.name,
+      totalEmployees: 0,
+      statusSummary: {
+        draft: 0,
+        finalized: 0,
+        approved: 0,
+        locked: 0,
+      },
+      lockSummary: {
+        locked: 0,
+        unlocked: 0,
+      },
+      totals: createEmptyNumericTotals(),
+    };
+
+    existingGroup.totalEmployees += 1;
+    existingGroup.statusSummary[record.status] += 1;
+
+    if (record.isLocked) {
+      existingGroup.lockSummary.locked += 1;
+    } else {
+      existingGroup.lockSummary.unlocked += 1;
+    }
+
+    addRecordToNumericTotals(existingGroup.totals, record);
+    groups.set(groupKey, existingGroup);
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      totalEmployees: group.totalEmployees,
+      statusSummary: group.statusSummary,
+      lockSummary: group.lockSummary,
+      totals: normalizeNumericTotals(group.totals),
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+};
+
+const getAttendanceFinalizationOperationalSummaryFromDB = async (
+  query: TAttendanceFinalizationOperationalSummaryQuery,
+) => {
+  const { payrollMonth, filter } = buildOperationalSummaryFilter(query);
+  const records = await AttendanceFinalization.find(filter)
+    .sort({ "employeeSnapshot.employeeId": 1, createdAt: 1 })
+    .lean<TAttendanceFinalization[]>();
+
+  const totals = createEmptyNumericTotals();
+
+  for (const record of records) {
+    addRecordToNumericTotals(totals, record);
+  }
+
+  return {
+    payrollMonth,
+    filters: {
+      company: query.company,
+      majorDepartment: query.majorDepartment || null,
+      department: query.department || null,
+      branch: query.branch || null,
+      employee: query.employee || null,
+    },
+    readiness: buildReadinessSummary(records),
+    statusSummary: buildStatusSummary(records),
+    lockSummary: buildLockSummary(records),
+    totals: normalizeNumericTotals(totals),
+    groupedSummary: {
+      byMajorDepartment: buildGroupedOperationalSummary(records, "majorDepartment"),
+      byDepartment: buildGroupedOperationalSummary(records, "department"),
+      byBranch: buildGroupedOperationalSummary(records, "branch"),
+    },
+  };
+};
+
 const bulkFinalizeAttendanceFinalizationsIntoDB = async (
   payload: TAttendanceFinalizationBulkActionPayload,
   actionBy?: string,
@@ -1451,6 +1812,7 @@ export const AttendanceFinalizationServices = {
   generateMonthlyAttendanceFinalizationIntoDB,
   getAllAttendanceFinalizationFromDB,
   getSingleAttendanceFinalizationFromDB,
+  getAttendanceFinalizationOperationalSummaryFromDB,
   finalizeAttendanceFinalizationIntoDB,
   approveAttendanceFinalizationIntoDB,
   lockAttendanceFinalizationIntoDB,

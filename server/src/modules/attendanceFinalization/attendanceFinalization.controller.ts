@@ -198,6 +198,32 @@ const getAllAttendanceFinalization = catchAsync(
   },
 );
 
+
+const getAttendanceFinalizationOperationalSummary = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await AttendanceFinalizationServices.getAttendanceFinalizationOperationalSummaryFromDB(
+        req.query as unknown as {
+          payrollMonth?: string;
+          month?: string;
+          year?: string;
+          company: string;
+          majorDepartment?: string;
+          department?: string;
+          branch?: string;
+          employee?: string;
+        },
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization operational summary retrieved successfully",
+      data: result,
+    });
+  },
+);
+
 const getSingleAttendanceFinalization = catchAsync(
   async (req: Request, res: Response) => {
     const finalizationId = req.params.id as string;
@@ -375,6 +401,7 @@ const unlockAttendanceFinalization = catchAsync(
 export const AttendanceFinalizationControllers = {
   generateMonthlyAttendanceFinalization,
   getAllAttendanceFinalization,
+  getAttendanceFinalizationOperationalSummary,
   getSingleAttendanceFinalization,
   bulkFinalizeAttendanceFinalizations,
   bulkApproveAttendanceFinalizations,

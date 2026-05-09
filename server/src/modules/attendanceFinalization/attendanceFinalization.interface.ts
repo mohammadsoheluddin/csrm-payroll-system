@@ -140,6 +140,17 @@ export interface TAttendanceFinalizationQuery {
   isLocked?: string;
 }
 
+export interface TAttendanceFinalizationOperationalSummaryQuery {
+  payrollMonth?: string;
+  month?: string;
+  year?: string;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+}
+
 export interface TAttendanceFinalizationActionPayload {
   note?: string;
 }
