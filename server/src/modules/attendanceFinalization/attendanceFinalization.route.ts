@@ -28,6 +28,46 @@ router.get(
   AttendanceFinalizationControllers.getAllAttendanceFinalization,
 );
 
+router.patch(
+  "/bulk/finalize",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_PROCESS),
+  validateRequest(
+    AttendanceFinalizationValidations.attendanceFinalizationBulkActionValidationSchema,
+  ),
+  AttendanceFinalizationControllers.bulkFinalizeAttendanceFinalizations,
+);
+
+router.patch(
+  "/bulk/approve",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_APPROVE),
+  validateRequest(
+    AttendanceFinalizationValidations.attendanceFinalizationBulkActionValidationSchema,
+  ),
+  AttendanceFinalizationControllers.bulkApproveAttendanceFinalizations,
+);
+
+router.patch(
+  "/bulk/lock",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_LOCK),
+  validateRequest(
+    AttendanceFinalizationValidations.attendanceFinalizationBulkActionValidationSchema,
+  ),
+  AttendanceFinalizationControllers.bulkLockAttendanceFinalizations,
+);
+
+router.patch(
+  "/bulk/unlock",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_UNLOCK),
+  validateRequest(
+    AttendanceFinalizationValidations.attendanceFinalizationBulkActionValidationSchema,
+  ),
+  AttendanceFinalizationControllers.bulkUnlockAttendanceFinalizations,
+);
+
 router.get(
   "/:id",
   auth(),

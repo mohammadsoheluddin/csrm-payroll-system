@@ -144,6 +144,85 @@ const attendanceFinalizationIdParamValidationSchema = z.object({
   }),
 });
 
+
+const attendanceFinalizationBulkActionValidationSchema = z.object({
+  body: z
+    .object({
+      payrollMonth: payrollMonthSchema.optional(),
+      month: positiveNumberSchema("Month").optional(),
+      year: positiveNumberSchema("Year").optional(),
+      company: objectIdSchema("company id"),
+      majorDepartment: objectIdSchema("major department id").optional(),
+      department: objectIdSchema("department id").optional(),
+      branch: objectIdSchema("branch id").optional(),
+      employee: objectIdSchema("employee id").optional(),
+      note: noteSchema.optional(),
+      strict: z.boolean().optional(),
+    })
+    .strict()
+    .refine(
+      (data) => {
+        return Boolean(data.payrollMonth || (data.month && data.year));
+      },
+      {
+        message: "Either payrollMonth or both month and year are required",
+        path: ["payrollMonth"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.month && !data.year) {
+          return false;
+        }
+
+        return true;
+      },
+      {
+        message: "Year is required when month is provided",
+        path: ["year"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.year && !data.month) {
+          return false;
+        }
+
+        return true;
+      },
+      {
+        message: "Month is required when year is provided",
+        path: ["month"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (!data.month) {
+          return true;
+        }
+
+        return data.month >= 1 && data.month <= 12;
+      },
+      {
+        message: "Month must be between 1 and 12",
+        path: ["month"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (!data.year) {
+          return true;
+        }
+
+        return data.year >= 2000 && data.year <= 2100;
+      },
+      {
+        message: "Year must be between 2000 and 2100",
+        path: ["year"],
+      },
+    ),
+});
+
 const attendanceFinalizationActionValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("attendance finalization id"),
@@ -160,5 +239,6 @@ export const AttendanceFinalizationValidations = {
   generateAttendanceFinalizationValidationSchema,
   getAllAttendanceFinalizationValidationSchema,
   attendanceFinalizationIdParamValidationSchema,
+  attendanceFinalizationBulkActionValidationSchema,
   attendanceFinalizationActionValidationSchema,
 };

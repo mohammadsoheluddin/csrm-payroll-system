@@ -143,3 +143,26 @@ export interface TAttendanceFinalizationQuery {
 export interface TAttendanceFinalizationActionPayload {
   note?: string;
 }
+
+export type TAttendanceFinalizationBulkActionType =
+  | "finalize"
+  | "approve"
+  | "lock"
+  | "unlock";
+
+export interface TAttendanceFinalizationBulkActionPayload {
+  payrollMonth?: string;
+  month?: number;
+  year?: number;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+  note?: string;
+  /**
+   * For bulk lock, strict=true prevents partial month lock.
+   * Default behavior is strict, so every selected record must already be approved.
+   */
+  strict?: boolean;
+}

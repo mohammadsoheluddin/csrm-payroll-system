@@ -56,6 +56,132 @@ const generateMonthlyAttendanceFinalization = catchAsync(
   },
 );
 
+const buildBulkAuditMetadata = (result: {
+  action: string;
+  filters: Record<string, unknown>;
+  summary: Record<string, unknown>;
+}) => ({
+  action: result.action,
+  filters: result.filters,
+  summary: result.summary,
+});
+
+const bulkFinalizeAttendanceFinalizations = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await AttendanceFinalizationServices.bulkFinalizeAttendanceFinalizationsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "process",
+      entityName: result.payrollMonth,
+      description: "Bulk attendance finalizations changed to finalized",
+      previousData: null,
+      newData: null,
+      metadata: buildBulkAuditMetadata(result),
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalizations finalized successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkApproveAttendanceFinalizations = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await AttendanceFinalizationServices.bulkApproveAttendanceFinalizationsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "approve",
+      entityName: result.payrollMonth,
+      description: "Bulk attendance finalizations approved",
+      previousData: null,
+      newData: null,
+      metadata: buildBulkAuditMetadata(result),
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalizations approved successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkLockAttendanceFinalizations = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await AttendanceFinalizationServices.bulkLockAttendanceFinalizationsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "lock",
+      entityName: result.payrollMonth,
+      description: "Bulk attendance finalizations locked",
+      previousData: null,
+      newData: null,
+      metadata: buildBulkAuditMetadata(result),
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalizations locked successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkUnlockAttendanceFinalizations = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await AttendanceFinalizationServices.bulkUnlockAttendanceFinalizationsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "unlock",
+      entityName: result.payrollMonth,
+      description: "Bulk attendance finalizations unlocked",
+      previousData: null,
+      newData: null,
+      metadata: buildBulkAuditMetadata(result),
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalizations unlocked successfully",
+      data: result,
+    });
+  },
+);
+
 const getAllAttendanceFinalization = catchAsync(
   async (req: Request, res: Response) => {
     const result =
@@ -250,6 +376,10 @@ export const AttendanceFinalizationControllers = {
   generateMonthlyAttendanceFinalization,
   getAllAttendanceFinalization,
   getSingleAttendanceFinalization,
+  bulkFinalizeAttendanceFinalizations,
+  bulkApproveAttendanceFinalizations,
+  bulkLockAttendanceFinalizations,
+  bulkUnlockAttendanceFinalizations,
   finalizeAttendanceFinalization,
   approveAttendanceFinalization,
   lockAttendanceFinalization,

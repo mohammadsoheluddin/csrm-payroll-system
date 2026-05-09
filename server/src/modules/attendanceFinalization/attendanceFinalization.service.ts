@@ -9,6 +9,8 @@ import type {
   TAttendanceFinalization,
   TAttendanceFinalizationActionPayload,
   TAttendanceFinalizationAuditAction,
+  TAttendanceFinalizationBulkActionPayload,
+  TAttendanceFinalizationBulkActionType,
   TAttendanceFinalizationQuery,
   TAttendanceFinalizationStatus,
   TGenerateAttendanceFinalizationPayload,
@@ -50,6 +52,16 @@ const getOptionalObjectId = (value: string | undefined, fieldName: string) => {
 
 const buildPayrollMonth = (month: number, year: number) => {
   return `${year}-${String(month).padStart(2, "0")}`;
+};
+
+const parsePayrollMonth = (payrollMonth: string) => {
+  const [yearText, monthText] = payrollMonth.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+
+  validateMonthYear(month, year);
+
+  return { month, year };
 };
 
 const formatUTCDate = (date: Date) => {
@@ -903,6 +915,318 @@ const getSingleAttendanceFinalizationFromDB = async (id: string) => {
   return result;
 };
 
+
+const getPayrollMonthFromBulkPayload = (
+  payload: TAttendanceFinalizationBulkActionPayload,
+) => {
+  if (payload.payrollMonth) {
+    parsePayrollMonth(payload.payrollMonth);
+    return payload.payrollMonth;
+  }
+
+  if (!payload.month || !payload.year) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Either payrollMonth or both month and year are required.",
+    );
+  }
+
+  validateMonthYear(payload.month, payload.year);
+  return buildPayrollMonth(payload.month, payload.year);
+};
+
+const buildBulkActionFilter = (
+  payload: TAttendanceFinalizationBulkActionPayload,
+) => {
+  const payrollMonth = getPayrollMonthFromBulkPayload(payload);
+  const filter: Record<string, unknown> = {
+    payrollMonth,
+    company: toObjectId(payload.company, "company id"),
+    isDeleted: false,
+  };
+
+  if (payload.majorDepartment) {
+    filter.majorDepartment = toObjectId(
+      payload.majorDepartment,
+      "major department id",
+    );
+  }
+
+  if (payload.department) {
+    filter.department = toObjectId(payload.department, "department id");
+  }
+
+  if (payload.branch) {
+    filter.branch = toObjectId(payload.branch, "branch id");
+  }
+
+  if (payload.employee) {
+    filter.employee = toObjectId(payload.employee, "employee id");
+  }
+
+  return {
+    payrollMonth,
+    filter,
+  };
+};
+
+const buildStatusSummary = (records: TAttendanceFinalization[]) => {
+  const summary: Record<TAttendanceFinalizationStatus, number> = {
+    draft: 0,
+    finalized: 0,
+    approved: 0,
+    locked: 0,
+  };
+
+  for (const record of records) {
+    summary[record.status] += 1;
+  }
+
+  return summary;
+};
+
+const getBulkActionConfig = (action: TAttendanceFinalizationBulkActionType) => {
+  const config: Record<
+    TAttendanceFinalizationBulkActionType,
+    {
+      auditAction: TAttendanceFinalizationAuditAction;
+      allowedStatus: TAttendanceFinalizationStatus;
+      targetStatus: TAttendanceFinalizationStatus;
+      statusField: "finalized" | "approved" | "locked" | "unlocked";
+      description: string;
+    }
+  > = {
+    finalize: {
+      auditAction: "finalized",
+      allowedStatus: "draft",
+      targetStatus: "finalized",
+      statusField: "finalized",
+      description: "Bulk finalized",
+    },
+    approve: {
+      auditAction: "approved",
+      allowedStatus: "finalized",
+      targetStatus: "approved",
+      statusField: "approved",
+      description: "Bulk approved",
+    },
+    lock: {
+      auditAction: "locked",
+      allowedStatus: "approved",
+      targetStatus: "locked",
+      statusField: "locked",
+      description: "Bulk locked",
+    },
+    unlock: {
+      auditAction: "unlocked",
+      allowedStatus: "locked",
+      targetStatus: "approved",
+      statusField: "unlocked",
+      description: "Bulk unlocked",
+    },
+  };
+
+  return config[action];
+};
+
+const isRecordEligibleForBulkAction = (
+  record: TAttendanceFinalization,
+  action: TAttendanceFinalizationBulkActionType,
+) => {
+  const config = getBulkActionConfig(action);
+
+  if (action === "unlock") {
+    return record.status === "locked" && record.isLocked;
+  }
+
+  if (record.isLocked) {
+    return false;
+  }
+
+  return record.status === config.allowedStatus;
+};
+
+const buildBulkSkippedReason = (
+  record: TAttendanceFinalization,
+  action: TAttendanceFinalizationBulkActionType,
+) => {
+  if (action !== "unlock" && record.isLocked) {
+    return "Record is locked.";
+  }
+
+  if (action === "unlock") {
+    return "Only locked records can be unlocked.";
+  }
+
+  const config = getBulkActionConfig(action);
+  return `Only ${config.allowedStatus} records can be ${config.description.toLowerCase()}.`;
+};
+
+const buildStatusUpdatePayload = ({
+  record,
+  action,
+  actionBy,
+  note,
+}: {
+  record: TAttendanceFinalization;
+  action: TAttendanceFinalizationBulkActionType;
+  actionBy?: string;
+  note?: string;
+}): Partial<TAttendanceFinalization> => {
+  const config = getBulkActionConfig(action);
+  const actionByObjectId =
+    actionBy && Types.ObjectId.isValid(actionBy)
+      ? toObjectId(actionBy, "user id")
+      : null;
+
+  const updatePayload: Partial<TAttendanceFinalization> = {
+    status: config.targetStatus,
+    isLocked: action === "lock" ? true : action === "unlock" ? false : record.isLocked,
+    auditLogs: [
+      ...record.auditLogs,
+      createAuditEntry({
+        action: config.auditAction,
+        fromStatus: record.status,
+        toStatus: config.targetStatus,
+        actionBy,
+        note: note || config.description,
+      }),
+    ],
+  };
+
+  if (action === "finalize") {
+    updatePayload.finalizedBy = actionByObjectId;
+    updatePayload.finalizedAt = new Date();
+  }
+
+  if (action === "approve") {
+    updatePayload.approvedBy = actionByObjectId;
+    updatePayload.approvedAt = new Date();
+  }
+
+  if (action === "lock") {
+    updatePayload.lockedBy = actionByObjectId;
+    updatePayload.lockedAt = new Date();
+  }
+
+  if (action === "unlock") {
+    updatePayload.lockedBy = null;
+    updatePayload.lockedAt = null;
+  }
+
+  return updatePayload;
+};
+
+const bulkChangeAttendanceFinalizationStatusIntoDB = async ({
+  action,
+  payload,
+  actionBy,
+}: {
+  action: TAttendanceFinalizationBulkActionType;
+  payload: TAttendanceFinalizationBulkActionPayload;
+  actionBy?: string;
+}) => {
+  const { payrollMonth, filter } = buildBulkActionFilter(payload);
+  const records = await AttendanceFinalization.find(filter).sort({
+    "employeeSnapshot.employeeId": 1,
+    createdAt: 1,
+  });
+
+  if (!records.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No attendance finalization records found for the selected month and filters.",
+    );
+  }
+
+  const statusSummaryBefore = buildStatusSummary(records);
+
+  if (action === "lock" && payload.strict !== false) {
+    const blockers = records.filter(
+      (record) => record.status !== "approved" || record.isLocked,
+    );
+
+    if (blockers.length) {
+      throw new AppError(
+        HTTP_STATUS.CONFLICT,
+        `Month-level lock rejected. ${blockers.length} record(s) are not ready for lock. Finalize and approve every selected record first, or pass strict=false for a partial lock.`,
+      );
+    }
+  }
+
+  const processedRecords = [];
+  const skippedRecords = [];
+
+  for (const record of records) {
+    if (!isRecordEligibleForBulkAction(record, action)) {
+      skippedRecords.push({
+        id: getObjectIdString(record._id),
+        employee: getObjectIdString(record.employee),
+        employeeId: record.employeeSnapshot?.employeeId || "",
+        employeeName: record.employeeSnapshot?.employeeName || "",
+        currentStatus: record.status,
+        isLocked: record.isLocked,
+        reason: buildBulkSkippedReason(record, action),
+      });
+      continue;
+    }
+
+    const updatedRecord = await AttendanceFinalization.findOneAndUpdate(
+      {
+        _id: record._id,
+        isDeleted: false,
+      },
+      buildStatusUpdatePayload({
+        record,
+        action,
+        actionBy,
+        note: payload.note,
+      }),
+      {
+        new: true,
+        runValidators: true,
+      },
+    )
+      .populate("employee")
+      .populate("company")
+      .populate("majorDepartment")
+      .populate("department")
+      .populate("designation")
+      .populate("branch");
+
+    if (updatedRecord) {
+      processedRecords.push(updatedRecord);
+    }
+  }
+
+  const refreshedRecords = await AttendanceFinalization.find(filter).sort({
+    "employeeSnapshot.employeeId": 1,
+    createdAt: 1,
+  });
+
+  return {
+    payrollMonth,
+    action,
+    filters: {
+      company: payload.company,
+      majorDepartment: payload.majorDepartment || null,
+      department: payload.department || null,
+      branch: payload.branch || null,
+      employee: payload.employee || null,
+    },
+    summary: {
+      totalMatched: records.length,
+      totalProcessed: processedRecords.length,
+      totalSkipped: skippedRecords.length,
+      statusSummaryBefore,
+      statusSummaryAfter: buildStatusSummary(refreshedRecords),
+      strictLock: action === "lock" ? payload.strict !== false : null,
+    },
+    processedRecords,
+    skippedRecords,
+  };
+};
+
 const changeAttendanceFinalizationStatusIntoDB = async ({
   id,
   action,
@@ -1078,6 +1402,51 @@ const unlockAttendanceFinalizationIntoDB = async (
   });
 };
 
+
+const bulkFinalizeAttendanceFinalizationsIntoDB = async (
+  payload: TAttendanceFinalizationBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeAttendanceFinalizationStatusIntoDB({
+    action: "finalize",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkApproveAttendanceFinalizationsIntoDB = async (
+  payload: TAttendanceFinalizationBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeAttendanceFinalizationStatusIntoDB({
+    action: "approve",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkLockAttendanceFinalizationsIntoDB = async (
+  payload: TAttendanceFinalizationBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeAttendanceFinalizationStatusIntoDB({
+    action: "lock",
+    payload,
+    actionBy,
+  });
+};
+
+const bulkUnlockAttendanceFinalizationsIntoDB = async (
+  payload: TAttendanceFinalizationBulkActionPayload,
+  actionBy?: string,
+) => {
+  return bulkChangeAttendanceFinalizationStatusIntoDB({
+    action: "unlock",
+    payload,
+    actionBy,
+  });
+};
+
 export const AttendanceFinalizationServices = {
   generateMonthlyAttendanceFinalizationIntoDB,
   getAllAttendanceFinalizationFromDB,
@@ -1086,4 +1455,8 @@ export const AttendanceFinalizationServices = {
   approveAttendanceFinalizationIntoDB,
   lockAttendanceFinalizationIntoDB,
   unlockAttendanceFinalizationIntoDB,
+  bulkFinalizeAttendanceFinalizationsIntoDB,
+  bulkApproveAttendanceFinalizationsIntoDB,
+  bulkLockAttendanceFinalizationsIntoDB,
+  bulkUnlockAttendanceFinalizationsIntoDB,
 };
