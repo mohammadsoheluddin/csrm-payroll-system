@@ -26,6 +26,7 @@ export type TAuditLogModule =
   | "salary_structure"
   | "salary_sheet"
   | "salary_statement"
+  | "salary_payment_distribution"
   | "payroll"
   | "payroll_report"
   | "time_bill"
