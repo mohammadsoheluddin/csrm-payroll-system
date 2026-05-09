@@ -20,6 +20,7 @@ export type TAuditLogModule =
   | "department"
   | "employee"
   | "attendance"
+  | "attendance_import"
   | "attendance_finalization"
   | "leave"
   | "holiday"

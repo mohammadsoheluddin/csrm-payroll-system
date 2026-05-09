@@ -20,5 +20,6 @@ export interface TAttendance {
   source?: TAttendanceSource;
   remarks?: string;
   deviceId?: string;
+  importBatchNo?: string;
   isDeleted?: boolean;
 }

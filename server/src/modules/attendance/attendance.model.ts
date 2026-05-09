@@ -47,6 +47,11 @@ const attendanceSchema = new Schema<TAttendance>(
       type: String,
       trim: true,
     },
+    importBatchNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
     isDeleted: {
       type: Boolean,
       default: false,
@@ -58,6 +63,8 @@ const attendanceSchema = new Schema<TAttendance>(
 );
 
 attendanceSchema.index({ employee: 1, attendanceDate: 1 });
+attendanceSchema.index({ importBatchNo: 1 });
+attendanceSchema.index({ deviceId: 1, attendanceDate: 1 });
 
 const Attendance = model<TAttendance>("Attendance", attendanceSchema);
 
