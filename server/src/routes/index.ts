@@ -42,6 +42,8 @@ import timeBillRoutes from "../modules/timeBill/timeBill.route";
 
 import otStatementRoutes from "../modules/otStatement/otStatement.route";
 
+import otPaymentDistributionRoutes from "../modules/otPaymentDistribution/otPaymentDistribution.route";
+
 import userRoutes from "../modules/user/user.route";
 
 import healthRoutes from "./health.route";
@@ -161,6 +163,11 @@ const moduleRoutes = [
   {
     path: "/ot-statements",
     route: otStatementRoutes,
+  },
+
+  {
+    path: "/ot-payment-distributions",
+    route: otPaymentDistributionRoutes,
   },
 
   {
