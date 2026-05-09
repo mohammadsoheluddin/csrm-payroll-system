@@ -32,6 +32,7 @@ export type TAuditLogModule =
   | "time_bill"
   | "ot_statement"
   | "ot_payment_distribution"
+  | "month_end_process_control"
   | "payslip"
   | "rbac"
   | "system";

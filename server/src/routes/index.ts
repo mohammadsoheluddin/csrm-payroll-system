@@ -32,6 +32,8 @@ import leaveRoutes from "../modules/leave/leave.route";
 
 import majorDepartmentRoutes from "../modules/majorDepartment/majorDepartment.route";
 
+import monthEndProcessControlRoutes from "../modules/monthEndProcessControl/monthEndProcessControl.route";
+
 import { payrollRoutes } from "../modules/payroll/payroll.route";
 
 import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.route";
@@ -189,6 +191,11 @@ const moduleRoutes = [
   {
     path: "/ot-payment-distributions",
     route: otPaymentDistributionRoutes,
+  },
+
+  {
+    path: "/month-end-process-control",
+    route: monthEndProcessControlRoutes,
   },
 
   {
