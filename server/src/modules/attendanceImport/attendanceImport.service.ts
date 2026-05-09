@@ -9,10 +9,20 @@ import type {
   TAttendanceImportProcessedAttendance,
   TAttendanceImportQuery,
   TAttendanceImportRawRow,
+  TAttendanceImportTemplateColumn,
+  TAttendanceImportTemplatePreview,
+  TAttendanceImportTemplateQuery,
+  TAttendanceImportRejectionReportPreview,
   TAttendanceImportRejectedRow,
   TAttendanceImportSummary,
 } from "./attendanceImport.interface";
 import AttendanceImportBatch from "./attendanceImport.model";
+import {
+  generateAttendanceImportRejectionCsv,
+  generateAttendanceImportRejectionExcel,
+  generateAttendanceImportTemplateCsv,
+  generateAttendanceImportTemplateExcel,
+} from "./attendanceImport.export";
 
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
@@ -765,9 +775,226 @@ const getSingleAttendanceImportFromDB = async (id: string) => {
   return result;
 };
 
+const TEMPLATE_COLUMNS: TAttendanceImportTemplateColumn[] = [
+  {
+    header: "Row No",
+    key: "rowNo",
+    required: false,
+    format: "Number",
+    description: "Optional row serial from source file for easier rejection tracking.",
+    width: 10,
+  },
+  {
+    header: "Employee Identifier",
+    key: "employeeIdentifier",
+    required: true,
+    format: "Text",
+    description:
+      "Employee value matching selected matchBy option: employeeId, officeId, or cardNo.",
+    width: 24,
+  },
+  {
+    header: "Attendance Date",
+    key: "attendanceDate",
+    required: true,
+    format: "YYYY-MM-DD",
+    description: "Attendance date for the punch or manual row.",
+    width: 18,
+  },
+  {
+    header: "Punch Time",
+    key: "punchTime",
+    required: false,
+    format: "HH:mm",
+    description:
+      "Single punch time. Multiple rows for same employee/date will be grouped into first in and last out.",
+    width: 14,
+  },
+  {
+    header: "Check In Time",
+    key: "checkInTime",
+    required: false,
+    format: "HH:mm",
+    description: "Manual or prepared check-in time in 24-hour format.",
+    width: 16,
+  },
+  {
+    header: "Check Out Time",
+    key: "checkOutTime",
+    required: false,
+    format: "HH:mm",
+    description: "Manual or prepared check-out time in 24-hour format.",
+    width: 16,
+  },
+  {
+    header: "Status",
+    key: "status",
+    required: false,
+    format: "present | absent | late | leave | half-day | weekend | holiday",
+    description:
+      "Optional attendance status. If omitted, rows with punch/check times become present; empty time rows become absent.",
+    width: 18,
+  },
+  {
+    header: "Device ID",
+    key: "deviceId",
+    required: false,
+    format: "Text",
+    description: "Optional punch device identifier. Request level deviceId is also supported.",
+    width: 18,
+  },
+  {
+    header: "Remarks",
+    key: "remarks",
+    required: false,
+    format: "Text",
+    description: "Optional row-level note, for example Manual correction or Device sync.",
+    width: 40,
+  },
+];
+
+const getBooleanQueryValue = (value: string | undefined, defaultValue: boolean) => {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return ["true", "1", "yes"].includes(value.toLowerCase());
+};
+
+const getSampleRows = ({
+  matchBy,
+  includeSample,
+}: {
+  matchBy: TAttendanceImportTemplateQuery["matchBy"];
+  includeSample: boolean;
+}): TAttendanceImportRawRow[] => {
+  if (!includeSample) {
+    return [];
+  }
+
+  const employeeIdentifier =
+    matchBy === "cardNo" ? "CARD-001" : matchBy === "officeId" ? "OFF-001" : "EMP-001";
+
+  return [
+    {
+      rowNo: 1,
+      employeeIdentifier,
+      attendanceDate: "2026-05-01",
+      punchTime: "08:05",
+      deviceId: "ZKT-01",
+      remarks: "Morning punch sample",
+    },
+    {
+      rowNo: 2,
+      employeeIdentifier,
+      attendanceDate: "2026-05-01",
+      punchTime: "17:10",
+      deviceId: "ZKT-01",
+      remarks: "Evening punch sample",
+    },
+    {
+      rowNo: 3,
+      employeeIdentifier: `${employeeIdentifier}-2`,
+      attendanceDate: "2026-05-01",
+      checkInTime: "08:00",
+      checkOutTime: "17:00",
+      status: "present",
+      remarks: "Manual bulk sample",
+    },
+  ];
+};
+
+const buildAttendanceImportTemplatePreview = (
+  query: TAttendanceImportTemplateQuery,
+): TAttendanceImportTemplatePreview => {
+  const source = query.source || "excel";
+  const matchBy = query.matchBy || "employeeId";
+  const includeSample = getBooleanQueryValue(query.includeSample, true);
+
+  return {
+    template: {
+      source,
+      matchBy,
+      recommendedEndpoint: "/api/v1/attendance-imports/preview then /api/v1/attendance-imports/commit",
+      maxRowsPerRequest: 5000,
+      notes: [
+        "Template columns map to the rows[] payload accepted by attendance import preview/commit APIs.",
+        "Use either punchTime rows or prepared checkInTime/checkOutTime rows.",
+        "Multiple punch rows for the same employee/date will be grouped into first check-in and last check-out.",
+        "Commit is blocked when the target employee/month attendance finalization is already locked.",
+      ],
+    },
+    columns: TEMPLATE_COLUMNS,
+    sampleRows: getSampleRows({ matchBy, includeSample }),
+  };
+};
+
+const buildAttendanceImportRejectionReportFromDB = async (
+  id: string,
+): Promise<TAttendanceImportRejectionReportPreview> => {
+  const batch = await getSingleAttendanceImportFromDB(id);
+
+  const batchObject = batch.toObject ? batch.toObject() : batch;
+
+  return {
+    batch: {
+      id: getObjectIdString(batchObject._id),
+      batchNo: batchObject.batchNo,
+      source: batchObject.source,
+      matchBy: batchObject.matchBy,
+      sourceFileName: batchObject.sourceFileName,
+      deviceId: batchObject.deviceId,
+      processedAt: batchObject.processedAt,
+    },
+    summary: {
+      totalRows: batchObject.totalRows || 0,
+      validRows: batchObject.validRows || 0,
+      invalidRows: batchObject.invalidRows || 0,
+      rejectedRows: batchObject.rejectedRows?.length || 0,
+      insertedAttendanceCount: batchObject.insertedAttendanceCount || 0,
+      updatedAttendanceCount: batchObject.updatedAttendanceCount || 0,
+      skippedAttendanceCount: batchObject.skippedAttendanceCount || 0,
+    },
+    rejectedRows: batchObject.rejectedRows || [],
+  };
+};
+
+const exportAttendanceImportTemplateCsv = (query: TAttendanceImportTemplateQuery) => {
+  const preview = buildAttendanceImportTemplatePreview(query);
+
+  return generateAttendanceImportTemplateCsv(preview);
+};
+
+const exportAttendanceImportTemplateExcel = async (
+  query: TAttendanceImportTemplateQuery,
+) => {
+  const preview = buildAttendanceImportTemplatePreview(query);
+
+  return generateAttendanceImportTemplateExcel(preview);
+};
+
+const exportAttendanceImportRejectionsCsv = async (id: string) => {
+  const preview = await buildAttendanceImportRejectionReportFromDB(id);
+
+  return generateAttendanceImportRejectionCsv(preview);
+};
+
+const exportAttendanceImportRejectionsExcel = async (id: string) => {
+  const preview = await buildAttendanceImportRejectionReportFromDB(id);
+
+  return generateAttendanceImportRejectionExcel(preview);
+};
+
+
 export const AttendanceImportServices = {
   previewAttendanceImportFromPayload,
   commitAttendanceImportIntoDB,
   getAllAttendanceImportsFromDB,
   getSingleAttendanceImportFromDB,
+  buildAttendanceImportTemplatePreview,
+  exportAttendanceImportTemplateCsv,
+  exportAttendanceImportTemplateExcel,
+  buildAttendanceImportRejectionReportFromDB,
+  exportAttendanceImportRejectionsCsv,
+  exportAttendanceImportRejectionsExcel,
 };

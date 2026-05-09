@@ -167,6 +167,22 @@ const getAllAttendanceImportsValidationSchema = z.object({
     .optional(),
 });
 
+
+const booleanQuerySchema = z
+  .enum(["true", "false", "1", "0", "yes", "no"])
+  .optional();
+
+const attendanceImportTemplateQueryValidationSchema = z.object({
+  query: z
+    .object({
+      source: attendanceImportSourceSchema.optional(),
+      matchBy: attendanceImportMatchBySchema.optional(),
+      includeSample: booleanQuerySchema,
+    })
+    .strict()
+    .optional(),
+});
+
 const attendanceImportIdParamValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("attendance import batch id"),
@@ -178,4 +194,5 @@ export const AttendanceImportValidations = {
   commitAttendanceImportValidationSchema,
   getAllAttendanceImportsValidationSchema,
   attendanceImportIdParamValidationSchema,
+  attendanceImportTemplateQueryValidationSchema,
 };

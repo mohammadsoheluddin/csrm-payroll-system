@@ -101,9 +101,174 @@ const getSingleAttendanceImport = catchAsync(
   },
 );
 
+
+const getAttendanceImportTemplatePreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = AttendanceImportServices.buildAttendanceImportTemplatePreview(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "read",
+      entityName: `${result.template.source}-${result.template.matchBy}`,
+      description: "Attendance import template preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        template: result.template,
+        columns: result.columns.map((column) => column.header),
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance import template preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const exportAttendanceImportTemplateCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = AttendanceImportServices.exportAttendanceImportTemplateCsv(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "export",
+      entityName: result.fileName,
+      description: "Attendance import CSV template exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        template: (result.reportData as any).template,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportAttendanceImportTemplateExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AttendanceImportServices.exportAttendanceImportTemplateExcel(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "export",
+      entityName: result.fileName,
+      description: "Attendance import Excel template exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        template: (result.reportData as any).template,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const getAttendanceImportRejectionReportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AttendanceImportServices.buildAttendanceImportRejectionReportFromDB(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "read",
+      entityId: result.batch.id,
+      entityName: result.batch.batchNo,
+      description: "Attendance import rejection report preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance import rejection report preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const exportAttendanceImportRejectionsCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AttendanceImportServices.exportAttendanceImportRejectionsCsv(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "export",
+      entityId: (result.reportData as any).batch.id,
+      entityName: (result.reportData as any).batch.batchNo,
+      description: "Attendance import rejection CSV exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        summary: (result.reportData as any).summary,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportAttendanceImportRejectionsExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AttendanceImportServices.exportAttendanceImportRejectionsExcel(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "export",
+      entityId: (result.reportData as any).batch.id,
+      entityName: (result.reportData as any).batch.batchNo,
+      description: "Attendance import rejection Excel exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        summary: (result.reportData as any).summary,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const AttendanceImportControllers = {
   previewAttendanceImport,
   commitAttendanceImport,
   getAllAttendanceImports,
   getSingleAttendanceImport,
+  getAttendanceImportTemplatePreview,
+  exportAttendanceImportTemplateCsv,
+  exportAttendanceImportTemplateExcel,
+  getAttendanceImportRejectionReportPreview,
+  exportAttendanceImportRejectionsCsv,
+  exportAttendanceImportRejectionsExcel,
 };

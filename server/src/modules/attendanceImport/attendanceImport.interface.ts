@@ -108,6 +108,65 @@ export interface TAttendanceImportBatch {
   isDeleted?: boolean;
 }
 
+
+export type TAttendanceImportTemplateSource = "device" | "excel" | "manual_bulk" | "api";
+
+export interface TAttendanceImportTemplateColumn {
+  header: string;
+  key: keyof TAttendanceImportRawRow;
+  required: boolean;
+  format?: string;
+  description: string;
+  width: number;
+}
+
+export interface TAttendanceImportTemplateQuery {
+  source?: TAttendanceImportTemplateSource;
+  matchBy?: TAttendanceImportMatchBy;
+  includeSample?: string;
+}
+
+export interface TAttendanceImportTemplatePreview {
+  template: {
+    source: TAttendanceImportTemplateSource;
+    matchBy: TAttendanceImportMatchBy;
+    recommendedEndpoint: string;
+    maxRowsPerRequest: number;
+    notes: string[];
+  };
+  columns: TAttendanceImportTemplateColumn[];
+  sampleRows: TAttendanceImportRawRow[];
+}
+
+export interface TAttendanceImportRejectionReportPreview {
+  batch: {
+    id: string;
+    batchNo: string;
+    source: TAttendanceImportSource;
+    matchBy: TAttendanceImportMatchBy;
+    sourceFileName?: string;
+    deviceId?: string;
+    processedAt?: Date;
+  };
+  summary: {
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    rejectedRows: number;
+    insertedAttendanceCount: number;
+    updatedAttendanceCount: number;
+    skippedAttendanceCount: number;
+  };
+  rejectedRows: TAttendanceImportRejectedRow[];
+}
+
+export interface TAttendanceImportExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TAttendanceImportTemplatePreview | TAttendanceImportRejectionReportPreview;
+}
+
 export interface TAttendanceImportQuery {
   source?: string;
   matchBy?: string;

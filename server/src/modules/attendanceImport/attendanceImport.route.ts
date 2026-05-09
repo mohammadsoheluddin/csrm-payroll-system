@@ -8,6 +8,55 @@ import { AttendanceImportValidations } from "./attendanceImport.validation";
 
 const router = Router();
 
+
+router.get(
+  "/template/preview",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_READ),
+  validateRequest(AttendanceImportValidations.attendanceImportTemplateQueryValidationSchema),
+  AttendanceImportControllers.getAttendanceImportTemplatePreview,
+);
+
+router.get(
+  "/template/csv",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_EXPORT),
+  validateRequest(AttendanceImportValidations.attendanceImportTemplateQueryValidationSchema),
+  AttendanceImportControllers.exportAttendanceImportTemplateCsv,
+);
+
+router.get(
+  "/template/excel",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_EXPORT),
+  validateRequest(AttendanceImportValidations.attendanceImportTemplateQueryValidationSchema),
+  AttendanceImportControllers.exportAttendanceImportTemplateExcel,
+);
+
+router.get(
+  "/:id/rejections/preview",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_READ),
+  validateRequest(AttendanceImportValidations.attendanceImportIdParamValidationSchema),
+  AttendanceImportControllers.getAttendanceImportRejectionReportPreview,
+);
+
+router.get(
+  "/:id/rejections/csv",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_EXPORT),
+  validateRequest(AttendanceImportValidations.attendanceImportIdParamValidationSchema),
+  AttendanceImportControllers.exportAttendanceImportRejectionsCsv,
+);
+
+router.get(
+  "/:id/rejections/excel",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_EXPORT),
+  validateRequest(AttendanceImportValidations.attendanceImportIdParamValidationSchema),
+  AttendanceImportControllers.exportAttendanceImportRejectionsExcel,
+);
+
 router.post(
   "/preview",
   auth(),
