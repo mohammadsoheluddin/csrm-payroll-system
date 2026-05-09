@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildPayrollImmutableSealFromRecord } from "../../utils/payrollImmutableSeal";
 import AppError from "../../errors/AppError";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
 import SalaryStatement from "../salaryStatement/salaryStatement.model";
@@ -1089,11 +1090,18 @@ const updateDistributionStatus = async ({
   if (action === "locked") {
     existingDistribution.lockedBy = actionUser;
     existingDistribution.lockedAt = now;
+    existingDistribution.immutableSeal = buildPayrollImmutableSealFromRecord({
+      record: existingDistribution as unknown as Record<string, unknown>,
+      sourceModule: "salary_payment_distribution",
+      sealedBy: actionUser,
+      note: note || "Salary Payment Distribution locked and immutable snapshot sealed.",
+    });
   }
 
   if (action === "unlocked") {
     existingDistribution.lockedBy = null;
     existingDistribution.lockedAt = null;
+    existingDistribution.immutableSeal = null;
   }
 
   existingDistribution.auditLogs.push({
@@ -1306,11 +1314,18 @@ const applyBulkAction = async ({
     if (actionType === "lock") {
       row.lockedBy = actionUser;
       row.lockedAt = now;
+      row.immutableSeal = buildPayrollImmutableSealFromRecord({
+        record: row as unknown as Record<string, unknown>,
+        sourceModule: "salary_payment_distribution",
+        sealedBy: actionUser,
+        note: payload.note || "Salary Payment Distribution locked and immutable snapshot sealed.",
+      });
     }
 
     if (actionType === "unlock") {
       row.lockedBy = null;
       row.lockedAt = null;
+      row.immutableSeal = null;
     }
 
     row.auditLogs.push({

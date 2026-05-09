@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildPayrollImmutableSealFromRecord } from "../../utils/payrollImmutableSeal";
 import AppError from "../../errors/AppError";
 import AttendanceFinalization from "../attendanceFinalization/attendanceFinalization.model";
 import type { TAttendanceFinalization } from "../attendanceFinalization/attendanceFinalization.interface";
@@ -1139,11 +1140,18 @@ const buildTimeBillBulkUpdatePayload = ({
   if (action === "lock") {
     updatePayload.lockedBy = userObjectId;
     updatePayload.lockedAt = now;
+    updatePayload.immutableSeal = buildPayrollImmutableSealFromRecord({
+      record: record as unknown as Record<string, unknown>,
+      sourceModule: "time_bill",
+      sealedBy: userObjectId,
+      note: note || "Time Bill locked and immutable snapshot sealed.",
+    });
   }
 
   if (action === "unlock") {
     updatePayload.lockedBy = null;
     updatePayload.lockedAt = null;
+    updatePayload.immutableSeal = null;
   }
 
   return updatePayload;
@@ -1359,12 +1367,19 @@ const transitionTimeBillStatusIntoDB = async ({
     timeBill.isLocked = true;
     timeBill.lockedBy = userObjectId;
     timeBill.lockedAt = now;
+    timeBill.immutableSeal = buildPayrollImmutableSealFromRecord({
+      record: timeBill as unknown as Record<string, unknown>,
+      sourceModule: "time_bill",
+      sealedBy: userObjectId,
+      note: payload?.note || "Time Bill locked and immutable snapshot sealed.",
+    });
   }
 
   if (action === "unlocked") {
     timeBill.isLocked = false;
     timeBill.lockedBy = null;
     timeBill.lockedAt = null;
+    timeBill.immutableSeal = null;
   }
 
   timeBill.auditLogs.push({

@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import type { TPayrollImmutableSeal } from "../../utils/payrollImmutableSeal";
 import {
   SalaryPaymentDistributionModel,
   TSalaryPaymentDistribution,
@@ -171,6 +172,19 @@ const salaryPaymentDistributionAuditLogSchema =
     { _id: false },
   );
 
+const payrollImmutableSealSchema = new Schema<TPayrollImmutableSeal>(
+  {
+    sealVersion: { type: String, required: true, trim: true },
+    sourceModule: { type: String, required: true, trim: true },
+    sourceId: { type: String, required: true, trim: true },
+    checksum: { type: String, required: true, trim: true },
+    sealedAt: { type: Date, required: true },
+    sealedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    note: { type: String, trim: true, default: "" },
+  },
+  { _id: false },
+);
+
 const salaryPaymentDistributionSchema = new Schema<
   TSalaryPaymentDistribution,
   SalaryPaymentDistributionModel
@@ -274,6 +288,7 @@ const salaryPaymentDistributionSchema = new Schema<
     lockedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     lockedAt: { type: Date, default: null },
 
+    immutableSeal: { type: payrollImmutableSealSchema, default: null },
     snapshot: { type: salaryPaymentDistributionSnapshotSchema, default: null },
     auditLogs: { type: [salaryPaymentDistributionAuditLogSchema], default: [] },
     remarks: { type: String, trim: true, default: "" },

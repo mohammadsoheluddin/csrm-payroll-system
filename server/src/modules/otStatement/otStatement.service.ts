@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildPayrollImmutableSealFromRecord } from "../../utils/payrollImmutableSeal";
 import AppError from "../../errors/AppError";
 import TimeBill from "../timeBill/timeBill.model";
 import OtStatement from "./otStatement.model";
@@ -878,6 +879,7 @@ const transitionOtStatementStatusIntoDB = async ({
     if (action === "unlocked") {
       statement.lockedBy = null;
       statement.lockedAt = null;
+      statement.immutableSeal = null;
     } else {
       statement.approvedBy = userObjectId;
       statement.approvedAt = actionDate;
@@ -887,6 +889,12 @@ const transitionOtStatementStatusIntoDB = async ({
   if (nextStatus === "locked") {
     statement.lockedBy = userObjectId;
     statement.lockedAt = actionDate;
+    statement.immutableSeal = buildPayrollImmutableSealFromRecord({
+      record: statement as unknown as Record<string, unknown>,
+      sourceModule: "ot_statement",
+      sealedBy: userObjectId,
+      note: payload?.note || "OT Statement locked and immutable snapshot sealed.",
+    });
   }
 
   await statement.save();
@@ -1069,6 +1077,7 @@ const bulkChangeOtStatementStatusIntoDB = async ({
       if (action === "unlock") {
         row.lockedBy = null;
         row.lockedAt = null;
+        row.immutableSeal = null;
       } else {
         row.approvedBy = userObjectId;
         row.approvedAt = actionDate;
@@ -1078,6 +1087,12 @@ const bulkChangeOtStatementStatusIntoDB = async ({
     if (config.nextStatus === "locked") {
       row.lockedBy = userObjectId;
       row.lockedAt = actionDate;
+      row.immutableSeal = buildPayrollImmutableSealFromRecord({
+        record: row as unknown as Record<string, unknown>,
+        sourceModule: "ot_statement",
+        sealedBy: userObjectId,
+        note: payload.note || "OT Statement locked and immutable snapshot sealed.",
+      });
     }
 
     await row.save();

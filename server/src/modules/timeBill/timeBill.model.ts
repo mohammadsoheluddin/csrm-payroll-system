@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import type { TPayrollImmutableSeal } from "../../utils/payrollImmutableSeal";
 import {
   TimeBillModel,
   TTimeBill,
@@ -256,6 +257,19 @@ const timeBillAuditLogSchema = new Schema<TTimeBillAuditLog>(
   },
 );
 
+const payrollImmutableSealSchema = new Schema<TPayrollImmutableSeal>(
+  {
+    sealVersion: { type: String, required: true, trim: true },
+    sourceModule: { type: String, required: true, trim: true },
+    sourceId: { type: String, required: true, trim: true },
+    checksum: { type: String, required: true, trim: true },
+    sealedAt: { type: Date, required: true },
+    sealedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    note: { type: String, trim: true, default: "" },
+  },
+  { _id: false },
+);
+
 const timeBillSchema = new Schema<TTimeBill, TimeBillModel>(
   {
     employee: {
@@ -437,6 +451,7 @@ const timeBillSchema = new Schema<TTimeBill, TimeBillModel>(
       default: null,
     },
 
+    immutableSeal: { type: payrollImmutableSealSchema, default: null },
     snapshot: {
       type: timeBillSnapshotSchema,
       default: null,

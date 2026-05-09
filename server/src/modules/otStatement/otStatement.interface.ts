@@ -1,4 +1,5 @@
 import { Model, Types } from "mongoose";
+import type { TPayrollImmutableSeal } from "../../utils/payrollImmutableSeal";
 
 export type TOtStatementStatus = "draft" | "processed" | "approved" | "locked";
 
@@ -121,6 +122,7 @@ export interface TOtStatement {
   approvedAt?: Date | null;
   lockedBy?: Types.ObjectId | null;
   lockedAt?: Date | null;
+  immutableSeal?: TPayrollImmutableSeal | null;
 
   snapshot?: TOtStatementSnapshot | null;
   auditLogs: TOtStatementAuditLog[];

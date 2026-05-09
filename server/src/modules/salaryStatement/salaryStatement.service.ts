@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildPayrollImmutableSealFromRecord } from "../../utils/payrollImmutableSeal";
 import AppError from "../../errors/AppError";
 import SalarySheet from "../salarySheet/salarySheet.model";
 import type { TSalarySheet } from "../salarySheet/salarySheet.interface";
@@ -828,11 +829,18 @@ const buildSalaryStatementBulkUpdatePayload = ({
   if (action === "lock") {
     updatePayload.lockedBy = userObjectId;
     updatePayload.lockedAt = now;
+    updatePayload.immutableSeal = buildPayrollImmutableSealFromRecord({
+      record: record as unknown as Record<string, unknown>,
+      sourceModule: "salary_statement",
+      sealedBy: userObjectId,
+      note: note || "Salary Statement locked and immutable snapshot sealed.",
+    });
   }
 
   if (action === "unlock") {
     updatePayload.lockedBy = null;
     updatePayload.lockedAt = null;
+    updatePayload.immutableSeal = null;
   }
 
   return updatePayload;
@@ -1050,12 +1058,19 @@ const applySingleAction = async ({
     salaryStatement.isLocked = true;
     salaryStatement.lockedBy = buildActionBy(actionBy);
     salaryStatement.lockedAt = new Date();
+    salaryStatement.immutableSeal = buildPayrollImmutableSealFromRecord({
+      record: salaryStatement as unknown as Record<string, unknown>,
+      sourceModule: "salary_statement",
+      sealedBy: buildActionBy(actionBy),
+      note: payload?.note || "Salary Statement locked and immutable snapshot sealed.",
+    });
   }
 
   if (action === "unlocked") {
     salaryStatement.isLocked = false;
     salaryStatement.lockedBy = null;
     salaryStatement.lockedAt = null;
+    salaryStatement.immutableSeal = null;
   }
 
   salaryStatement.auditLogs.push({

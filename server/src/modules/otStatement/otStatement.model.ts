@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import type { TPayrollImmutableSeal } from "../../utils/payrollImmutableSeal";
 import {
   OtStatementModel,
   TOtStatement,
@@ -249,6 +250,19 @@ const otStatementAuditLogSchema = new Schema<TOtStatementAuditLog>(
   },
 );
 
+const payrollImmutableSealSchema = new Schema<TPayrollImmutableSeal>(
+  {
+    sealVersion: { type: String, required: true, trim: true },
+    sourceModule: { type: String, required: true, trim: true },
+    sourceId: { type: String, required: true, trim: true },
+    checksum: { type: String, required: true, trim: true },
+    sealedAt: { type: Date, required: true },
+    sealedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    note: { type: String, trim: true, default: "" },
+  },
+  { _id: false },
+);
+
 const otStatementSchema = new Schema<TOtStatement, OtStatementModel>(
   {
     employee: {
@@ -435,6 +449,7 @@ const otStatementSchema = new Schema<TOtStatement, OtStatementModel>(
       default: null,
     },
 
+    immutableSeal: { type: payrollImmutableSealSchema, default: null },
     snapshot: {
       type: otStatementSnapshotSchema,
       default: null,
