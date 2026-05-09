@@ -38,6 +38,8 @@ import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.rout
 
 import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
 
+import salarySheetRoutes from "../modules/salarySheet/salarySheet.route";
+
 import timeBillRoutes from "../modules/timeBill/timeBill.route";
 
 import otStatementRoutes from "../modules/otStatement/otStatement.route";
@@ -143,6 +145,11 @@ const moduleRoutes = [
   {
     path: "/salary-structure",
     route: salaryStructureRoutes,
+  },
+
+  {
+    path: "/salary-sheets",
+    route: salarySheetRoutes,
   },
 
   {

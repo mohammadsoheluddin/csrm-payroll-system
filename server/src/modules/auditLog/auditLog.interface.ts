@@ -24,6 +24,7 @@ export type TAuditLogModule =
   | "leave"
   | "holiday"
   | "salary_structure"
+  | "salary_sheet"
   | "payroll"
   | "payroll_report"
   | "time_bill"
