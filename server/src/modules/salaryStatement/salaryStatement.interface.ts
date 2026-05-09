@@ -176,4 +176,27 @@ export interface TSalaryStatementActionPayload {
   note?: string;
 }
 
+export type TSalaryStatementBulkActionType =
+  | "process"
+  | "approve"
+  | "lock"
+  | "unlock";
+
+export interface TSalaryStatementBulkActionPayload {
+  payrollMonth?: string;
+  month?: number;
+  year?: number;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+  note?: string;
+  /**
+   * For bulk lock, strict=true prevents partial Salary Payment Distribution readiness.
+   * Default behavior is strict, so every selected Salary Statement must already be approved.
+   */
+  strict?: boolean;
+}
+
 export interface SalaryStatementModel extends Model<TSalaryStatement> {}

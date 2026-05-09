@@ -106,6 +106,138 @@ const getSalaryStatementOperationalSummary = catchAsync(
   },
 );
 
+
+const createSalaryStatementBulkAudit = async ({
+  req,
+  action,
+  description,
+  result,
+}: {
+  req: Request;
+  action: "process" | "approve" | "lock" | "unlock";
+  description: string;
+  result: any;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "salary_statement",
+    action,
+    entityName: result.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.filters,
+      summary: result.summary,
+      salaryPaymentDistributionReadiness:
+        result.salaryPaymentDistributionReadiness,
+    },
+  });
+};
+
+const bulkProcessSalaryStatements = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await SalaryStatementServices.bulkProcessSalaryStatementsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createSalaryStatementBulkAudit({
+      req,
+      action: "process",
+      description: "Salary Statements bulk processed",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Statements bulk processed successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkApproveSalaryStatements = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await SalaryStatementServices.bulkApproveSalaryStatementsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createSalaryStatementBulkAudit({
+      req,
+      action: "approve",
+      description: "Salary Statements bulk approved",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Statements bulk approved successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkLockSalaryStatements = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result = await SalaryStatementServices.bulkLockSalaryStatementsIntoDB(
+      req.body,
+      userId,
+    );
+
+    await createSalaryStatementBulkAudit({
+      req,
+      action: "lock",
+      description:
+        "Salary Statements bulk locked for Salary Payment Distribution processing",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Statements bulk locked successfully",
+      data: result,
+    });
+  },
+);
+
+const bulkUnlockSalaryStatements = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await SalaryStatementServices.bulkUnlockSalaryStatementsIntoDB(
+        req.body,
+        userId,
+      );
+
+    await createSalaryStatementBulkAudit({
+      req,
+      action: "unlock",
+      description: "Salary Statements bulk unlocked",
+      result,
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Salary Statements bulk unlocked successfully",
+      data: result,
+    });
+  },
+);
+
 const processSalaryStatement = catchAsync(
   async (req: Request, res: Response) => {
     const userId = getUserIdFromRequest(req);
@@ -241,6 +373,10 @@ export const SalaryStatementControllers = {
   getAllSalaryStatements,
   getSingleSalaryStatement,
   getSalaryStatementOperationalSummary,
+  bulkProcessSalaryStatements,
+  bulkApproveSalaryStatements,
+  bulkLockSalaryStatements,
+  bulkUnlockSalaryStatements,
   processSalaryStatement,
   approveSalaryStatement,
   lockSalaryStatement,
