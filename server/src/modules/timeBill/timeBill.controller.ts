@@ -338,6 +338,101 @@ const unlockTimeBill = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getTimeBillExportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await TimeBillServices.buildTimeBillExportPreviewFromDB(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "time_bill",
+      action: "read",
+      entityName: result.payrollMonth,
+      description: "Time Bill export preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Time Bill export preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createTimeBillExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "time_bill",
+    action: "export",
+    entityName: result.reportData.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.reportData.filters,
+      summary: result.reportData.summary,
+      fileName: result.fileName,
+    },
+  });
+};
+
+const exportTimeBillCsv = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeBillServices.exportTimeBillCsvFromDB(req.query as any);
+
+  await createTimeBillExportAudit({
+    req,
+    result,
+    description: "Time Bill CSV exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const exportTimeBillExcel = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeBillServices.exportTimeBillExcelFromDB(req.query as any);
+
+  await createTimeBillExportAudit({
+    req,
+    result,
+    description: "Time Bill Excel exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const exportTimeBillPdf = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeBillServices.exportTimeBillPdfFromDB(req.query as any);
+
+  await createTimeBillExportAudit({
+    req,
+    result,
+    description: "Time Bill PDF exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+
 export const TimeBillControllers = {
   generateMonthlyTimeBill,
   getAllTimeBills,
@@ -351,4 +446,8 @@ export const TimeBillControllers = {
   approveTimeBill,
   lockTimeBill,
   unlockTimeBill,
+  getTimeBillExportPreview,
+  exportTimeBillCsv,
+  exportTimeBillExcel,
+  exportTimeBillPdf,
 };

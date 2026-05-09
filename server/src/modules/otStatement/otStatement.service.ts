@@ -3,8 +3,15 @@ import AppError from "../../errors/AppError";
 import TimeBill from "../timeBill/timeBill.model";
 import OtStatement from "./otStatement.model";
 import {
+  generateOtStatementCsv,
+  generateOtStatementExcel,
+  generateOtStatementPDF,
+} from "./otStatement.export";
+import {
   TGenerateOtStatementPayload,
+  TOtStatement,
   TOtStatementActionPayload,
+  TOtStatementExportQuery,
   TOtStatementBulkActionPayload,
   TOtStatementBulkActionType,
   TOtStatementQuery,
@@ -1192,6 +1199,133 @@ const bulkUnlockOtStatementsIntoDB = async (
   });
 };
 
+const buildOtStatementExportPreviewFromDB = async (
+  query: TOtStatementExportQuery,
+) => {
+  validateMonthlyQuery(query);
+
+  const payrollMonth = normalizePayrollMonthFromQuery(query);
+  const { month, year } = parsePayrollMonth(payrollMonth);
+  const filter = buildBaseFilter({
+    payrollMonth,
+    company: query.company,
+    majorDepartment: query.majorDepartment,
+    department: query.department,
+    branch: query.branch,
+    employee: query.employee,
+  });
+
+  const records = await OtStatement.find(filter)
+    .sort({ "snapshot.employee.employeeId": 1 })
+    .lean<(TOtStatement & { _id: Types.ObjectId })[]>();
+
+  if (!records.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No OT Statement records found for export.",
+    );
+  }
+
+  const blockers = records
+    .filter((record) => record.status !== "locked" || !record.isLocked)
+    .map((record) => {
+      const employee = record.snapshot?.employee;
+
+      return `${employee?.employeeId || getObjectIdString(record.employee)} - ${
+        employee?.employeeName || "Unknown"
+      }: status=${record.status}, locked=${record.isLocked}`;
+    });
+
+  if (blockers.length) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      `OT Statement export blocked. All selected OT Statement records must be locked before final export. Blockers: ${blockers
+        .slice(0, 10)
+        .join("; ")}${blockers.length > 10 ? `; and ${blockers.length - 10} more.` : "."}`,
+    );
+  }
+
+  const rows = records.map((record, index) => {
+    const employee = record.snapshot?.employee;
+
+    return {
+      slNo: index + 1,
+      otStatementId: getObjectIdString(record._id),
+      employeeId: employee?.employeeId || "",
+      employeeName: employee?.employeeName || "",
+      officeId: employee?.officeId || "",
+      cardNo: employee?.cardNo || "",
+      designation: employee?.designation?.name || "",
+      department: employee?.department?.name || "",
+      majorDepartment: employee?.majorDepartment?.name || "",
+      branch: employee?.branch?.name || "",
+      grossSalary: Number(record.grossSalary || 0),
+      dutyHourPerDay: Number(record.dutyHourPerDay || 0),
+      otHours: Number(record.otHours || 0),
+      otRate: Number(record.otRate || 0),
+      otAmount: Number(record.otAmount || 0),
+      tiffinDays: Number(record.tiffinDays || 0),
+      tiffinRate: Number(record.tiffinRate || 0),
+      tiffinAmount: Number(record.tiffinAmount || 0),
+      totalDutyDays: Number(record.totalDutyDays || 0),
+      totalPayableDays: Number(record.totalPayableDays || 0),
+      totalHolidayDutyDays: Number(record.totalHolidayDutyDays || 0),
+      totalPayableAmount: Number(record.totalPayableAmount || 0),
+    };
+  });
+
+  return {
+    payrollMonth,
+    filters: {
+      company: query.company,
+      majorDepartment: query.majorDepartment || null,
+      department: query.department || null,
+      branch: query.branch || null,
+      employee: query.employee || null,
+    },
+    summary: {
+      payrollMonth,
+      month,
+      year,
+      totalEmployees: rows.length,
+      totalGrossSalary: rows.reduce((sum, row) => sum + row.grossSalary, 0),
+      totalOtHours: rows.reduce((sum, row) => sum + row.otHours, 0),
+      totalOtAmount: rows.reduce((sum, row) => sum + row.otAmount, 0),
+      totalTiffinDays: rows.reduce((sum, row) => sum + row.tiffinDays, 0),
+      totalTiffinAmount: rows.reduce((sum, row) => sum + row.tiffinAmount, 0),
+      totalPayableAmount: rows.reduce(
+        (sum, row) => sum + row.totalPayableAmount,
+        0,
+      ),
+      generatedAt: new Date().toISOString(),
+    },
+    readiness: {
+      canExport: true,
+      blockers: [],
+    },
+    rows,
+  };
+};
+
+const exportOtStatementCsvFromDB = async (query: TOtStatementExportQuery) => {
+  const preview = await buildOtStatementExportPreviewFromDB(query);
+
+  return generateOtStatementCsv(preview);
+};
+
+const exportOtStatementExcelFromDB = async (query: TOtStatementExportQuery) => {
+  const preview = await buildOtStatementExportPreviewFromDB(query);
+
+  return generateOtStatementExcel(preview);
+};
+
+const exportOtStatementPdfFromDB = async (query: TOtStatementExportQuery) => {
+  const preview = await buildOtStatementExportPreviewFromDB(query);
+
+  return generateOtStatementPDF(preview);
+};
+
+
 export const OtStatementServices = {
   generateMonthlyOtStatementIntoDB,
   getAllOtStatementsFromDB,
@@ -1205,4 +1339,8 @@ export const OtStatementServices = {
   bulkApproveOtStatementsIntoDB,
   bulkLockOtStatementsIntoDB,
   bulkUnlockOtStatementsIntoDB,
+  buildOtStatementExportPreviewFromDB,
+  exportOtStatementCsvFromDB,
+  exportOtStatementExcelFromDB,
+  exportOtStatementPdfFromDB,
 };

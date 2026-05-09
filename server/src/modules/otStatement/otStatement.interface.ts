@@ -164,6 +164,80 @@ export interface TOtStatementSummaryQuery {
   employee?: string;
 }
 
+export interface TOtStatementExportQuery {
+  payrollMonth?: string;
+  month?: string;
+  year?: string;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+}
+
+export interface TOtStatementExportRow {
+  slNo: number;
+  otStatementId: string;
+  employeeId: string;
+  employeeName: string;
+  officeId?: string;
+  cardNo?: string;
+  designation: string;
+  department: string;
+  majorDepartment: string;
+  branch: string;
+  grossSalary: number;
+  dutyHourPerDay: number;
+  otHours: number;
+  otRate: number;
+  otAmount: number;
+  tiffinDays: number;
+  tiffinRate: number;
+  tiffinAmount: number;
+  totalDutyDays: number;
+  totalPayableDays: number;
+  totalHolidayDutyDays: number;
+  totalPayableAmount: number;
+}
+
+export interface TOtStatementExportSummary {
+  payrollMonth: string;
+  month: number;
+  year: number;
+  totalEmployees: number;
+  totalGrossSalary: number;
+  totalOtHours: number;
+  totalOtAmount: number;
+  totalTiffinDays: number;
+  totalTiffinAmount: number;
+  totalPayableAmount: number;
+  generatedAt: string;
+}
+
+export interface TOtStatementExportPreview {
+  payrollMonth: string;
+  filters: {
+    company: string;
+    majorDepartment: string | null;
+    department: string | null;
+    branch: string | null;
+    employee: string | null;
+  };
+  summary: TOtStatementExportSummary;
+  readiness: {
+    canExport: boolean;
+    blockers: string[];
+  };
+  rows: TOtStatementExportRow[];
+}
+
+export interface TOtStatementExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TOtStatementExportPreview;
+}
+
 export interface TOtStatementActionPayload {
   note?: string;
 }

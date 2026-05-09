@@ -24,6 +24,38 @@ router.get(
 );
 
 router.get(
+  "/export/preview",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_READ),
+  validateRequest(TimeBillValidations.timeBillExportQueryValidationSchema),
+  TimeBillControllers.getTimeBillExportPreview,
+);
+
+router.get(
+  "/export/csv",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_EXPORT),
+  validateRequest(TimeBillValidations.timeBillExportQueryValidationSchema),
+  TimeBillControllers.exportTimeBillCsv,
+);
+
+router.get(
+  "/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_EXPORT),
+  validateRequest(TimeBillValidations.timeBillExportQueryValidationSchema),
+  TimeBillControllers.exportTimeBillExcel,
+);
+
+router.get(
+  "/export/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_EXPORT),
+  validateRequest(TimeBillValidations.timeBillExportQueryValidationSchema),
+  TimeBillControllers.exportTimeBillPdf,
+);
+
+router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.TIME_BILL_READ),

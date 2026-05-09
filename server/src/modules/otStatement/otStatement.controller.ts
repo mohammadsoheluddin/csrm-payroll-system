@@ -350,6 +350,101 @@ const unlockOtStatement = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getOtStatementExportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await OtStatementServices.buildOtStatementExportPreviewFromDB(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "ot_statement",
+      action: "read",
+      entityName: result.payrollMonth,
+      description: "OT Statement export preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "OT Statement export preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createOtStatementExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "ot_statement",
+    action: "export",
+    entityName: result.reportData.payrollMonth,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      filters: result.reportData.filters,
+      summary: result.reportData.summary,
+      fileName: result.fileName,
+    },
+  });
+};
+
+const exportOtStatementCsv = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtStatementServices.exportOtStatementCsvFromDB(req.query as any);
+
+  await createOtStatementExportAudit({
+    req,
+    result,
+    description: "OT Statement CSV exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const exportOtStatementExcel = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtStatementServices.exportOtStatementExcelFromDB(req.query as any);
+
+  await createOtStatementExportAudit({
+    req,
+    result,
+    description: "OT Statement Excel exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const exportOtStatementPdf = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtStatementServices.exportOtStatementPdfFromDB(req.query as any);
+
+  await createOtStatementExportAudit({
+    req,
+    result,
+    description: "OT Statement PDF exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+
 export const OtStatementControllers = {
   generateMonthlyOtStatement,
   getAllOtStatements,
@@ -363,4 +458,8 @@ export const OtStatementControllers = {
   approveOtStatement,
   lockOtStatement,
   unlockOtStatement,
+  getOtStatementExportPreview,
+  exportOtStatementCsv,
+  exportOtStatementExcel,
+  exportOtStatementPdf,
 };

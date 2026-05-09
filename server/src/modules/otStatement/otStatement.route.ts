@@ -24,6 +24,38 @@ router.get(
 );
 
 router.get(
+  "/export/preview",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_READ),
+  validateRequest(OtStatementValidations.otStatementExportQueryValidationSchema),
+  OtStatementControllers.getOtStatementExportPreview,
+);
+
+router.get(
+  "/export/csv",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_EXPORT),
+  validateRequest(OtStatementValidations.otStatementExportQueryValidationSchema),
+  OtStatementControllers.exportOtStatementCsv,
+);
+
+router.get(
+  "/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_EXPORT),
+  validateRequest(OtStatementValidations.otStatementExportQueryValidationSchema),
+  OtStatementControllers.exportOtStatementExcel,
+);
+
+router.get(
+  "/export/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_EXPORT),
+  validateRequest(OtStatementValidations.otStatementExportQueryValidationSchema),
+  OtStatementControllers.exportOtStatementPdf,
+);
+
+router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.OT_STATEMENT_READ),

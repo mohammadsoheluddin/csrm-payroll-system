@@ -99,8 +99,44 @@ const timeBillBulkActionValidationSchema = z.object({
     ),
 });
 
+const timeBillExportQueryValidationSchema = z.object({
+  query: z
+    .object({
+      payrollMonth: payrollMonthSchema.optional(),
+      month: z.string().trim().regex(/^(0?[1-9]|1[0-2])$/, "Month must be 1-12.").optional(),
+      year: z.string().trim().regex(/^(19|20|21)\d{2}$/, "Year must be valid.").optional(),
+      company: objectIdSchema("Company"),
+      majorDepartment: optionalObjectIdSchema("Major department"),
+      department: optionalObjectIdSchema("Department"),
+      branch: optionalObjectIdSchema("Branch"),
+      employee: optionalObjectIdSchema("Employee"),
+    })
+    .refine(
+      (data) => Boolean(data.payrollMonth || (data.month && data.year)),
+      {
+        message: "Either payrollMonth or both month and year are required.",
+        path: ["payrollMonth"],
+      },
+    )
+    .refine(
+      (data) => !(data.month && !data.year),
+      {
+        message: "Year is required when month is provided.",
+        path: ["year"],
+      },
+    )
+    .refine(
+      (data) => !(data.year && !data.month),
+      {
+        message: "Month is required when year is provided.",
+        path: ["month"],
+      },
+    ),
+});
+
 export const TimeBillValidations = {
   generateTimeBillValidationSchema,
   timeBillActionValidationSchema,
   timeBillBulkActionValidationSchema,
+  timeBillExportQueryValidationSchema,
 };

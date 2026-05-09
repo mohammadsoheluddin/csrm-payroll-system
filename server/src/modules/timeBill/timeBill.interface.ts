@@ -167,6 +167,80 @@ export interface TTimeBillSummaryQuery {
   employee?: string;
 }
 
+export interface TTimeBillExportQuery {
+  payrollMonth?: string;
+  month?: string;
+  year?: string;
+  company: string;
+  majorDepartment?: string;
+  department?: string;
+  branch?: string;
+  employee?: string;
+}
+
+export interface TTimeBillExportRow {
+  slNo: number;
+  timeBillId: string;
+  employeeId: string;
+  employeeName: string;
+  officeId?: string;
+  cardNo?: string;
+  designation: string;
+  department: string;
+  majorDepartment: string;
+  branch: string;
+  grossSalary: number;
+  dutyHourPerDay: number;
+  otHours: number;
+  otRate: number;
+  otAmount: number;
+  tiffinDays: number;
+  tiffinRate: number;
+  tiffinAmount: number;
+  totalDutyDays: number;
+  totalPayableDays: number;
+  totalHolidayDutyDays: number;
+  totalPayableAmount: number;
+}
+
+export interface TTimeBillExportSummary {
+  payrollMonth: string;
+  month: number;
+  year: number;
+  totalEmployees: number;
+  totalGrossSalary: number;
+  totalOtHours: number;
+  totalOtAmount: number;
+  totalTiffinDays: number;
+  totalTiffinAmount: number;
+  totalPayableAmount: number;
+  generatedAt: string;
+}
+
+export interface TTimeBillExportPreview {
+  payrollMonth: string;
+  filters: {
+    company: string;
+    majorDepartment: string | null;
+    department: string | null;
+    branch: string | null;
+    employee: string | null;
+  };
+  summary: TTimeBillExportSummary;
+  readiness: {
+    canExport: boolean;
+    blockers: string[];
+  };
+  rows: TTimeBillExportRow[];
+}
+
+export interface TTimeBillExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TTimeBillExportPreview;
+}
+
 export interface TTimeBillActionPayload {
   note?: string;
 }

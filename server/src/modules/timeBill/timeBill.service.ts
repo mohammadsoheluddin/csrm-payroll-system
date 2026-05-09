@@ -6,9 +6,15 @@ import Employee from "../employee/employee.model";
 import SalaryStructure from "../salaryStructure/salaryStructure.model";
 import TimeBill from "./timeBill.model";
 import {
+  generateTimeBillCsv,
+  generateTimeBillExcel,
+  generateTimeBillPDF,
+} from "./timeBill.export";
+import {
   TGenerateTimeBillPayload,
   TTimeBill,
   TTimeBillActionPayload,
+  TTimeBillExportQuery,
   TTimeBillBulkActionPayload,
   TTimeBillBulkActionType,
   TTimeBillQuery,
@@ -1480,6 +1486,167 @@ const bulkUnlockTimeBillsIntoDB = async (
   });
 };
 
+const validateTimeBillExportQuery = (query: TTimeBillExportQuery) => {
+  if (!query.payrollMonth && (!query.month || !query.year)) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Either payrollMonth or both month and year are required.",
+    );
+  }
+
+  if (!query.company) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Company is required.");
+  }
+
+  assertObjectId(query.company, "Company");
+  assertObjectId(query.majorDepartment, "Major department");
+  assertObjectId(query.department, "Department");
+  assertObjectId(query.branch, "Branch");
+  assertObjectId(query.employee, "Employee");
+};
+
+const getPayrollMonthFromExportQuery = (query: TTimeBillExportQuery) => {
+  if (query.payrollMonth) {
+    return query.payrollMonth;
+  }
+
+  return buildPayrollMonth(Number(query.month), Number(query.year));
+};
+
+const parsePayrollMonthValue = (payrollMonth: string) => {
+  const [yearText, monthText] = payrollMonth.split("-");
+
+  return {
+    month: Number(monthText),
+    year: Number(yearText),
+  };
+};
+
+const getSnapshotName = (value: { name?: string } | null | undefined) => {
+  return value?.name || "";
+};
+
+const buildTimeBillExportPreviewFromDB = async (query: TTimeBillExportQuery) => {
+  validateTimeBillExportQuery(query);
+
+  const payrollMonth = getPayrollMonthFromExportQuery(query);
+  const { month, year } = parsePayrollMonthValue(payrollMonth);
+  const filter = buildTimeBillFilter({
+    ...query,
+    payrollMonth,
+  }) as Record<string, unknown>;
+
+  const records = await TimeBill.find(filter)
+    .sort({ "snapshot.employee.employeeId": 1 })
+    .lean<(TTimeBill & { _id: Types.ObjectId })[]>();
+
+  if (!records.length) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No Time Bill records found for export.",
+    );
+  }
+
+  const blockers = records
+    .filter((record) => record.status !== "locked" || !record.isLocked)
+    .map((record) => {
+      const employee = record.snapshot?.employee;
+
+      return `${employee?.employeeId || getObjectIdString(record.employee)} - ${
+        employee?.employeeName || "Unknown"
+      }: status=${record.status}, locked=${record.isLocked}`;
+    });
+
+  if (blockers.length) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      `Time Bill export blocked. All selected Time Bill records must be locked before final export. Blockers: ${blockers
+        .slice(0, 10)
+        .join("; ")}${blockers.length > 10 ? `; and ${blockers.length - 10} more.` : "."}`,
+    );
+  }
+
+  const rows = records.map((record, index) => {
+    const employee = record.snapshot?.employee;
+
+    return {
+      slNo: index + 1,
+      timeBillId: getObjectIdString(record._id),
+      employeeId: employee?.employeeId || "",
+      employeeName: employee?.employeeName || "",
+      officeId: employee?.officeId || "",
+      cardNo: employee?.cardNo || "",
+      designation: getSnapshotName(employee?.designation),
+      department: getSnapshotName(employee?.department),
+      majorDepartment: getSnapshotName(employee?.majorDepartment),
+      branch: getSnapshotName(employee?.branch),
+      grossSalary: Number(record.grossSalary || 0),
+      dutyHourPerDay: Number(record.dutyHourPerDay || 0),
+      otHours: Number(record.otHours || 0),
+      otRate: Number(record.otRate || 0),
+      otAmount: Number(record.otAmount || 0),
+      tiffinDays: Number(record.tiffinDays || 0),
+      tiffinRate: Number(record.tiffinRate || 0),
+      tiffinAmount: Number(record.tiffinAmount || 0),
+      totalDutyDays: Number(record.totalDutyDays || 0),
+      totalPayableDays: Number(record.totalPayableDays || 0),
+      totalHolidayDutyDays: Number(record.totalHolidayDutyDays || 0),
+      totalPayableAmount: Number(record.totalPayableAmount || 0),
+    };
+  });
+
+  return {
+    payrollMonth,
+    filters: {
+      company: query.company,
+      majorDepartment: query.majorDepartment || null,
+      department: query.department || null,
+      branch: query.branch || null,
+      employee: query.employee || null,
+    },
+    summary: {
+      payrollMonth,
+      month,
+      year,
+      totalEmployees: rows.length,
+      totalGrossSalary: rows.reduce((sum, row) => sum + row.grossSalary, 0),
+      totalOtHours: rows.reduce((sum, row) => sum + row.otHours, 0),
+      totalOtAmount: rows.reduce((sum, row) => sum + row.otAmount, 0),
+      totalTiffinDays: rows.reduce((sum, row) => sum + row.tiffinDays, 0),
+      totalTiffinAmount: rows.reduce((sum, row) => sum + row.tiffinAmount, 0),
+      totalPayableAmount: rows.reduce(
+        (sum, row) => sum + row.totalPayableAmount,
+        0,
+      ),
+      generatedAt: new Date().toISOString(),
+    },
+    readiness: {
+      canExport: true,
+      blockers: [],
+    },
+    rows,
+  };
+};
+
+const exportTimeBillCsvFromDB = async (query: TTimeBillExportQuery) => {
+  const preview = await buildTimeBillExportPreviewFromDB(query);
+
+  return generateTimeBillCsv(preview);
+};
+
+const exportTimeBillExcelFromDB = async (query: TTimeBillExportQuery) => {
+  const preview = await buildTimeBillExportPreviewFromDB(query);
+
+  return generateTimeBillExcel(preview);
+};
+
+const exportTimeBillPdfFromDB = async (query: TTimeBillExportQuery) => {
+  const preview = await buildTimeBillExportPreviewFromDB(query);
+
+  return generateTimeBillPDF(preview);
+};
+
+
 export const TimeBillServices = {
   generateMonthlyTimeBillIntoDB,
   getAllTimeBillsFromDB,
@@ -1493,4 +1660,8 @@ export const TimeBillServices = {
   bulkApproveTimeBillsIntoDB,
   bulkLockTimeBillsIntoDB,
   bulkUnlockTimeBillsIntoDB,
+  buildTimeBillExportPreviewFromDB,
+  exportTimeBillCsvFromDB,
+  exportTimeBillExcelFromDB,
+  exportTimeBillPdfFromDB,
 };
