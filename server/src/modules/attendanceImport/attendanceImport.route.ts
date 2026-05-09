@@ -33,6 +33,23 @@ router.get(
   AttendanceImportControllers.exportAttendanceImportTemplateExcel,
 );
 
+
+router.get(
+  "/:id/revert/preview",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_READ),
+  validateRequest(AttendanceImportValidations.attendanceImportIdParamValidationSchema),
+  AttendanceImportControllers.previewAttendanceImportRollback,
+);
+
+router.patch(
+  "/:id/revert",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_REVERT),
+  validateRequest(AttendanceImportValidations.revertAttendanceImportValidationSchema),
+  AttendanceImportControllers.rollbackAttendanceImportBatch,
+);
+
 router.get(
   "/:id/rejections/preview",
   auth(),

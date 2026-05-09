@@ -6,9 +6,12 @@ import AttendanceFinalization from "../attendanceFinalization/attendanceFinaliza
 import Employee from "../employee/employee.model";
 import type {
   TAttendanceImportPayload,
+  TAttendanceImportPreviousAttendanceSnapshot,
   TAttendanceImportProcessedAttendance,
   TAttendanceImportQuery,
   TAttendanceImportRawRow,
+  TAttendanceImportRollbackPayload,
+  TAttendanceImportRollbackSummary,
   TAttendanceImportTemplateColumn,
   TAttendanceImportTemplatePreview,
   TAttendanceImportTemplateQuery,
@@ -446,6 +449,29 @@ const findLockedAttendanceFinalizationBlockers = async (
   }));
 };
 
+
+const buildPreviousAttendanceSnapshot = (
+  attendance: any,
+): TAttendanceImportPreviousAttendanceSnapshot | undefined => {
+  if (!attendance?._id) {
+    return undefined;
+  }
+
+  return {
+    attendance: new Types.ObjectId(getObjectIdString(attendance._id)),
+    checkInTime: attendance.checkInTime,
+    checkOutTime: attendance.checkOutTime,
+    status: attendance.status,
+    source: attendance.source,
+    remarks: attendance.remarks,
+    deviceId: attendance.deviceId,
+    importBatchNo: attendance.importBatchNo,
+    isDeleted: Boolean(attendance.isDeleted),
+    createdAt: attendance.createdAt,
+    updatedAt: attendance.updatedAt,
+  };
+};
+
 const buildProcessedAttendanceSummary = async ({
   payload,
   commit,
@@ -563,6 +589,8 @@ const buildProcessedAttendanceSummary = async ({
         ? new Types.ObjectId(getObjectIdString(existingAttendance._id))
         : undefined,
       attendance: attendanceId,
+      previousAttendanceSnapshot:
+        action === "update" ? buildPreviousAttendanceSnapshot(existingAttendance) : undefined,
       deviceId: group.deviceId || payload.deviceId,
       remarks: importRemarks,
     });
@@ -671,6 +699,7 @@ const commitAttendanceImportIntoDB = async (
     .populate("department")
     .populate("branch")
     .populate("processedBy", "name email role")
+    .populate("revertedBy", "name email role")
     .populate({
       path: "processedAttendances.employee",
       select: "employeeId officeId cardNo name",
@@ -763,6 +792,7 @@ const getSingleAttendanceImportFromDB = async (id: string) => {
     .populate("department")
     .populate("branch")
     .populate("processedBy", "name email role")
+    .populate("revertedBy", "name email role")
     .populate({
       path: "processedAttendances.employee",
       select: "employeeId officeId cardNo name",
@@ -774,6 +804,413 @@ const getSingleAttendanceImportFromDB = async (id: string) => {
 
   return result;
 };
+
+type TAttendanceImportBatchDocumentLike = any;
+
+type TAttendanceDocumentLike = {
+  _id: Types.ObjectId | string;
+  employee?: Types.ObjectId | string;
+  attendanceDate?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: TAttendanceStatus;
+  source?: string;
+  remarks?: string;
+  deviceId?: string;
+  importBatchNo?: string;
+  isDeleted?: boolean;
+};
+
+const getRawAttendanceImportBatchById = async (id: string) => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Invalid attendance import batch id.");
+  }
+
+  const batch = await AttendanceImportBatch.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!batch) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Attendance import batch not found.");
+  }
+
+  return batch;
+};
+
+const findLockedAttendanceFinalizationBlockersFromProcessed = async (
+  processedAttendances: TAttendanceImportProcessedAttendance[],
+) => {
+  const actionableAttendances = processedAttendances.filter(
+    (item) => item.action !== "skip" && item.employee && item.attendanceDate,
+  );
+
+  if (!actionableAttendances.length) {
+    return [];
+  }
+
+  const employeeIds = Array.from(
+    new Set(actionableAttendances.map((item) => getObjectIdString(item.employee))),
+  ).map((id) => new Types.ObjectId(id));
+  const payrollMonths = Array.from(
+    new Set(actionableAttendances.map((item) => getPayrollMonthFromDate(item.attendanceDate))),
+  );
+
+  const lockedFinalizations = await AttendanceFinalization.find({
+    employee: {
+      $in: employeeIds,
+    },
+    payrollMonth: {
+      $in: payrollMonths,
+    },
+    isLocked: true,
+    isDeleted: false,
+  })
+    .select("_id employee employeeSnapshot payrollMonth")
+    .lean<any[]>();
+
+  return lockedFinalizations.map((item) => ({
+    employee: getObjectIdString(item.employee),
+    employeeId: item.employeeSnapshot?.employeeId || "",
+    employeeName: item.employeeSnapshot?.employeeName || "",
+    payrollMonth: item.payrollMonth,
+    attendanceFinalization: getObjectIdString(item._id),
+  }));
+};
+
+const buildAttendanceMapByIds = async (
+  processedAttendances: TAttendanceImportProcessedAttendance[],
+) => {
+  const attendanceIds = Array.from(
+    new Set(
+      processedAttendances
+        .map((item) => getObjectIdString(item.attendance))
+        .filter(Boolean),
+    ),
+  ).map((id) => new Types.ObjectId(id));
+
+  if (!attendanceIds.length) {
+    return new Map<string, TAttendanceDocumentLike>();
+  }
+
+  const attendances = await Attendance.find({
+    _id: {
+      $in: attendanceIds,
+    },
+  }).lean<TAttendanceDocumentLike[]>();
+
+  const attendanceMap = new Map<string, TAttendanceDocumentLike>();
+
+  attendances.forEach((attendance) => {
+    attendanceMap.set(getObjectIdString(attendance._id), attendance);
+  });
+
+  return attendanceMap;
+};
+
+const valuesMatch = (left?: string, right?: string) => (left || "") === (right || "");
+
+const hasAttendanceChangedAfterImport = ({
+  attendance,
+  processedAttendance,
+  batchNo,
+}: {
+  attendance: TAttendanceDocumentLike;
+  processedAttendance: TAttendanceImportProcessedAttendance;
+  batchNo: string;
+}) => {
+  if (attendance.isDeleted) {
+    return true;
+  }
+
+  return !(
+    getObjectIdString(attendance.employee) ===
+      getObjectIdString(processedAttendance.employee) &&
+    attendance.attendanceDate === processedAttendance.attendanceDate &&
+    valuesMatch(attendance.checkInTime, processedAttendance.checkInTime) &&
+    valuesMatch(attendance.checkOutTime, processedAttendance.checkOutTime) &&
+    attendance.status === processedAttendance.status &&
+    valuesMatch(attendance.deviceId, processedAttendance.deviceId) &&
+    valuesMatch(attendance.importBatchNo, batchNo)
+  );
+};
+
+const buildRollbackSummary = async (
+  batch: TAttendanceImportBatchDocumentLike,
+): Promise<TAttendanceImportRollbackSummary> => {
+  const batchObject = batch.toObject ? batch.toObject() : batch;
+  const processedAttendances =
+    (batchObject.processedAttendances || []) as TAttendanceImportProcessedAttendance[];
+  const attendanceMap = await buildAttendanceMapByIds(processedAttendances);
+  const lockedMonthBlockers =
+    await findLockedAttendanceFinalizationBlockersFromProcessed(processedAttendances);
+
+  const summary: TAttendanceImportRollbackSummary = {
+    totalProcessedAttendances: processedAttendances.length,
+    removableInsertedAttendances: 0,
+    restorableUpdatedAttendances: 0,
+    skippedAttendances: 0,
+    blockedAttendances: 0,
+    removedAttendanceCount: 0,
+    restoredAttendanceCount: 0,
+    warnings: [],
+    blockers: [],
+    items: [],
+  };
+
+  if (batchObject.status === "reverted") {
+    summary.blockers.push("Attendance import batch is already reverted.");
+  }
+
+  lockedMonthBlockers.forEach((blocker) => {
+    summary.blockers.push(
+      `Rollback blocked because attendance finalization is locked for ${blocker.employeeId || blocker.employee} / ${blocker.payrollMonth}.`,
+    );
+  });
+
+  processedAttendances.forEach((item) => {
+    const attendanceId = getObjectIdString(item.attendance);
+    const currentAttendance = attendanceId ? attendanceMap.get(attendanceId) : undefined;
+    let rollbackAction: TAttendanceImportRollbackSummary["items"][number]["rollbackAction"] =
+      "no_action";
+    let reason = "Skipped import row does not require rollback.";
+
+    if (item.action === "insert") {
+      if (!attendanceId || !currentAttendance) {
+        rollbackAction = "no_action";
+        reason = "Inserted attendance record is already missing.";
+      } else if (
+        hasAttendanceChangedAfterImport({
+          attendance: currentAttendance,
+          processedAttendance: item,
+          batchNo: batchObject.batchNo,
+        })
+      ) {
+        rollbackAction = "blocked";
+        reason =
+          "Inserted attendance record was changed after import; automatic removal is blocked.";
+      } else {
+        rollbackAction = "remove_inserted";
+        reason = "Inserted attendance will be soft-deleted.";
+        summary.removableInsertedAttendances += 1;
+      }
+    } else if (item.action === "update") {
+      if (!attendanceId || !currentAttendance) {
+        rollbackAction = "blocked";
+        reason = "Updated attendance record is missing; previous value cannot be restored safely.";
+      } else if (!item.previousAttendanceSnapshot) {
+        rollbackAction = "blocked";
+        reason =
+          "Previous attendance snapshot is not available. This usually means the batch was committed before rollback support was added.";
+      } else if (
+        hasAttendanceChangedAfterImport({
+          attendance: currentAttendance,
+          processedAttendance: item,
+          batchNo: batchObject.batchNo,
+        })
+      ) {
+        rollbackAction = "blocked";
+        reason =
+          "Updated attendance record was changed after import; automatic restore is blocked.";
+      } else {
+        rollbackAction = "restore_updated";
+        reason = "Updated attendance will be restored to previous snapshot.";
+        summary.restorableUpdatedAttendances += 1;
+      }
+    } else {
+      summary.skippedAttendances += 1;
+    }
+
+    if (rollbackAction === "blocked") {
+      summary.blockedAttendances += 1;
+    }
+
+    summary.items.push({
+      employee: item.employee,
+      employeeId: item.employeeId,
+      employeeName: item.employeeName,
+      attendanceDate: item.attendanceDate,
+      importAction: item.action,
+      rollbackAction,
+      attendance: item.attendance,
+      reason,
+    });
+  });
+
+  if (summary.blockedAttendances > 0) {
+    summary.blockers.push(
+      `${summary.blockedAttendances} attendance record(s) cannot be reverted safely.`,
+    );
+  }
+
+  if (summary.blockers.length > 0) {
+    summary.warnings.push("Attendance import rollback is blocked until blockers are resolved.");
+  }
+
+  if (!summary.removableInsertedAttendances && !summary.restorableUpdatedAttendances) {
+    summary.warnings.push("No attendance records are available for rollback.");
+  }
+
+  return summary;
+};
+
+const previewAttendanceImportRollbackFromDB = async (id: string) => {
+  const batch = await getRawAttendanceImportBatchById(id);
+  const summary = await buildRollbackSummary(batch);
+  const batchObject = batch.toObject ? batch.toObject() : batch;
+
+  return {
+    mode: "preview",
+    canRevert: summary.blockers.length === 0,
+    batch: {
+      id: getObjectIdString(batchObject._id),
+      batchNo: batchObject.batchNo,
+      source: batchObject.source,
+      matchBy: batchObject.matchBy,
+      status: batchObject.status,
+      processedAt: batchObject.processedAt,
+      revertedAt: batchObject.revertedAt,
+    },
+    summary,
+  };
+};
+
+const buildAttendanceRestoreUpdate = (
+  snapshot: TAttendanceImportPreviousAttendanceSnapshot,
+) => {
+  const setPayload: Record<string, unknown> = {
+    isDeleted: Boolean(snapshot.isDeleted),
+  };
+  const unsetPayload: Record<string, 1> = {};
+
+  const optionalFields: Array<keyof TAttendanceImportPreviousAttendanceSnapshot> = [
+    "checkInTime",
+    "checkOutTime",
+    "status",
+    "source",
+    "remarks",
+    "deviceId",
+    "importBatchNo",
+  ];
+
+  optionalFields.forEach((fieldName) => {
+    const value = snapshot[fieldName];
+
+    if (value === undefined || value === null || value === "") {
+      unsetPayload[fieldName] = 1;
+    } else {
+      setPayload[fieldName] = value;
+    }
+  });
+
+  return {
+    ...(Object.keys(setPayload).length ? { $set: setPayload } : {}),
+    ...(Object.keys(unsetPayload).length ? { $unset: unsetPayload } : {}),
+  };
+};
+
+const rollbackAttendanceImportBatchIntoDB = async (
+  id: string,
+  payload: TAttendanceImportRollbackPayload,
+  userId?: string,
+) => {
+  const batch = await getRawAttendanceImportBatchById(id);
+  const batchObject = batch.toObject ? batch.toObject() : batch;
+  const summary = await buildRollbackSummary(batch);
+
+  if (summary.blockers.length > 0) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Attendance import rollback blocked. Review rollback preview for blockers before reverting this batch.",
+    );
+  }
+
+  const processedAttendances =
+    (batchObject.processedAttendances || []) as TAttendanceImportProcessedAttendance[];
+  const processedAttendanceMap = new Map<string, TAttendanceImportProcessedAttendance>();
+
+  processedAttendances.forEach((item) => {
+    const attendanceId = getObjectIdString(item.attendance);
+
+    if (attendanceId) {
+      processedAttendanceMap.set(attendanceId, item);
+    }
+  });
+
+  for (const item of summary.items) {
+    const attendanceId = getObjectIdString(item.attendance);
+
+    if (!attendanceId) {
+      continue;
+    }
+
+    if (item.rollbackAction === "remove_inserted") {
+      const currentAttendance = await Attendance.findById(attendanceId).lean<any>();
+      const revertRemarks = [
+        currentAttendance?.remarks,
+        `Reverted attendance import batch ${batchObject.batchNo}`,
+        payload.note,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      await Attendance.findByIdAndUpdate(
+        attendanceId,
+        {
+          isDeleted: true,
+          remarks: revertRemarks,
+        },
+        {
+          runValidators: true,
+        },
+      );
+      summary.removedAttendanceCount += 1;
+      continue;
+    }
+
+    if (item.rollbackAction === "restore_updated") {
+      const processedAttendance = processedAttendanceMap.get(attendanceId);
+      const previousSnapshot = processedAttendance?.previousAttendanceSnapshot;
+
+      if (!previousSnapshot) {
+        continue;
+      }
+
+      await Attendance.findByIdAndUpdate(
+        attendanceId,
+        buildAttendanceRestoreUpdate(previousSnapshot),
+        {
+          runValidators: true,
+        },
+      );
+      summary.restoredAttendanceCount += 1;
+    }
+  }
+
+  batch.set({
+    status: "reverted",
+    revertedBy:
+      userId && Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : undefined,
+    revertedAt: new Date(),
+    revertNote: payload.note,
+    rollbackSummary: summary,
+  });
+
+  await batch.save();
+
+  return AttendanceImportBatch.findById(batch._id)
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("branch")
+    .populate("processedBy", "name email role")
+    .populate("revertedBy", "name email role")
+    .populate({
+      path: "processedAttendances.employee",
+      select: "employeeId officeId cardNo name",
+    });
+};
+
 
 const TEMPLATE_COLUMNS: TAttendanceImportTemplateColumn[] = [
   {
@@ -991,6 +1428,8 @@ export const AttendanceImportServices = {
   commitAttendanceImportIntoDB,
   getAllAttendanceImportsFromDB,
   getSingleAttendanceImportFromDB,
+  previewAttendanceImportRollbackFromDB,
+  rollbackAttendanceImportBatchIntoDB,
   buildAttendanceImportTemplatePreview,
   exportAttendanceImportTemplateCsv,
   exportAttendanceImportTemplateExcel,

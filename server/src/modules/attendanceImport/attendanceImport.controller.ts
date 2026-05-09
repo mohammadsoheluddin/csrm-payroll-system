@@ -101,6 +101,68 @@ const getSingleAttendanceImport = catchAsync(
   },
 );
 
+const previewAttendanceImportRollback = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await AttendanceImportServices.previewAttendanceImportRollbackFromDB(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "read",
+      entityId: result.batch.id,
+      entityName: result.batch.batchNo,
+      description: "Attendance import rollback preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        canRevert: result.canRevert,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance import rollback preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const rollbackAttendanceImportBatch = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+    const result = await AttendanceImportServices.rollbackAttendanceImportBatchIntoDB(
+      getParamId(req, "id"),
+      req.body || {},
+      userId,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_import",
+      action: "status_change",
+      entityId: getAuditEntityId(result),
+      entityName: result?.batchNo,
+      description: "Attendance import batch reverted",
+      previousData: null,
+      newData: toAuditData(result),
+      metadata: {
+        status: result?.status,
+        rollbackSummary: result?.rollbackSummary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance import batch reverted successfully",
+      data: result,
+    });
+  },
+);
+
+
 
 const getAttendanceImportTemplatePreview = catchAsync(
   async (req: Request, res: Response) => {
@@ -265,6 +327,8 @@ export const AttendanceImportControllers = {
   commitAttendanceImport,
   getAllAttendanceImports,
   getSingleAttendanceImport,
+  previewAttendanceImportRollback,
+  rollbackAttendanceImportBatch,
   getAttendanceImportTemplatePreview,
   exportAttendanceImportTemplateCsv,
   exportAttendanceImportTemplateExcel,

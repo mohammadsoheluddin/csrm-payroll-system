@@ -5,9 +5,29 @@ export type TAttendanceImportSource = "device" | "excel" | "manual_bulk" | "api"
 
 export type TAttendanceImportMatchBy = "employeeId" | "officeId" | "cardNo";
 
-export type TAttendanceImportBatchStatus = "committed" | "failed";
+export type TAttendanceImportBatchStatus = "committed" | "failed" | "reverted";
 
 export type TAttendanceImportAttendanceAction = "insert" | "update" | "skip";
+
+export type TAttendanceImportRollbackAction =
+  | "remove_inserted"
+  | "restore_updated"
+  | "no_action"
+  | "blocked";
+
+export interface TAttendanceImportPreviousAttendanceSnapshot {
+  attendance: Types.ObjectId;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status?: TAttendanceStatus;
+  source?: string;
+  remarks?: string;
+  deviceId?: string;
+  importBatchNo?: string;
+  isDeleted?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 export interface TAttendanceImportRawRow {
   rowNo?: number;
@@ -42,8 +62,37 @@ export interface TAttendanceImportProcessedAttendance {
   action: TAttendanceImportAttendanceAction;
   existingAttendance?: Types.ObjectId;
   attendance?: Types.ObjectId;
+  previousAttendanceSnapshot?: TAttendanceImportPreviousAttendanceSnapshot;
   deviceId?: string;
   remarks?: string;
+}
+
+export interface TAttendanceImportRollbackItem {
+  employee: Types.ObjectId;
+  employeeId: string;
+  employeeName: string;
+  attendanceDate: string;
+  importAction: TAttendanceImportAttendanceAction;
+  rollbackAction: TAttendanceImportRollbackAction;
+  attendance?: Types.ObjectId;
+  reason?: string;
+}
+
+export interface TAttendanceImportRollbackSummary {
+  totalProcessedAttendances: number;
+  removableInsertedAttendances: number;
+  restorableUpdatedAttendances: number;
+  skippedAttendances: number;
+  blockedAttendances: number;
+  removedAttendanceCount: number;
+  restoredAttendanceCount: number;
+  warnings: string[];
+  blockers: string[];
+  items: TAttendanceImportRollbackItem[];
+}
+
+export interface TAttendanceImportRollbackPayload {
+  note?: string;
 }
 
 export interface TAttendanceImportSummary {
@@ -105,6 +154,10 @@ export interface TAttendanceImportBatch {
   remarks?: string;
   processedBy?: Types.ObjectId;
   processedAt?: Date;
+  revertedBy?: Types.ObjectId;
+  revertedAt?: Date;
+  revertNote?: string;
+  rollbackSummary?: TAttendanceImportRollbackSummary;
   isDeleted?: boolean;
 }
 

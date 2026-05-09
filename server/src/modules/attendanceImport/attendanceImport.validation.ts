@@ -139,7 +139,7 @@ const getAllAttendanceImportsValidationSchema = z.object({
     .object({
       source: attendanceImportSourceSchema.optional(),
       matchBy: attendanceImportMatchBySchema.optional(),
-      status: z.enum(["committed", "failed"]).optional(),
+      status: z.enum(["committed", "failed", "reverted"]).optional(),
       company: objectIdSchema("company id").optional(),
       department: objectIdSchema("department id").optional(),
       branch: objectIdSchema("branch id").optional(),
@@ -183,6 +183,19 @@ const attendanceImportTemplateQueryValidationSchema = z.object({
     .optional(),
 });
 
+
+const revertAttendanceImportValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("attendance import batch id"),
+  }),
+  body: z
+    .object({
+      note: optionalRemarksSchema,
+    })
+    .strict()
+    .optional(),
+});
+
 const attendanceImportIdParamValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("attendance import batch id"),
@@ -194,5 +207,6 @@ export const AttendanceImportValidations = {
   commitAttendanceImportValidationSchema,
   getAllAttendanceImportsValidationSchema,
   attendanceImportIdParamValidationSchema,
+  revertAttendanceImportValidationSchema,
   attendanceImportTemplateQueryValidationSchema,
 };

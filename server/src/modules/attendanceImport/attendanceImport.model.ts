@@ -26,6 +26,164 @@ const rejectedRowSchema = new Schema(
   },
 );
 
+
+const previousAttendanceSnapshotSchema = new Schema(
+  {
+    attendance: {
+      type: Schema.Types.ObjectId,
+      ref: "Attendance",
+      required: true,
+    },
+    checkInTime: {
+      type: String,
+      trim: true,
+    },
+    checkOutTime: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: [
+        "present",
+        "absent",
+        "late",
+        "leave",
+        "half-day",
+        "weekend",
+        "holiday",
+      ],
+    },
+    source: {
+      type: String,
+      enum: ["manual", "device", "import"],
+    },
+    remarks: {
+      type: String,
+      trim: true,
+    },
+    deviceId: {
+      type: String,
+      trim: true,
+    },
+    importBatchNo: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    createdAt: Date,
+    updatedAt: Date,
+  },
+  {
+    _id: false,
+  },
+);
+
+const rollbackItemSchema = new Schema(
+  {
+    employee: {
+      type: Schema.Types.ObjectId,
+      ref: "Employee",
+      required: true,
+    },
+    employeeId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    employeeName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    attendanceDate: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    importAction: {
+      type: String,
+      enum: ["insert", "update", "skip"],
+      required: true,
+    },
+    rollbackAction: {
+      type: String,
+      enum: ["remove_inserted", "restore_updated", "no_action", "blocked"],
+      required: true,
+    },
+    attendance: {
+      type: Schema.Types.ObjectId,
+      ref: "Attendance",
+    },
+    reason: {
+      type: String,
+      trim: true,
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
+const rollbackSummarySchema = new Schema(
+  {
+    totalProcessedAttendances: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    removableInsertedAttendances: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    restorableUpdatedAttendances: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    skippedAttendances: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    blockedAttendances: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    removedAttendanceCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    restoredAttendanceCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    warnings: {
+      type: [String],
+      default: [],
+    },
+    blockers: {
+      type: [String],
+      default: [],
+    },
+    items: {
+      type: [rollbackItemSchema],
+      default: [],
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
 const processedAttendanceSchema = new Schema(
   {
     employee: {
@@ -87,6 +245,7 @@ const processedAttendanceSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Attendance",
     },
+    previousAttendanceSnapshot: previousAttendanceSnapshotSchema,
     deviceId: {
       type: String,
       trim: true,
@@ -150,7 +309,7 @@ const attendanceImportBatchSchema = new Schema<TAttendanceImportBatch>(
     },
     status: {
       type: String,
-      enum: ["committed", "failed"],
+      enum: ["committed", "failed", "reverted"],
       default: "committed",
     },
     totalRows: {
@@ -211,6 +370,18 @@ const attendanceImportBatchSchema = new Schema<TAttendanceImportBatch>(
     processedAt: {
       type: Date,
     },
+    revertedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    revertedAt: {
+      type: Date,
+    },
+    revertNote: {
+      type: String,
+      trim: true,
+    },
+    rollbackSummary: rollbackSummarySchema,
     isDeleted: {
       type: Boolean,
       default: false,
@@ -227,6 +398,7 @@ attendanceImportBatchSchema.index({ department: 1, createdAt: -1 });
 attendanceImportBatchSchema.index({ branch: 1, createdAt: -1 });
 attendanceImportBatchSchema.index({ deviceId: 1, createdAt: -1 });
 attendanceImportBatchSchema.index({ isDeleted: 1, createdAt: -1 });
+attendanceImportBatchSchema.index({ status: 1, createdAt: -1 });
 
 const AttendanceImportBatch = model<TAttendanceImportBatch>(
   "AttendanceImportBatch",
