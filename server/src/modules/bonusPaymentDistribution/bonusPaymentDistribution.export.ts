@@ -1,18 +1,29 @@
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import {
+  REPORT_MIME_TYPES,
+  REPORT_LAYOUT_COMPANY_NAME,
+  REPORT_LAYOUT_SYSTEM_NAME,
+  sanitizeReportFileNamePart,
+  formatReportAmount,
+  formatReportDecimal,
+  getStandardGeneratedAtLabel,
+  escapeCsvValue,
+  applyStandardExcelHeaderStyle,
+  applyStandardExcelBodyBorder,
+} from "../../utils/reportLayout";
+import {
   TBonusPaymentDistributionExportFileResult,
   TBonusPaymentDistributionExportPreview,
   TBonusPaymentDistributionExportRow,
   TBonusPaymentDistributionPaymentMode,
 } from "./bonusPaymentDistribution.interface";
 
-const CSV_MIME_TYPE = "text/csv; charset=utf-8";
-const EXCEL_MIME_TYPE =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const PDF_MIME_TYPE = "application/pdf";
-const COMPANY_NAME = "Chakda Steel & Re-Rolling Mills (Pvt.) Ltd.";
-const SYSTEM_NAME = "CSRM Payroll System";
+const CSV_MIME_TYPE = REPORT_MIME_TYPES.csv;
+const EXCEL_MIME_TYPE = REPORT_MIME_TYPES.excel;
+const PDF_MIME_TYPE = REPORT_MIME_TYPES.pdf;
+const COMPANY_NAME = REPORT_LAYOUT_COMPANY_NAME;
+const SYSTEM_NAME = REPORT_LAYOUT_SYSTEM_NAME;
 
 const PAYMENT_MODE_TITLE: Record<TBonusPaymentDistributionPaymentMode, string> = {
   bank: "Bonus Bank Sheet",
@@ -20,18 +31,9 @@ const PAYMENT_MODE_TITLE: Record<TBonusPaymentDistributionPaymentMode, string> =
   mobile_banking: "Bonus Mobile Banking Sheet",
 };
 
-const sanitizeFileNamePart = (value: string) =>
-  value
-    .trim()
-    .replace(/[^a-zA-Z0-9-_]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+const sanitizeFileNamePart = sanitizeReportFileNamePart;
 
-const formatAmount = (amount: number) =>
-  Number(amount || 0).toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
+const formatAmount = formatReportAmount;
 
 const getPaymentModeTitle = (
   paymentMode: TBonusPaymentDistributionPaymentMode,
@@ -47,28 +49,8 @@ const getFileBaseName = (preview: TBonusPaymentDistributionExportPreview) => {
   );
 };
 
-const getGeneratedAtLabel = () =>
-  new Date().toLocaleString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const getGeneratedAtLabel = () => getStandardGeneratedAtLabel();
 
-const escapeCsvValue = (value: unknown) => {
-  const normalizedValue = value === undefined || value === null ? "" : String(value);
-
-  if (
-    normalizedValue.includes(",") ||
-    normalizedValue.includes("\n") ||
-    normalizedValue.includes('"')
-  ) {
-    return `"${normalizedValue.replace(/"/g, '""')}"`;
-  }
-
-  return normalizedValue;
-};
 
 const getColumnDefinitions = (
   paymentMode: TBonusPaymentDistributionPaymentMode,
@@ -144,30 +126,9 @@ export const generateBonusPaymentDistributionCsv = (
   };
 };
 
-const applyHeaderStyle = (row: ExcelJS.Row) => {
-  row.font = { bold: true };
-  row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+const applyHeaderStyle = applyStandardExcelHeaderStyle;
 
-  row.eachCell((cell) => {
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-};
-
-const applyBodyBorder = (row: ExcelJS.Row) => {
-  row.eachCell((cell) => {
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-};
+const applyBodyBorder = applyStandardExcelBodyBorder;
 
 export const generateBonusPaymentDistributionExcel = async (
   preview: TBonusPaymentDistributionExportPreview,

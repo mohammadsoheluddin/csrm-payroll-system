@@ -1,5 +1,17 @@
 import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
+import {
+  REPORT_MIME_TYPES,
+  REPORT_LAYOUT_COMPANY_NAME,
+  REPORT_LAYOUT_SYSTEM_NAME,
+  sanitizeReportFileNamePart,
+  formatReportAmount,
+  formatReportDecimal,
+  getStandardGeneratedAtLabel,
+  escapeCsvValue,
+  applyStandardExcelHeaderStyle,
+  applyStandardExcelBodyBorder,
+} from "../../utils/reportLayout";
 import type {
   TLeaveBalanceExportFileResult,
   TLeaveBalanceExportPreview,
@@ -8,19 +20,13 @@ import type {
   TLeaveBalanceLedgerPreview,
 } from "./leaveBalance.interface";
 
-const CSV_MIME_TYPE = "text/csv; charset=utf-8";
-const EXCEL_MIME_TYPE =
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const PDF_MIME_TYPE = "application/pdf";
-const COMPANY_NAME = "Chakda Steel & Re-Rolling Mills (Pvt.) Ltd.";
-const SYSTEM_NAME = "CSRM Payroll System";
+const CSV_MIME_TYPE = REPORT_MIME_TYPES.csv;
+const EXCEL_MIME_TYPE = REPORT_MIME_TYPES.excel;
+const PDF_MIME_TYPE = REPORT_MIME_TYPES.pdf;
+const COMPANY_NAME = REPORT_LAYOUT_COMPANY_NAME;
+const SYSTEM_NAME = REPORT_LAYOUT_SYSTEM_NAME;
 
-const sanitizeFileNamePart = (value: string) =>
-  value
-    .trim()
-    .replace(/[^a-zA-Z0-9-_]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+const sanitizeFileNamePart = sanitizeReportFileNamePart;
 
 const formatNumber = (value: number) =>
   Number(value || 0).toLocaleString("en-US", {
@@ -28,53 +34,12 @@ const formatNumber = (value: number) =>
     maximumFractionDigits: 2,
   });
 
-const getGeneratedAtLabel = () =>
-  new Date().toLocaleString("en-GB", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const getGeneratedAtLabel = () => getStandardGeneratedAtLabel();
 
-const escapeCsvValue = (value: unknown) => {
-  const normalizedValue = value === undefined || value === null ? "" : String(value);
 
-  if (
-    normalizedValue.includes(",") ||
-    normalizedValue.includes("\n") ||
-    normalizedValue.includes('"')
-  ) {
-    return `"${normalizedValue.replace(/"/g, '""')}"`;
-  }
+const applyHeaderStyle = applyStandardExcelHeaderStyle;
 
-  return normalizedValue;
-};
-
-const applyHeaderStyle = (row: ExcelJS.Row) => {
-  row.font = { bold: true };
-  row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
-
-  row.eachCell((cell) => {
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-};
-
-const applyBodyBorder = (row: ExcelJS.Row) => {
-  row.eachCell((cell) => {
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
-};
+const applyBodyBorder = applyStandardExcelBodyBorder;
 
 const getLeaveBalanceFileBaseName = (preview: TLeaveBalanceExportPreview) =>
   sanitizeFileNamePart(`Leave-Balance-${preview.summary.year}`);
