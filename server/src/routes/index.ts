@@ -50,6 +50,8 @@ import { payrollRoutes } from "../modules/payroll/payroll.route";
 
 import { payrollReportRoutes } from "../modules/payrollReport/payrollReport.route";
 
+import reportCenterRoutes from "../modules/reportCenter/reportCenter.route";
+
 import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
 
 import salarySheetRoutes from "../modules/salarySheet/salarySheet.route";
@@ -203,6 +205,11 @@ const moduleRoutes = [
   {
     path: "/payroll-reports",
     route: payrollReportRoutes,
+  },
+
+  {
+    path: "/report-center",
+    route: reportCenterRoutes,
   },
 
   {
