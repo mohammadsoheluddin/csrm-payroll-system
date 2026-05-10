@@ -74,6 +74,21 @@ export type TAuditDeviceType =
 
 export type TAuditNetworkType = "loopback" | "private" | "public" | "unknown";
 
+export type TAuditLogSortBy =
+  | "createdAt"
+  | "updatedAt"
+  | "module"
+  | "action"
+  | "actorRole"
+  | "actorEmail"
+  | "entityName"
+  | "ipAddress"
+  | "deviceType";
+
+export type TAuditLogSortOrder = "asc" | "desc";
+
+export type TAuditLogTimelineGroupBy = "hour" | "day" | "month";
+
 export interface TAuditLogLocation {
   country?: string;
   city?: string;
@@ -172,15 +187,68 @@ export interface TAuditLogQuery {
   module?: string;
   action?: string;
   actorId?: string;
+  actorName?: string;
+  actorEmail?: string;
   actorRole?: string;
+  entityId?: string;
+  entityName?: string;
+  requestId?: string;
+  requestMethod?: string;
+  requestPath?: string;
+  ipAddress?: string;
+  networkType?: string;
+  deviceType?: string;
+  browser?: string;
+  operatingSystem?: string;
+  clientName?: string;
+  clientId?: string;
+  sessionId?: string;
+  searchTerm?: string;
+  fromDate?: string;
+  toDate?: string;
+  includeData?: string;
+  hasPreviousData?: string;
+  hasNewData?: string;
+  hasMetadata?: string;
+  sortBy?: TAuditLogSortBy | string;
+  sortOrder?: TAuditLogSortOrder | string;
+  page?: string | number;
+  limit?: string | number;
+}
+
+export interface TAuditLogSummaryQuery {
+  module?: string;
+  action?: string;
+  actorRole?: string;
+  actorEmail?: string;
   entityId?: string;
   ipAddress?: string;
   networkType?: string;
   deviceType?: string;
   browser?: string;
   operatingSystem?: string;
+  clientId?: string;
+  sessionId?: string;
   fromDate?: string;
   toDate?: string;
-  page?: string;
-  limit?: string;
+}
+
+export interface TAuditLogTimelineQuery extends TAuditLogSummaryQuery {
+  groupBy?: TAuditLogTimelineGroupBy | string;
+  limit?: string | number;
+}
+
+export interface TAuditLogFilterOptionsQuery {
+  fromDate?: string;
+  toDate?: string;
+}
+
+export interface TAuditLogEntityTrailQuery {
+  module?: string;
+  action?: string;
+  fromDate?: string;
+  toDate?: string;
+  includeData?: string;
+  page?: string | number;
+  limit?: string | number;
 }

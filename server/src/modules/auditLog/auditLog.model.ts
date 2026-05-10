@@ -15,6 +15,7 @@ const auditLogSchema = new Schema<TAuditLog>(
       type: String,
       trim: true,
       lowercase: true,
+      index: true,
     },
     actorRole: {
       type: String,
@@ -159,12 +160,19 @@ const auditLogSchema = new Schema<TAuditLog>(
 );
 
 auditLogSchema.index({ module: 1, createdAt: -1 });
+auditLogSchema.index({ module: 1, action: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
 auditLogSchema.index({ actorId: 1, createdAt: -1 });
+auditLogSchema.index({ actorEmail: 1, createdAt: -1 });
+auditLogSchema.index({ actorRole: 1, createdAt: -1 });
 auditLogSchema.index({ entityId: 1, createdAt: -1 });
+auditLogSchema.index({ entityName: 1, createdAt: -1 });
 auditLogSchema.index({ ipAddress: 1, createdAt: -1 });
 auditLogSchema.index({ deviceType: 1, createdAt: -1 });
 auditLogSchema.index({ networkType: 1, createdAt: -1 });
+auditLogSchema.index({ requestId: 1, createdAt: -1 });
+auditLogSchema.index({ clientId: 1, createdAt: -1 });
+auditLogSchema.index({ sessionId: 1, createdAt: -1 });
 
 const AuditLog = model<TAuditLog>("AuditLog", auditLogSchema);
 
