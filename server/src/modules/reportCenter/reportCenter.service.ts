@@ -16,19 +16,26 @@ import SalarySheet from "../salarySheet/salarySheet.model";
 import SalaryStatement from "../salaryStatement/salaryStatement.model";
 import TimeBill from "../timeBill/timeBill.model";
 import { PERMISSIONS } from "../user/user.constant";
+import ReportCenterSavedConfig from "./reportCenter.model";
 import {
   TReportCenterCategory,
   TReportCenterDashboard,
   TReportCenterDefinition,
   TReportCenterFlow,
   TReportCenterQuery,
+  TReportCenterExportRoute,
+  TReportCenterFormat,
+  TReportCenterPaymentMode,
   TReportCenterQuickLink,
   TReportCenterReportReadiness,
+  TReportCenterSavedConfigCreatePayload,
+  TReportCenterSavedConfigUpdatePayload,
   TReportCenterStageReadiness,
 } from "./reportCenter.interface";
 
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
+  NOT_FOUND: 404,
 };
 
 const REPORT_DEFINITIONS: TReportCenterDefinition[] = [
@@ -607,52 +614,110 @@ const buildStageReadiness = async ({
   };
 };
 
-const addQueryParams = (path: string, query: TReportCenterQuery, period: ReturnType<typeof getPeriodFromQuery>) => {
-  const params = new URLSearchParams();
-
-  if (path.includes(":id")) {
-    return path;
+const stringifyFilterValue = (value: unknown) => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
   }
 
-  if (path.includes("bonus-payment") || path.includes("bonus-sheets")) {
-    if (period.bonusMonth) {
-      params.set("bonusMonth", period.bonusMonth);
+  return String(value);
+};
+
+const findReportDefinitionById = (reportId: string) => {
+  const report = REPORT_DEFINITIONS.find((item) => item.id === reportId);
+
+  if (!report) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Report definition not found.");
+  }
+
+  return report;
+};
+
+const normalizeReportQuery = (query: TReportCenterQuery): TReportCenterQuery => {
+  const normalized: TReportCenterQuery = { ...query };
+
+  for (const key of [
+    "company",
+    "majorDepartment",
+    "department",
+    "branch",
+    "employee",
+    "attendanceImportBatchId",
+    "employeeBulkImportBatchId",
+  ] as const) {
+    const value = stringifyFilterValue(normalized[key]);
+    if (value) {
+      normalized[key] = value;
     }
-  } else if (period.payrollMonth) {
-    params.set("payrollMonth", period.payrollMonth);
+  }
+
+  return normalized;
+};
+
+const replaceRouteParams = (path: string, query: TReportCenterQuery) => {
+  if (path.includes("/attendance-imports/:id")) {
+    const batchId = stringifyFilterValue(query.attendanceImportBatchId);
+    return batchId ? path.replace(":id", batchId) : path;
+  }
+
+  if (path.includes("/employee-bulk-imports/:id")) {
+    const batchId = stringifyFilterValue(query.employeeBulkImportBatchId);
+    return batchId ? path.replace(":id", batchId) : path;
+  }
+
+  return path;
+};
+
+const addQueryParams = (
+  path: string,
+  query: TReportCenterQuery,
+  period: ReturnType<typeof getPeriodFromQuery> | null,
+) => {
+  const params = new URLSearchParams();
+  const routePath = replaceRouteParams(path, query);
+
+  if (routePath.includes(":id")) {
+    return routePath;
+  }
+
+  if (routePath.includes("bonus-payment") || routePath.includes("bonus-sheets")) {
+    if (period?.bonusMonth || query.bonusMonth) {
+      params.set("bonusMonth", String(period?.bonusMonth || query.bonusMonth));
+    }
+  } else if (period?.payrollMonth || query.payrollMonth) {
+    params.set("payrollMonth", String(period?.payrollMonth || query.payrollMonth));
   }
 
   if (query.company) {
-    params.set("company", query.company);
+    params.set("company", String(query.company));
   }
 
   if (query.majorDepartment) {
-    params.set("majorDepartment", query.majorDepartment);
+    params.set("majorDepartment", String(query.majorDepartment));
   }
 
   if (query.department) {
-    params.set("department", query.department);
+    params.set("department", String(query.department));
   }
 
   if (query.branch) {
-    params.set("branch", query.branch);
+    params.set("branch", String(query.branch));
   }
 
   if (query.employee) {
-    params.set("employee", query.employee);
+    params.set("employee", String(query.employee));
   }
 
-  if (path.includes("payment-distributions/export")) {
-    params.set("paymentMode", "bank");
+  if (routePath.includes("payment-distributions/export")) {
+    params.set("paymentMode", query.paymentMode || "bank");
   }
 
-  if (path.includes("leave-balances") && period.year) {
-    params.set("year", String(period.year));
+  if (routePath.includes("leave-balances") && (period?.year || query.year)) {
+    params.set("year", String(period?.year || query.year));
   }
 
   const queryText = params.toString();
 
-  return queryText ? `${path}?${queryText}` : path;
+  return queryText ? `${routePath}?${queryText}` : routePath;
 };
 
 const buildReportReadiness = (
@@ -959,9 +1024,468 @@ const getReportQuickLinksFromDB = async (
   };
 };
 
+
+const getPeriodForReport = (
+  report: TReportCenterDefinition,
+  query: TReportCenterQuery,
+) => {
+  if (report.periodType === "on_demand") {
+    return null;
+  }
+
+  return getPeriodFromQuery(query);
+};
+
+const hasRequiredFilter = (
+  filterName: string,
+  query: TReportCenterQuery,
+  period: ReturnType<typeof getPeriodFromQuery> | null,
+) => {
+  if (filterName === "payrollMonth") {
+    return Boolean(query.payrollMonth || period?.payrollMonth || (query.month && query.year));
+  }
+
+  if (filterName === "bonusMonth") {
+    return Boolean(query.bonusMonth || period?.bonusMonth || query.payrollMonth);
+  }
+
+  if (filterName === "year") {
+    return Boolean(query.year || period?.year);
+  }
+
+  return Boolean((query as Record<string, unknown>)[filterName]);
+};
+
+const validateRequiredFilters = (
+  report: TReportCenterDefinition,
+  query: TReportCenterQuery,
+  period: ReturnType<typeof getPeriodFromQuery> | null,
+) => {
+  const missingFilters: string[] = [];
+
+  for (const filterName of report.requiredFilters) {
+    if (!hasRequiredFilter(filterName, query, period)) {
+      missingFilters.push(filterName);
+    }
+  }
+
+  return missingFilters;
+};
+
+const getReadinessForReport = async (
+  report: TReportCenterDefinition,
+  query: TReportCenterQuery,
+) => {
+  if (report.periodType === "on_demand") {
+    return {
+      isAvailable: true,
+      blockers: [] as string[],
+    };
+  }
+
+  const dashboard = await getReportCenterDashboardFromDB(query);
+  const readiness = dashboard.reports.find((item) => item.reportId === report.id);
+
+  return {
+    isAvailable: readiness?.isAvailable ?? true,
+    blockers: readiness?.blockers ?? [],
+  };
+};
+
+const getReportExportRouteFromDB = async (
+  query: TReportCenterQuery,
+): Promise<TReportCenterExportRoute> => {
+  if (!query.reportId) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Report id is required.");
+  }
+
+  if (!query.format) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Export format is required.");
+  }
+
+  const report = findReportDefinitionById(query.reportId);
+  const format = query.format as TReportCenterFormat;
+
+  if (!report.supportedFormats.includes(format)) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      `${format} export is not supported for ${report.title}.`,
+    );
+  }
+
+  const exportPath = report.exportPaths[format];
+
+  if (!exportPath) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      `${format} export route is not configured for ${report.title}.`,
+    );
+  }
+
+  const normalizedQuery = normalizeReportQuery(query);
+  const period = getPeriodForReport(report, normalizedQuery);
+  const missingFilters = validateRequiredFilters(report, normalizedQuery, period);
+  const blockers: string[] = [];
+
+  if (missingFilters.length > 0) {
+    blockers.push(
+      `Missing required filter(s): ${missingFilters.join(", ")}.`,
+    );
+  }
+
+  if (exportPath.includes(":id")) {
+    const unresolvedPath = replaceRouteParams(exportPath, normalizedQuery);
+    if (unresolvedPath.includes(":id")) {
+      blockers.push("A valid import batch id is required for this report route.");
+    }
+  }
+
+  if (blockers.length === 0) {
+    const readiness = await getReadinessForReport(report, normalizedQuery);
+
+    if (!readiness.isAvailable) {
+      blockers.push(...readiness.blockers);
+    }
+  }
+
+  const destinationUrl = addQueryParams(exportPath, normalizedQuery, period);
+
+  return {
+    reportId: report.id,
+    title: report.title,
+    category: report.category,
+    flow: report.flow,
+    format,
+    destinationUrl,
+    isAvailable: blockers.length === 0,
+    isBlocked: blockers.length > 0,
+    blockers,
+    requiredPermission: report.requiredPermission,
+    requiredFilters: report.requiredFilters,
+    suppliedFilters: {
+      payrollMonth: normalizedQuery.payrollMonth || period?.payrollMonth || null,
+      bonusMonth: normalizedQuery.bonusMonth || period?.bonusMonth || null,
+      year: normalizedQuery.year || period?.year || null,
+      company: normalizedQuery.company || null,
+      majorDepartment: normalizedQuery.majorDepartment || null,
+      department: normalizedQuery.department || null,
+      branch: normalizedQuery.branch || null,
+      employee: normalizedQuery.employee || null,
+      paymentMode: normalizedQuery.paymentMode || null,
+      attendanceImportBatchId: normalizedQuery.attendanceImportBatchId || null,
+      employeeBulkImportBatchId: normalizedQuery.employeeBulkImportBatchId || null,
+    },
+    generatedAt: new Date(),
+  };
+};
+
+const validateSavedConfigFormats = (
+  report: TReportCenterDefinition,
+  defaultFormat: TReportCenterFormat,
+  selectedFormats: TReportCenterFormat[],
+) => {
+  const unsupportedFormats = selectedFormats.filter(
+    (format) => !report.supportedFormats.includes(format),
+  );
+
+  if (unsupportedFormats.length > 0) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      `Unsupported format(s) for ${report.title}: ${unsupportedFormats.join(", ")}.`,
+    );
+  }
+
+  if (!report.supportedFormats.includes(defaultFormat)) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      `${defaultFormat} is not supported as default format for ${report.title}.`,
+    );
+  }
+};
+
+const normalizeSavedFormats = (
+  report: TReportCenterDefinition,
+  defaultFormat?: TReportCenterFormat,
+  selectedFormats?: TReportCenterFormat[],
+) => {
+  const resolvedDefaultFormat = defaultFormat || report.supportedFormats[0] || "preview";
+  const selected = selectedFormats?.length ? selectedFormats : [resolvedDefaultFormat];
+  const uniqueFormats = Array.from(new Set([...selected, resolvedDefaultFormat]));
+
+  validateSavedConfigFormats(report, resolvedDefaultFormat, uniqueFormats);
+
+  return {
+    defaultFormat: resolvedDefaultFormat,
+    selectedFormats: uniqueFormats,
+  };
+};
+
+const castOptionalObjectId = (value: unknown, fieldName: string) => {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const stringValue = String(value);
+
+  if (!Types.ObjectId.isValid(stringValue)) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, `${fieldName} is invalid.`);
+  }
+
+  return new Types.ObjectId(stringValue);
+};
+
+const normalizeSavedFilters = (
+  filters: TReportCenterSavedConfigCreatePayload["filters"] = {},
+) => {
+  return {
+    payrollMonth: filters.payrollMonth,
+    bonusMonth: filters.bonusMonth,
+    month: filters.month,
+    year: filters.year,
+    company: castOptionalObjectId(filters.company, "Company id"),
+    majorDepartment: castOptionalObjectId(
+      filters.majorDepartment,
+      "Major department id",
+    ),
+    department: castOptionalObjectId(filters.department, "Department id"),
+    branch: castOptionalObjectId(filters.branch, "Branch id"),
+    employee: castOptionalObjectId(filters.employee, "Employee id"),
+    paymentMode: filters.paymentMode,
+    attendanceImportBatchId: castOptionalObjectId(
+      filters.attendanceImportBatchId,
+      "Attendance import batch id",
+    ),
+    employeeBulkImportBatchId: castOptionalObjectId(
+      filters.employeeBulkImportBatchId,
+      "Employee bulk import batch id",
+    ),
+  };
+};
+
+const objectIdToString = (value: unknown) => {
+  if (!value) {
+    return undefined;
+  }
+
+  return String(value);
+};
+
+const buildQueryFromSavedConfig = (
+  config: {
+    reportId: string;
+    defaultFormat: TReportCenterFormat;
+    filters: Record<string, unknown>;
+  },
+  overrides: TReportCenterQuery,
+): TReportCenterQuery => {
+  const filters = config.filters || {};
+
+  return {
+    reportId: overrides.reportId || config.reportId,
+    format: overrides.format || config.defaultFormat,
+    payrollMonth: overrides.payrollMonth || objectIdToString(filters.payrollMonth),
+    bonusMonth: overrides.bonusMonth || objectIdToString(filters.bonusMonth),
+    month: overrides.month || (filters.month as string | number | undefined),
+    year: overrides.year || (filters.year as string | number | undefined),
+    company: overrides.company || objectIdToString(filters.company),
+    majorDepartment:
+      overrides.majorDepartment || objectIdToString(filters.majorDepartment),
+    department: overrides.department || objectIdToString(filters.department),
+    branch: overrides.branch || objectIdToString(filters.branch),
+    employee: overrides.employee || objectIdToString(filters.employee),
+    paymentMode:
+      overrides.paymentMode || (filters.paymentMode as TReportCenterPaymentMode | undefined),
+    attendanceImportBatchId:
+      overrides.attendanceImportBatchId || objectIdToString(filters.attendanceImportBatchId),
+    employeeBulkImportBatchId:
+      overrides.employeeBulkImportBatchId || objectIdToString(filters.employeeBulkImportBatchId),
+  };
+};
+
+const createSavedReportConfigIntoDB = async (
+  payload: TReportCenterSavedConfigCreatePayload,
+  userId?: string,
+) => {
+  const report = findReportDefinitionById(payload.reportId);
+  const formats = normalizeSavedFormats(
+    report,
+    payload.defaultFormat,
+    payload.selectedFormats,
+  );
+  const createdBy = userId && Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
+
+  const result = await ReportCenterSavedConfig.create({
+    configName: payload.configName,
+    description: payload.description,
+    reportId: report.id,
+    reportTitle: report.title,
+    category: report.category,
+    flow: report.flow,
+    defaultFormat: formats.defaultFormat,
+    selectedFormats: formats.selectedFormats,
+    filters: normalizeSavedFilters(payload.filters),
+    isPinned: payload.isPinned || false,
+    isShared: payload.isShared || false,
+    isActive: payload.isActive ?? true,
+    createdBy,
+    updatedBy: createdBy,
+  });
+
+  return result;
+};
+
+const getSavedReportConfigsFromDB = async (query: TReportCenterQuery & { isPinned?: string; isActive?: string }) => {
+  const filter: Record<string, unknown> = {
+    isDeleted: false,
+  };
+
+  if (query.reportId) {
+    filter.reportId = query.reportId;
+  }
+
+  if (query.category) {
+    filter.category = query.category;
+  }
+
+  if (query.flow) {
+    filter.flow = query.flow;
+  }
+
+  if (query.isPinned !== undefined) {
+    filter.isPinned = query.isPinned === "true";
+  }
+
+  if (query.isActive !== undefined) {
+    filter.isActive = query.isActive === "true";
+  }
+
+  const configs = await ReportCenterSavedConfig.find(filter)
+    .sort({ isPinned: -1, updatedAt: -1 })
+    .lean();
+
+  return {
+    totalConfigs: configs.length,
+    configs,
+    generatedAt: new Date(),
+  };
+};
+
+const getSingleSavedReportConfigFromDB = async (id: string) => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Saved report config id is invalid.");
+  }
+
+  const config = await ReportCenterSavedConfig.findOne({
+    _id: id,
+    isDeleted: false,
+  }).lean();
+
+  if (!config) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Saved report config not found.");
+  }
+
+  return config;
+};
+
+const updateSavedReportConfigIntoDB = async (
+  id: string,
+  payload: TReportCenterSavedConfigUpdatePayload,
+  userId?: string,
+) => {
+  const existing = await getSingleSavedReportConfigFromDB(id);
+  const report = payload.reportId
+    ? findReportDefinitionById(payload.reportId)
+    : findReportDefinitionById(existing.reportId);
+  const formats = normalizeSavedFormats(
+    report,
+    payload.defaultFormat || existing.defaultFormat,
+    payload.selectedFormats || existing.selectedFormats,
+  );
+  const updatedBy = userId && Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
+
+  const updated = await ReportCenterSavedConfig.findOneAndUpdate(
+    { _id: id, isDeleted: false },
+    {
+      $set: {
+        ...(payload.configName !== undefined && { configName: payload.configName }),
+        ...(payload.description !== undefined && { description: payload.description }),
+        reportId: report.id,
+        reportTitle: report.title,
+        category: report.category,
+        flow: report.flow,
+        defaultFormat: formats.defaultFormat,
+        selectedFormats: formats.selectedFormats,
+        ...(payload.filters !== undefined && {
+          filters: normalizeSavedFilters(payload.filters),
+        }),
+        ...(payload.isPinned !== undefined && { isPinned: payload.isPinned }),
+        ...(payload.isShared !== undefined && { isShared: payload.isShared }),
+        ...(payload.isActive !== undefined && { isActive: payload.isActive }),
+        updatedBy,
+      },
+    },
+    { new: true },
+  );
+
+  if (!updated) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Saved report config not found.");
+  }
+
+  return updated;
+};
+
+const deleteSavedReportConfigFromDB = async (
+  id: string,
+  userId?: string,
+) => {
+  const updatedBy = userId && Types.ObjectId.isValid(userId) ? new Types.ObjectId(userId) : null;
+  const deleted = await ReportCenterSavedConfig.findOneAndUpdate(
+    { _id: id, isDeleted: false },
+    {
+      $set: {
+        isDeleted: true,
+        isActive: false,
+        deletedAt: new Date(),
+        updatedBy,
+      },
+    },
+    { new: true },
+  );
+
+  if (!deleted) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Saved report config not found.");
+  }
+
+  return deleted;
+};
+
+const getSavedReportConfigExportRouteFromDB = async (
+  id: string,
+  overrides: TReportCenterQuery,
+) => {
+  const config = await getSingleSavedReportConfigFromDB(id);
+  const query = buildQueryFromSavedConfig(
+    {
+      reportId: config.reportId,
+      defaultFormat: config.defaultFormat,
+      filters: config.filters as Record<string, unknown>,
+    },
+    overrides,
+  );
+
+  return getReportExportRouteFromDB(query);
+};
+
 export const ReportCenterServices = {
   getReportCatalogFromDB,
   getReportCenterDashboardFromDB,
   getReportReadinessFromDB,
   getReportQuickLinksFromDB,
+  getReportExportRouteFromDB,
+  createSavedReportConfigIntoDB,
+  getSavedReportConfigsFromDB,
+  getSingleSavedReportConfigFromDB,
+  updateSavedReportConfigIntoDB,
+  deleteSavedReportConfigFromDB,
+  getSavedReportConfigExportRouteFromDB,
 };

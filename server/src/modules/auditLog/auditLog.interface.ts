@@ -32,6 +32,7 @@ export type TAuditLogModule =
   | "salary_payment_distribution"
   | "payroll"
   | "payroll_report"
+  | "report_center"
   | "time_bill"
   | "ot_statement"
   | "ot_payment_distribution"

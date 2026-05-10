@@ -1,3 +1,5 @@
+import { Types } from "mongoose";
+
 export type TReportCenterCategory =
   | "employee"
   | "attendance"
@@ -26,6 +28,8 @@ export type TReportCenterPeriodType =
   | "bonus_month"
   | "on_demand";
 
+export type TReportCenterPaymentMode = "bank" | "cash" | "mobile_banking";
+
 export type TReportCenterQuery = {
   payrollMonth?: string;
   bonusMonth?: string;
@@ -38,6 +42,11 @@ export type TReportCenterQuery = {
   employee?: string;
   category?: TReportCenterCategory;
   flow?: TReportCenterFlow;
+  reportId?: string;
+  format?: TReportCenterFormat;
+  paymentMode?: TReportCenterPaymentMode;
+  attendanceImportBatchId?: string;
+  employeeBulkImportBatchId?: string;
 };
 
 export type TReportCenterExportPath = Partial<Record<TReportCenterFormat, string>>;
@@ -128,4 +137,78 @@ export type TReportCenterQuickLink = {
   pdfUrl: string | null;
   isAvailable: boolean;
   blockers: string[];
+};
+
+export type TReportCenterExportRoute = {
+  reportId: string;
+  title: string;
+  category: TReportCenterCategory;
+  flow: TReportCenterFlow;
+  format: TReportCenterFormat;
+  destinationUrl: string;
+  isAvailable: boolean;
+  isBlocked: boolean;
+  blockers: string[];
+  requiredPermission: string;
+  requiredFilters: string[];
+  suppliedFilters: Record<string, unknown>;
+  generatedAt: Date;
+};
+
+export type TReportCenterSavedFilter = {
+  payrollMonth?: string;
+  bonusMonth?: string;
+  month?: number;
+  year?: number;
+  company?: Types.ObjectId | string;
+  majorDepartment?: Types.ObjectId | string;
+  department?: Types.ObjectId | string;
+  branch?: Types.ObjectId | string;
+  employee?: Types.ObjectId | string;
+  paymentMode?: TReportCenterPaymentMode;
+  attendanceImportBatchId?: Types.ObjectId | string;
+  employeeBulkImportBatchId?: Types.ObjectId | string;
+};
+
+export type TReportCenterSavedConfig = {
+  _id?: Types.ObjectId;
+  configName: string;
+  description?: string;
+  reportId: string;
+  reportTitle: string;
+  category: TReportCenterCategory;
+  flow: TReportCenterFlow;
+  defaultFormat: TReportCenterFormat;
+  selectedFormats: TReportCenterFormat[];
+  filters: TReportCenterSavedFilter;
+  isPinned: boolean;
+  isShared: boolean;
+  isActive: boolean;
+  isDeleted: boolean;
+  createdBy?: Types.ObjectId | null;
+  updatedBy?: Types.ObjectId | null;
+  deletedAt?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+};
+
+export type TReportCenterSavedConfigCreatePayload = {
+  configName: string;
+  description?: string;
+  reportId: string;
+  defaultFormat?: TReportCenterFormat;
+  selectedFormats?: TReportCenterFormat[];
+  filters?: TReportCenterSavedFilter;
+  isPinned?: boolean;
+  isShared?: boolean;
+  isActive?: boolean;
+};
+
+export type TReportCenterSavedConfigUpdatePayload = Partial<
+  Omit<
+    TReportCenterSavedConfigCreatePayload,
+    "reportId"
+  >
+> & {
+  reportId?: string;
 };

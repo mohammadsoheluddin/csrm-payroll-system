@@ -40,5 +40,61 @@ router.get(
   ReportCenterControllers.getReportQuickLinks,
 );
 
+router.get(
+  "/export-route",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_READ),
+  validateRequest(ReportCenterValidations.exportRouteQueryValidationSchema),
+  ReportCenterControllers.getReportExportRoute,
+);
+
+router.post(
+  "/saved-configs",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_CONFIG_MANAGE),
+  validateRequest(ReportCenterValidations.createSavedConfigValidationSchema),
+  ReportCenterControllers.createSavedReportConfig,
+);
+
+router.get(
+  "/saved-configs",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_READ),
+  validateRequest(ReportCenterValidations.savedConfigListQueryValidationSchema),
+  ReportCenterControllers.getSavedReportConfigs,
+);
+
+router.get(
+  "/saved-configs/:id/export-route",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_READ),
+  validateRequest(ReportCenterValidations.savedConfigExportRouteValidationSchema),
+  ReportCenterControllers.getSavedReportConfigExportRoute,
+);
+
+router.get(
+  "/saved-configs/:id",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_READ),
+  validateRequest(ReportCenterValidations.savedConfigIdParamValidationSchema),
+  ReportCenterControllers.getSingleSavedReportConfig,
+);
+
+router.patch(
+  "/saved-configs/:id",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_CONFIG_MANAGE),
+  validateRequest(ReportCenterValidations.updateSavedConfigValidationSchema),
+  ReportCenterControllers.updateSavedReportConfig,
+);
+
+router.delete(
+  "/saved-configs/:id",
+  auth(),
+  requirePermission(PERMISSIONS.REPORT_CENTER_CONFIG_MANAGE),
+  validateRequest(ReportCenterValidations.savedConfigIdParamValidationSchema),
+  ReportCenterControllers.deleteSavedReportConfig,
+);
+
 export const ReportCenterRoutes = router;
 export default router;
