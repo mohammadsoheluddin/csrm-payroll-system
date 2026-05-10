@@ -54,6 +54,8 @@ import reportCenterRoutes from "../modules/reportCenter/reportCenter.route";
 
 import reportLayoutStandardRoutes from "../modules/reportLayoutStandard/reportLayoutStandard.route";
 
+import rbacAuditRoutes from "../modules/rbacAudit/rbacAudit.route";
+
 import salaryStructureRoutes from "../modules/salaryStructure/salaryStructure.route";
 
 import salarySheetRoutes from "../modules/salarySheet/salarySheet.route";
@@ -217,6 +219,11 @@ const moduleRoutes = [
   {
     path: "/report-layout-standards",
     route: reportLayoutStandardRoutes,
+  },
+
+  {
+    path: "/rbac-audit",
+    route: rbacAuditRoutes,
   },
 
   {
