@@ -18,10 +18,22 @@ import type {
   TLeaveBalanceAdjustmentPayload,
   TLeaveBalanceBulkActionPayload,
   TLeaveBalanceOpeningBalancePayload,
+  TLeaveBalanceExportPreview,
+  TLeaveBalanceLedgerEntry,
+  TLeaveBalanceLedgerPreview,
+  TLeaveBalanceLedgerQuery,
   TLeaveBalanceQuery,
   TLeaveBalanceSourceSummary,
   TLeaveBalanceSummaryQuery,
 } from "./leaveBalance.interface";
+import {
+  generateLeaveBalanceCsv,
+  generateLeaveBalanceExcel,
+  generateLeaveBalanceLedgerCsv,
+  generateLeaveBalanceLedgerExcel,
+  generateLeaveBalanceLedgerPdf,
+  generateLeaveBalancePdf,
+} from "./leaveBalance.export";
 import LeaveBalance from "./leaveBalance.model";
 
 const HTTP_STATUS = {
@@ -1024,6 +1036,408 @@ const adjustLeaveBalanceIntoDB = async ({
   return getSingleLeaveBalanceFromDB(id);
 };
 
+
+const getPopulatedName = (value: unknown, fallback = "") => {
+  if (!value) {
+    return fallback;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return String(
+    record.name ||
+      record.departmentName ||
+      record.designationName ||
+      record.branchName ||
+      record.title ||
+      record._id ||
+      fallback,
+  );
+};
+
+const getLedgerEntryDate = (actionAt?: Date, effectiveDate?: string) => {
+  if (effectiveDate) {
+    return effectiveDate;
+  }
+
+  if (actionAt) {
+    return actionAt.toISOString().slice(0, 10);
+  }
+
+  return "";
+};
+
+const buildLeaveBalanceExportRows = (records: TLeaveBalance[]) =>
+  records.map((record, index) => ({
+    slNo: index + 1,
+    leaveBalanceId: getObjectIdString((record as any)._id),
+    employeeId: record.employeeSnapshot.employeeId,
+    officeId: record.employeeSnapshot.officeId,
+    cardNo: record.employeeSnapshot.cardNo,
+    employeeName: record.employeeSnapshot.name,
+    designation: getPopulatedName(record.designation),
+    department: getPopulatedName(record.department),
+    branch: getPopulatedName(record.branch),
+    leaveType: record.leaveType,
+    leaveLabel: record.leaveLabel,
+    openingBalance: record.openingBalance,
+    yearlyEntitlement: record.yearlyEntitlement,
+    earnedDays: record.earnedDays,
+    adjustedDays: record.adjustedDays,
+    expiredPreviousYearRemainingDays: record.expiredPreviousYearRemainingDays,
+    totalCreditDays: record.totalCreditDays,
+    approvedConsumedDays: record.approvedConsumedDays,
+    pendingDays: record.pendingDays,
+    remainingDays: record.remainingDays,
+    availableDays: record.availableDays,
+    overConsumedDays: record.overConsumedDays,
+    status: record.status,
+    isLocked: record.isLocked,
+  }));
+
+const buildLeaveBalanceExportPreviewFromDB = async (
+  query: TLeaveBalanceQuery,
+): Promise<TLeaveBalanceExportPreview> => {
+  const filter = buildLeaveBalanceFilter(query);
+
+  const records = await LeaveBalance.find(filter)
+    .populate("designation")
+    .populate("department")
+    .populate("branch")
+    .sort({ year: -1, "employeeSnapshot.employeeId": 1, leaveType: 1 });
+
+  const rows = buildLeaveBalanceExportRows(records as unknown as TLeaveBalance[]);
+
+  const summary = rows.reduce(
+    (accumulator, row) => {
+      accumulator.openingBalanceDays += row.openingBalance;
+      accumulator.yearlyEntitlementDays += row.yearlyEntitlement;
+      accumulator.earnedDays += row.earnedDays;
+      accumulator.adjustedDays += row.adjustedDays;
+      accumulator.expiredPreviousYearRemainingDays +=
+        row.expiredPreviousYearRemainingDays;
+      accumulator.totalCreditDays += row.totalCreditDays;
+      accumulator.approvedConsumedDays += row.approvedConsumedDays;
+      accumulator.pendingDays += row.pendingDays;
+      accumulator.remainingDays += row.remainingDays;
+      accumulator.availableDays += row.availableDays;
+      accumulator.overConsumedDays += row.overConsumedDays;
+      accumulator.lockedRecords += row.isLocked ? 1 : 0;
+
+      return accumulator;
+    },
+    {
+      year: query.year ? Number(query.year) : null,
+      totalRecords: rows.length,
+      totalEmployees: new Set(rows.map((row) => row.employeeId)).size,
+      openingBalanceDays: 0,
+      yearlyEntitlementDays: 0,
+      earnedDays: 0,
+      adjustedDays: 0,
+      expiredPreviousYearRemainingDays: 0,
+      totalCreditDays: 0,
+      approvedConsumedDays: 0,
+      pendingDays: 0,
+      remainingDays: 0,
+      availableDays: 0,
+      overConsumedDays: 0,
+      lockedRecords: 0,
+    },
+  );
+
+  return {
+    year: summary.year,
+    filters: query,
+    summary,
+    rows,
+  };
+};
+
+const getLeaveBalanceExportPreviewFromDB = buildLeaveBalanceExportPreviewFromDB;
+
+const exportLeaveBalanceCsvFromDB = async (query: TLeaveBalanceQuery) =>
+  generateLeaveBalanceCsv(await buildLeaveBalanceExportPreviewFromDB(query));
+
+const exportLeaveBalanceExcelFromDB = async (query: TLeaveBalanceQuery) =>
+  generateLeaveBalanceExcel(await buildLeaveBalanceExportPreviewFromDB(query));
+
+const exportLeaveBalancePdfFromDB = async (query: TLeaveBalanceQuery) =>
+  generateLeaveBalancePdf(await buildLeaveBalanceExportPreviewFromDB(query));
+
+const normalizeLedgerEntry = ({
+  entry,
+  slNo,
+  runningBalance,
+  isLimited,
+}: {
+  entry: Omit<TLeaveBalanceLedgerEntry, "slNo" | "balanceAfter">;
+  slNo: number;
+  runningBalance: number;
+  isLimited: boolean;
+}): TLeaveBalanceLedgerEntry => ({
+  ...entry,
+  slNo,
+  balanceAfter: isLimited ? runningBalance : null,
+});
+
+const getEmployeeLeaveLedgerFromDB = async (
+  query: TLeaveBalanceLedgerQuery,
+): Promise<TLeaveBalanceLedgerPreview> => {
+  assertObjectId(query.employee, "Employee");
+  assertObjectId(query.company, "Company");
+
+  const filter: Record<string, unknown> = {
+    employee: toObjectId(query.employee),
+    isDeleted: false,
+  };
+
+  if (query.year) {
+    filter.year = Number(query.year);
+  }
+
+  if (query.company) {
+    filter.company = toObjectId(query.company);
+  }
+
+  if (query.leaveType) {
+    filter.leaveType = query.leaveType;
+  }
+
+  const records = await LeaveBalance.find(filter)
+    .populate("designation")
+    .populate("department")
+    .populate("branch")
+    .sort({ year: 1, leaveType: 1 });
+
+  if (records.length === 0) {
+    throw new AppError(
+      HTTP_STATUS.NOT_FOUND,
+      "No leave balance record found for the selected employee and filters.",
+    );
+  }
+
+  const firstRecord = records[0] as unknown as TLeaveBalance;
+  const year = query.year ? Number(query.year) : firstRecord.year;
+  const { yearStartDate, yearEndDate } = buildYearDateRange(year);
+  const leaveTypes = records.map((record) => record.leaveType);
+
+  const leaves = await Leave.find({
+    employee: toObjectId(query.employee),
+    leaveType: { $in: leaveTypes },
+    isDeleted: false,
+    startDate: { $lte: yearEndDate },
+    endDate: { $gte: yearStartDate },
+  }).sort({ startDate: 1, leaveType: 1 });
+
+  const allEntries: TLeaveBalanceLedgerEntry[] = [];
+  const byLeaveType: TLeaveBalanceLedgerPreview["summary"]["byLeaveType"] = {};
+
+  for (const record of records as unknown as TLeaveBalance[]) {
+    const baseEntries: Array<Omit<TLeaveBalanceLedgerEntry, "slNo" | "balanceAfter">> = [];
+
+    if (record.openingBalance > 0) {
+      baseEntries.push({
+        entryDate: record.yearStartDate,
+        leaveType: record.leaveType,
+        leaveLabel: record.leaveLabel,
+        transactionType: "opening_balance",
+        creditDays: record.openingBalance,
+        debitDays: 0,
+        pendingDays: 0,
+        reference: getObjectIdString((record as any)._id),
+        reason: "Manual opening balance",
+      });
+    }
+
+    if (record.yearlyEntitlement > 0) {
+      baseEntries.push({
+        entryDate: record.yearStartDate,
+        leaveType: record.leaveType,
+        leaveLabel: record.leaveLabel,
+        transactionType: "yearly_entitlement",
+        creditDays: record.yearlyEntitlement,
+        debitDays: 0,
+        pendingDays: 0,
+        reference: getObjectIdString((record as any)._id),
+        reason: "Yearly leave entitlement",
+      });
+    }
+
+    if (record.expiredPreviousYearRemainingDays > 0) {
+      baseEntries.push({
+        entryDate: record.yearStartDate,
+        leaveType: record.leaveType,
+        leaveLabel: record.leaveLabel,
+        transactionType: "expired_previous_year_balance",
+        creditDays: 0,
+        debitDays: 0,
+        pendingDays: 0,
+        reference: record.sourceSummary.previousYearLeaveBalanceId,
+        reason: "Previous year remaining leave expired by no carry-forward policy",
+        note: `${record.expiredPreviousYearRemainingDays} days expired`,
+      });
+    }
+
+    if (record.leaveType === REPLACEMENT_LEAVE_TYPE) {
+      record.sourceSummary.replacementEarnedHolidayDates.forEach((holidayDate, index) => {
+        baseEntries.push({
+          entryDate: holidayDate,
+          leaveType: record.leaveType,
+          leaveLabel: record.leaveLabel,
+          transactionType: "earned_replacement",
+          creditDays: 1,
+          debitDays: 0,
+          pendingDays: 0,
+          reference: record.sourceSummary.replacementEarnedAttendanceIds[index],
+          reason: "Replacement leave earned for holiday duty",
+        });
+      });
+    }
+
+    record.actionHistory.forEach((action) => {
+      if (!["adjustment_credit", "adjustment_debit"].includes(action.action)) {
+        return;
+      }
+
+      baseEntries.push({
+        entryDate: getLedgerEntryDate(action.actionAt, action.effectiveDate),
+        leaveType: record.leaveType,
+        leaveLabel: record.leaveLabel,
+        transactionType: action.action === "adjustment_credit" ? "adjustment_credit" : "adjustment_debit",
+        creditDays: action.action === "adjustment_credit" ? Number(action.days || 0) : 0,
+        debitDays: action.action === "adjustment_debit" ? Number(action.days || 0) : 0,
+        pendingDays: 0,
+        reference: getObjectIdString((record as any)._id),
+        reason: action.reason,
+        note: action.note,
+      });
+    });
+
+    leaves
+      .filter((leave) => leave.leaveType === record.leaveType)
+      .forEach((leave) => {
+        const status = (leave.status || "pending") as TLeaveStatus;
+        const overlapDays = calculateOverlapDays(
+          leave.startDate,
+          leave.endDate,
+          record.yearStartDate,
+          record.yearEndDate,
+        );
+        const transactionType =
+          status === "approved"
+            ? "leave_approved"
+            : status === "pending"
+              ? "leave_pending"
+              : status === "rejected"
+                ? "leave_rejected"
+                : "leave_cancelled";
+
+        baseEntries.push({
+          entryDate: leave.startDate,
+          leaveType: record.leaveType,
+          leaveLabel: record.leaveLabel,
+          transactionType,
+          status,
+          creditDays: 0,
+          debitDays: status === "approved" ? overlapDays : 0,
+          pendingDays: status === "pending" ? overlapDays : 0,
+          reference: getObjectIdString(leave._id),
+          reason: leave.reason,
+          note: leave.approvalNote,
+        });
+      });
+
+    baseEntries.sort((first, second) => {
+      const dateCompare = first.entryDate.localeCompare(second.entryDate);
+
+      if (dateCompare !== 0) {
+        return dateCompare;
+      }
+
+      return first.transactionType.localeCompare(second.transactionType);
+    });
+
+    let runningBalance = 0;
+    let totalCreditDays = 0;
+    let totalDebitDays = 0;
+    let totalPendingDays = 0;
+
+    baseEntries.forEach((entry) => {
+      runningBalance += entry.creditDays;
+      runningBalance -= entry.debitDays;
+      totalCreditDays += entry.creditDays;
+      totalDebitDays += entry.debitDays;
+      totalPendingDays += entry.pendingDays;
+
+      allEntries.push(
+        normalizeLedgerEntry({
+          entry,
+          slNo: allEntries.length + 1,
+          runningBalance,
+          isLimited: record.isLimited,
+        }),
+      );
+    });
+
+    byLeaveType[record.leaveType] = {
+      totalCreditDays,
+      totalDebitDays,
+      totalPendingDays,
+      balanceAfter: record.isLimited ? runningBalance : null,
+    };
+  }
+
+  const summary = allEntries.reduce(
+    (accumulator, entry) => {
+      accumulator.totalCreditDays += entry.creditDays;
+      accumulator.totalDebitDays += entry.debitDays;
+      accumulator.totalPendingDays += entry.pendingDays;
+
+      return accumulator;
+    },
+    {
+      year,
+      leaveType: query.leaveType,
+      totalEntries: allEntries.length,
+      totalCreditDays: 0,
+      totalDebitDays: 0,
+      totalPendingDays: 0,
+      byLeaveType,
+    },
+  );
+
+  return {
+    employee: {
+      employeeId: firstRecord.employeeSnapshot.employeeId,
+      officeId: firstRecord.employeeSnapshot.officeId,
+      cardNo: firstRecord.employeeSnapshot.cardNo,
+      name: firstRecord.employeeSnapshot.name,
+      designation: getPopulatedName(firstRecord.designation),
+      department: getPopulatedName(firstRecord.department),
+      branch: getPopulatedName(firstRecord.branch),
+    },
+    filters: query,
+    summary,
+    entries: allEntries.map((entry, index) => ({ ...entry, slNo: index + 1 })),
+  };
+};
+
+const exportEmployeeLeaveLedgerCsvFromDB = async (
+  query: TLeaveBalanceLedgerQuery,
+) => generateLeaveBalanceLedgerCsv(await getEmployeeLeaveLedgerFromDB(query));
+
+const exportEmployeeLeaveLedgerExcelFromDB = async (
+  query: TLeaveBalanceLedgerQuery,
+) => generateLeaveBalanceLedgerExcel(await getEmployeeLeaveLedgerFromDB(query));
+
+const exportEmployeeLeaveLedgerPdfFromDB = async (
+  query: TLeaveBalanceLedgerQuery,
+) => generateLeaveBalanceLedgerPdf(await getEmployeeLeaveLedgerFromDB(query));
+
 export const LeaveBalanceServices = {
   generateLeaveBalancesIntoDB,
   getAllLeaveBalancesFromDB,
@@ -1033,4 +1447,12 @@ export const LeaveBalanceServices = {
   adjustLeaveBalanceIntoDB,
   updateLeaveBalanceLockState,
   bulkUpdateLeaveBalanceLockState,
+  getLeaveBalanceExportPreviewFromDB,
+  exportLeaveBalanceCsvFromDB,
+  exportLeaveBalanceExcelFromDB,
+  exportLeaveBalancePdfFromDB,
+  getEmployeeLeaveLedgerFromDB,
+  exportEmployeeLeaveLedgerCsvFromDB,
+  exportEmployeeLeaveLedgerExcelFromDB,
+  exportEmployeeLeaveLedgerPdfFromDB,
 };

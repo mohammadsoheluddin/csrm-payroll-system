@@ -160,3 +160,130 @@ export interface TLeaveBalanceBulkActionPayload extends TLeaveBalanceSummaryQuer
   actionBy?: string;
   strict?: boolean;
 }
+
+export type TLeaveBalanceLedgerTransactionType =
+  | "opening_balance"
+  | "yearly_entitlement"
+  | "earned_replacement"
+  | "expired_previous_year_balance"
+  | "adjustment_credit"
+  | "adjustment_debit"
+  | "leave_approved"
+  | "leave_pending"
+  | "leave_rejected"
+  | "leave_cancelled";
+
+export interface TLeaveBalanceExportRow {
+  slNo: number;
+  leaveBalanceId: string;
+  employeeId: string;
+  officeId?: string;
+  cardNo?: string;
+  employeeName: string;
+  designation: string;
+  department: string;
+  branch: string;
+  leaveType: TLeaveType;
+  leaveLabel: string;
+  openingBalance: number;
+  yearlyEntitlement: number;
+  earnedDays: number;
+  adjustedDays: number;
+  expiredPreviousYearRemainingDays: number;
+  totalCreditDays: number;
+  approvedConsumedDays: number;
+  pendingDays: number;
+  remainingDays: number;
+  availableDays: number;
+  overConsumedDays: number;
+  status: TLeaveBalanceStatus;
+  isLocked: boolean;
+}
+
+export interface TLeaveBalanceExportPreview {
+  year: number | null;
+  filters: TLeaveBalanceQuery;
+  summary: {
+    year: number | null;
+    totalRecords: number;
+    totalEmployees: number;
+    openingBalanceDays: number;
+    yearlyEntitlementDays: number;
+    earnedDays: number;
+    adjustedDays: number;
+    expiredPreviousYearRemainingDays: number;
+    totalCreditDays: number;
+    approvedConsumedDays: number;
+    pendingDays: number;
+    remainingDays: number;
+    availableDays: number;
+    overConsumedDays: number;
+    lockedRecords: number;
+  };
+  rows: TLeaveBalanceExportRow[];
+}
+
+export interface TLeaveBalanceExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData: TLeaveBalanceExportPreview | TLeaveBalanceLedgerPreview;
+}
+
+export interface TLeaveBalanceLedgerQuery {
+  year?: string;
+  company?: string;
+  employee: string;
+  leaveType?: TLeaveType;
+}
+
+export interface TLeaveBalanceLedgerEmployeeInfo {
+  employeeId: string;
+  officeId?: string;
+  cardNo?: string;
+  name: string;
+  designation?: string;
+  department?: string;
+  branch?: string;
+}
+
+export interface TLeaveBalanceLedgerEntry {
+  slNo: number;
+  entryDate: string;
+  leaveType: TLeaveType;
+  leaveLabel: string;
+  transactionType: TLeaveBalanceLedgerTransactionType;
+  status?: string;
+  reference?: string;
+  creditDays: number;
+  debitDays: number;
+  pendingDays: number;
+  balanceAfter: number | null;
+  reason?: string;
+  note?: string;
+}
+
+export interface TLeaveBalanceLedgerPreview {
+  employee: TLeaveBalanceLedgerEmployeeInfo;
+  filters: TLeaveBalanceLedgerQuery;
+  summary: {
+    year: number | null;
+    leaveType?: TLeaveType;
+    totalEntries: number;
+    totalCreditDays: number;
+    totalDebitDays: number;
+    totalPendingDays: number;
+    byLeaveType: Partial<
+      Record<
+        TLeaveType,
+        {
+          totalCreditDays: number;
+          totalDebitDays: number;
+          totalPendingDays: number;
+          balanceAfter: number | null;
+        }
+      >
+    >;
+  };
+  entries: TLeaveBalanceLedgerEntry[];
+}

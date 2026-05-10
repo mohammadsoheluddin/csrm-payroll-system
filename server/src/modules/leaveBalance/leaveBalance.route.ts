@@ -16,6 +16,71 @@ router.post(
   LeaveBalanceControllers.generateLeaveBalances,
 );
 
+
+router.get(
+  "/export/preview",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceExportQueryValidationSchema),
+  LeaveBalanceControllers.getLeaveBalanceExportPreview,
+);
+
+router.get(
+  "/export/csv",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceExportQueryValidationSchema),
+  LeaveBalanceControllers.exportLeaveBalanceCsv,
+);
+
+router.get(
+  "/export/excel",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceExportQueryValidationSchema),
+  LeaveBalanceControllers.exportLeaveBalanceExcel,
+);
+
+router.get(
+  "/export/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceExportQueryValidationSchema),
+  LeaveBalanceControllers.exportLeaveBalancePdf,
+);
+
+router.get(
+  "/ledger/preview",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_READ),
+  validateRequest(LeaveBalanceValidations.leaveBalanceLedgerQueryValidationSchema),
+  LeaveBalanceControllers.getEmployeeLeaveLedgerPreview,
+);
+
+router.get(
+  "/ledger/csv",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceLedgerQueryValidationSchema),
+  LeaveBalanceControllers.exportEmployeeLeaveLedgerCsv,
+);
+
+router.get(
+  "/ledger/excel",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceLedgerQueryValidationSchema),
+  LeaveBalanceControllers.exportEmployeeLeaveLedgerExcel,
+);
+
+router.get(
+  "/ledger/pdf",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
+  validateRequest(LeaveBalanceValidations.leaveBalanceLedgerQueryValidationSchema),
+  LeaveBalanceControllers.exportEmployeeLeaveLedgerPdf,
+);
+
 router.get(
   "/summary",
   auth(),

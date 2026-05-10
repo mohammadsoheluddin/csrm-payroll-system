@@ -123,6 +123,21 @@ const leaveBalanceAdjustmentValidationSchema = z.object({
     .strict(),
 });
 
+const leaveBalanceExportQueryValidationSchema = z.object({
+  query: queryFilterSchema,
+});
+
+const leaveBalanceLedgerQueryValidationSchema = z.object({
+  query: z
+    .object({
+      year: yearStringSchema,
+      company: objectIdSchema("company id").optional(),
+      employee: objectIdSchema("employee id"),
+      leaveType: leaveTypeSchema,
+    })
+    .strict(),
+});
+
 const leaveBalanceBulkActionValidationSchema = z.object({
   body: z
     .object({
@@ -147,5 +162,7 @@ export const LeaveBalanceValidations = {
   leaveBalanceActionValidationSchema,
   leaveBalanceOpeningBalanceValidationSchema,
   leaveBalanceAdjustmentValidationSchema,
+  leaveBalanceExportQueryValidationSchema,
+  leaveBalanceLedgerQueryValidationSchema,
   leaveBalanceBulkActionValidationSchema,
 };

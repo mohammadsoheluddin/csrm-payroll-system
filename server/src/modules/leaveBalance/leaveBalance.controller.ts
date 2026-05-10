@@ -43,7 +43,7 @@ const generateLeaveBalances = catchAsync(async (req: Request, res: Response) => 
 
 const getAllLeaveBalances = catchAsync(async (req: Request, res: Response) => {
   const result = await LeaveBalanceServices.getAllLeaveBalancesFromDB(
-    req.query as unknown as Record<string, string>,
+    req.query as any,
   );
 
   sendResponse(res, {
@@ -57,7 +57,7 @@ const getAllLeaveBalances = catchAsync(async (req: Request, res: Response) => {
 const getLeaveBalanceSummary = catchAsync(
   async (req: Request, res: Response) => {
     const result = await LeaveBalanceServices.getLeaveBalanceSummaryFromDB(
-      req.query as unknown as Record<string, string>,
+      req.query as any,
     );
 
     sendResponse(res, {
@@ -262,6 +262,213 @@ const bulkUnlockLeaveBalances = catchAsync(
   },
 );
 
+
+const getLeaveBalanceExportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await LeaveBalanceServices.getLeaveBalanceExportPreviewFromDB(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "leave_balance",
+      action: "read",
+      entityId: `${result.summary.year || ""}`,
+      description: "Leave balance export preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Leave balance export preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createLeaveBalanceExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "leave_balance",
+    action: "export",
+    entityId: `${result.reportData?.summary?.year || ""}`,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      fileName: result.fileName,
+      filters: result.reportData?.filters,
+      summary: result.reportData?.summary,
+    },
+  });
+};
+
+const exportLeaveBalanceCsv = catchAsync(async (req: Request, res: Response) => {
+  const result = await LeaveBalanceServices.exportLeaveBalanceCsvFromDB(
+    req.query as any,
+  );
+
+  await createLeaveBalanceExportAudit({
+    req,
+    result,
+    description: "Leave balance CSV exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const exportLeaveBalanceExcel = catchAsync(async (req: Request, res: Response) => {
+  const result = await LeaveBalanceServices.exportLeaveBalanceExcelFromDB(
+    req.query as any,
+  );
+
+  await createLeaveBalanceExportAudit({
+    req,
+    result,
+    description: "Leave balance Excel exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const exportLeaveBalancePdf = catchAsync(async (req: Request, res: Response) => {
+  const result = await LeaveBalanceServices.exportLeaveBalancePdfFromDB(
+    req.query as any,
+  );
+
+  await createLeaveBalanceExportAudit({
+    req,
+    result,
+    description: "Leave balance PDF exported",
+  });
+
+  res.setHeader("Content-Type", result.mimeType);
+  res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+  res.status(200).send(result.buffer);
+});
+
+const getEmployeeLeaveLedgerPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await LeaveBalanceServices.getEmployeeLeaveLedgerFromDB(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "leave_balance",
+      action: "read",
+      entityId: result.employee.employeeId,
+      description: "Employee leave ledger preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        filters: result.filters,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee leave ledger preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const createEmployeeLeaveLedgerExportAudit = async ({
+  req,
+  result,
+  description,
+}: {
+  req: Request;
+  result: any;
+  description: string;
+}) => {
+  await createAuditLogFromRequest(req, {
+    module: "leave_balance",
+    action: "export",
+    entityId: result.reportData?.employee?.employeeId,
+    description,
+    previousData: null,
+    newData: null,
+    metadata: {
+      fileName: result.fileName,
+      filters: result.reportData?.filters,
+      summary: result.reportData?.summary,
+    },
+  });
+};
+
+const exportEmployeeLeaveLedgerCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await LeaveBalanceServices.exportEmployeeLeaveLedgerCsvFromDB(
+      req.query as any,
+    );
+
+    await createEmployeeLeaveLedgerExportAudit({
+      req,
+      result,
+      description: "Employee leave ledger CSV exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportEmployeeLeaveLedgerExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await LeaveBalanceServices.exportEmployeeLeaveLedgerExcelFromDB(
+      req.query as any,
+    );
+
+    await createEmployeeLeaveLedgerExportAudit({
+      req,
+      result,
+      description: "Employee leave ledger Excel exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportEmployeeLeaveLedgerPdf = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await LeaveBalanceServices.exportEmployeeLeaveLedgerPdfFromDB(
+      req.query as any,
+    );
+
+    await createEmployeeLeaveLedgerExportAudit({
+      req,
+      result,
+      description: "Employee leave ledger PDF exported",
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const LeaveBalanceControllers = {
   generateLeaveBalances,
   getAllLeaveBalances,
@@ -273,4 +480,12 @@ export const LeaveBalanceControllers = {
   unlockLeaveBalance,
   bulkLockLeaveBalances,
   bulkUnlockLeaveBalances,
+  getLeaveBalanceExportPreview,
+  exportLeaveBalanceCsv,
+  exportLeaveBalanceExcel,
+  exportLeaveBalancePdf,
+  getEmployeeLeaveLedgerPreview,
+  exportEmployeeLeaveLedgerCsv,
+  exportEmployeeLeaveLedgerExcel,
+  exportEmployeeLeaveLedgerPdf,
 };
