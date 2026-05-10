@@ -34,6 +34,8 @@ import { employeeMovementRoutes } from "../modules/employeeMovement/employeeMove
 
 import employeeRoutes from "../modules/employee/employee.route";
 
+import employeeBulkImportRoutes from "../modules/employeeBulkImport/employeeBulkImport.route";
+
 import holidayRoutes from "../modules/holiday/holiday.route";
 
 import leaveRoutes from "../modules/leave/leave.route";
@@ -116,6 +118,11 @@ const moduleRoutes = [
   {
     path: "/employees",
     route: employeeRoutes,
+  },
+
+  {
+    path: "/employee-bulk-imports",
+    route: employeeBulkImportRoutes,
   },
 
   {

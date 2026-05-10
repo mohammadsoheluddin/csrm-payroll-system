@@ -19,6 +19,7 @@ export type TAuditLogModule =
   | "branch"
   | "department"
   | "employee"
+  | "employee_bulk_import"
   | "attendance"
   | "attendance_import"
   | "attendance_finalization"
