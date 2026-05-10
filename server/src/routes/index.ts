@@ -38,6 +38,8 @@ import holidayRoutes from "../modules/holiday/holiday.route";
 
 import leaveRoutes from "../modules/leave/leave.route";
 
+import leaveBalanceRoutes from "../modules/leaveBalance/leaveBalance.route";
+
 import majorDepartmentRoutes from "../modules/majorDepartment/majorDepartment.route";
 
 import monthEndProcessControlRoutes from "../modules/monthEndProcessControl/monthEndProcessControl.route";
@@ -154,6 +156,11 @@ const moduleRoutes = [
   {
     path: "/leave",
     route: leaveRoutes,
+  },
+
+  {
+    path: "/leave-balances",
+    route: leaveBalanceRoutes,
   },
 
   {
