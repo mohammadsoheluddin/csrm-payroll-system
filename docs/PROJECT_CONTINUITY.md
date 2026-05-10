@@ -1,5 +1,10 @@
 # CSRM Payroll System — Project Continuity Documentation
 
+Last Updated: 2026-05-10  
+Current Sync Point: Part-48.0 — Docs Sync & Current State Lock
+
+---
+
 ## 1. Project Identity
 
 Project Name: CSRM Payroll System
@@ -8,12 +13,23 @@ Primary Organization Context:
 
 - Chakda Steel & Re-Rolling Mills (Pvt.) Ltd. / CSRM
 - Technosum Steel Limited / TSL
-- Other related concerns or payroll reporting groups may be handled centrally by CSRM HR/Accounts.
+- CSRM-controlled or centrally processed sister concerns / payroll reporting groups
 
 Primary Goal:
+
 Build a production-oriented HR, Attendance, Leave, Payroll, Reporting, Bank Payment, Audit Log, and RBAC system based on real CSRM/TSL payroll workflows.
 
-Technology Stack:
+Current Product Maturity:
+
+Early Enterprise HRIS / Payroll Backend Platform
+
+The project has moved beyond a basic payroll CRUD system. It now includes core HR, attendance, leave, payroll, reporting, salary sheet, time bill, bonus, bank sheet, audit, RBAC, and month-end workflow foundations.
+
+---
+
+## 2. Technology Stack
+
+Backend:
 
 - Node.js
 - Express.js
@@ -22,67 +38,248 @@ Technology Stack:
 - Mongoose
 - Zod
 - JWT
-- Postman
+- bcrypt
 - PDFKit
 - ExcelJS
 
-Development Rule:
-This project must continue with the current backend/frontend flow. Do not randomly change the database or deployment approach unless a separate migration/variant is intentionally planned.
+Frontend:
+
+- React / Vite scaffold exists
+- Frontend is not yet fully implemented
+- Backend-first development is currently the correct direction
+
+Testing / Tooling:
+
+- Postman
+- MongoDB Atlas / Compass
+- Git / GitHub
+- VS Code
+
+Important Development Rule:
+
+This project must continue with the current backend/frontend flow. Do not randomly change database, deployment strategy, package architecture, or folder structure unless a separate migration/variant is intentionally planned.
 
 ---
 
-## 2. Current Backend Status
+## 3. Current Backend Module Inventory
 
-Completed / Mostly Completed:
+The current backend contains these major module folders under:
 
-1. Auth Module
-2. User Module
-3. Branch Module
-4. Company / Concern Module
-5. Major Department Module
-6. Department Module refactored with Company + Major Department
-7. Designation Module
-8. Employee Office Info Refactor
-9. Attendance Module
-10. Leave Module
-11. Holiday Module
-12. Salary Structure basic version
-13. Payroll Module basic version
-14. Payroll Report Module basic version
-15. Payslip JSON API
-16. Monthly Payroll Report JSON API
-17. Payslip PDF Export API
-18. Payroll Report CSV/Excel Export API
-19. Payroll Approval + Lock System
-20. RBAC Permission Matrix + Route-Level Authorization
-21. Audit Log + Status History + Edit Restriction base
-22. Validation Middleware + Global Zod Error Handling
+`server/src/modules`
 
-Latest Completed Part:
+Core / Master Modules:
 
-- Part-30.6: Employee Office Info Refactor
-- Test status: Mostly tested in Postman; some negative/edge tests skipped by user.
+1. auth
+2. user
+3. branch
+4. company
+5. companyBankAccount
+6. majorDepartment
+7. department
+8. designation
 
-Next Planned Part:
+Employee / HR Modules:
 
-- Part-30.7: Employee Bank & Payment Info Module
+9. employee
+10. employeeBankInfo
+11. employeeBulkImport
+12. employeeMovement
+
+Attendance / Leave Modules:
+
+13. attendance
+14. attendanceImport
+15. attendanceFinalization
+16. leave
+17. leaveBalance
+18. holiday
+
+Payroll / Salary Modules:
+
+19. salaryStructure
+20. payroll
+21. payrollReport
+22. salarySheet
+23. salaryStatement
+24. salaryPaymentDistribution
+
+Time Bill / OT Modules:
+
+25. timeBill
+26. otStatement
+27. otPaymentDistribution
+
+Bonus Modules:
+
+28. bonusSheet
+29. bonusStatement
+30. bonusPaymentDistribution
+
+Bank / Payment Modules:
+
+31. bankSheet
+32. bankSheetHistory
+
+Reporting / System Modules:
+
+33. reportCenter
+34. reportLayoutStandard
+35. monthEndProcessControl
+36. auditLog
+37. rbacAudit
 
 ---
 
-## 3. Current Organization Hierarchy Decision
+## 4. Current Route Registration Status
 
-Final hierarchy for now:
+The main route registry is:
 
-Company / Concern
-→ Major Department / Payroll Reporting Group
-→ Department
-→ Designation
+`server/src/routes/index.ts`
+
+Current route registry already includes routes for the active modules, including:
+
+- `/auth`
+- `/protected`
+- `/users`
+- `/companies`
+- `/company-bank-accounts`
+- `/major-departments`
+- `/designations`
+- `/employees`
+- `/employee-bulk-imports`
+- `/employee-bank-infos`
+- `/employee-movements`
+- `/departments`
+- `/branches`
+- `/attendance`
+- `/attendance-imports`
+- `/attendance-finalizations`
+- `/leave`
+- `/leave-balances`
+- `/holiday`
+- `/salary-structure`
+- `/salary-sheets`
+- `/salary-statements`
+- `/salary-payment-distributions`
+- `/payroll`
+- `/payroll-reports`
+- `/report-center`
+- `/report-layout-standards`
+- `/rbac-audit`
+- `/time-bills`
+- `/ot-statements`
+- `/ot-payment-distributions`
+- `/month-end-process-control`
+- `/bonus-sheets`
+- `/bonus-statements`
+- `/bonus-payment-distributions`
+- `/bank-sheets`
+- `/audit-logs`
+- `/bank-sheet-history`
+
+Current observation:
+
+- Module folder and route registration are broadly aligned.
+- Route-level RBAC style is still mixed in some places.
+- Some routes use permission-based authorization.
+- Some routes still use direct role-based authorization.
+- Future RBAC consistency pass is required.
+
+---
+
+## 5. Current Completed / Mostly Completed Work Areas
+
+Core Platform:
+
+- Auth module
+- User module
+- JWT authentication
+- Role and permission foundation
+- Global error handling
+- Zod validation pattern
+- sendResponse utility pattern
+- catchAsync utility pattern
+- AppError pattern
+- Audit log foundation
+- RBAC audit foundation
+
+Organization / Master Data:
+
+- Company / Concern
+- Major Department / Payroll Reporting Group
+- Department
+- Branch
+- Designation
+- Company Bank Account
+
+Employee / HR:
+
+- Employee master
+- Employee office info refactor
+- Employee bank/payment info
+- Employee bulk import foundation
+- Employee movement foundation
+
+Attendance / Leave:
+
+- Attendance module
+- Attendance import foundation
+- Attendance finalization foundation
+- Leave module
+- Leave balance module
+- Holiday module
+
+Payroll / Salary / Report:
+
+- Salary structure
+- Payroll basic engine
+- Payroll report module
+- Salary sheet module
+- Salary statement module
+- Salary payment distribution module
+- Report center
+- Report layout standard
+
+Bank / Payment:
+
+- Bank sheet foundation
+- Bank sheet history
+- Company bank account
+- Salary payment distribution
+- Bonus payment distribution
+- OT payment distribution
+
+Time Bill / OT / Bonus:
+
+- Time bill module
+- OT statement module
+- OT payment distribution module
+- Bonus sheet module
+- Bonus statement module
+- Bonus payment distribution module
+
+Month-End / Control:
+
+- Month-end process control foundation
+- Payroll locking and finalization concept exists across modules
+- Further standardization is required before production use
+
+---
+
+## 6. Organization Hierarchy Decision
+
+Current hierarchy for payroll and reporting:
+
+Company / Concern  
+→ Major Department / Payroll Reporting Group  
+→ Department  
+→ Designation  
 → Employee
 
-Important Mapping:
+Important mapping from old salary sheets:
 
-- Old salary sheet "Department" should map to new system "Major Department / Payroll Reporting Group".
-- Old salary sheet "Sub-Department" should map to new system "Department".
+- Old salary sheet "Department" should map to the new system's "Major Department / Payroll Reporting Group".
+- Old salary sheet "Sub-Department" should map to the new system's "Department".
 - Section/Sub-Section Module is postponed for now.
 - If needed later, Section/Sub-Section can be added as an optional deeper layer.
 
@@ -90,7 +287,7 @@ Primary company/legal payroll control:
 
 - CSRM / Chakda Steel & Re-Rolling Mills (Pvt.) Ltd.
 
-Major Department / Payroll Reporting Group examples:
+Important major department / payroll reporting group examples:
 
 1. Office
 2. Accounts & Finance / A&F
@@ -103,22 +300,28 @@ Major Department / Payroll Reporting Group examples:
 9. CSRM Green Bricks
 10. Chakda Dredging
 11. CSRM Real Estate
+12. TSL Office
+13. TSL SMS
+14. TSL ARRM
 
 Important clarification:
-Some groups like 4B Ship, CSRM Green Bricks, Chakda Dredging, and CSRM Real Estate may be real sister concerns, but for current payroll reporting they may be treated as Major Department / Payroll Reporting Group because CSRM central HR/Accounts manually processes their payroll for now.
+
+Some groups like 4B Ship, CSRM Green Bricks, Chakda Dredging, and CSRM Real Estate may be real sister concerns. For current payroll reporting, they may still be treated as Major Department / Payroll Reporting Group because CSRM central HR/Accounts may process payroll centrally.
 
 ---
 
-## 4. Employee Identity Policy
+## 7. Employee Identity Policy
 
-Official employeeId is permanent.
+Official `employeeId` is permanent.
 
-Rule:
+Rules:
 
-- Once an employeeId is assigned to an employee, it must never be reused.
-- Even if the employee resigns, retires, is terminated, or is soft-deleted, the same employeeId must not be assigned to a new employee.
+- Once an `employeeId` is assigned to an employee, it must never be reused.
+- Even if the employee resigns, retires, is terminated, becomes inactive, or is soft-deleted, the same `employeeId` must not be assigned to a new employee.
+- `employeeId` should not be casually editable after employee creation.
 
 Reason:
+
 Employee ID connects:
 
 - Payroll history
@@ -127,81 +330,43 @@ Employee ID connects:
 - Salary history
 - Payslip
 - Bank payment
-- TA/DA claim
-- Festival bonus
+- Bonus
+- Time bill / OT
+- TA/DA claim if added later
 - Audit log
 - Legal/compliance records
 
 Correct approach:
 
-- Old employee resigned: status = resigned/inactive, isDeleted = true if needed.
+- Old employee resigned: status should represent resignation/inactive/terminated as needed.
 - New employee joined: assign a new employeeId.
+- Do not reuse the previous employeeId.
 
 Different note:
 
-- officeId/cardNo/device card may later need reassignment in rare cases.
+- officeId / cardNo / device card may later need reassignment in rare cases.
 - If cardNo/device ID is ever reassigned, a separate card assignment history module should be created.
 
 ---
 
-## 5. Employee Office Info Refactor Result
+## 8. Important Reference Payroll Requirements
 
-Employee module now should align with:
+Old payroll UI/report references should inform future API/UI/report design.
 
-Required identity and personal fields:
-
-- employeeId
-- name
-- email
-- phone
-- gender
-
-Office hierarchy:
-
-- company
-- majorDepartment
-- department
-- designation
-- branch
-
-Office information:
-
-- officeId
-- cardNo
-- joiningDate
-- confirmationDate
-- serviceType
-- payType
-- dutyHourPerDay
-- leaveDay
-- employmentStatus
-- status
-
-Salary note:
-
-- basicSalary is currently kept as optional support field.
-- Future salary calculation should come from Salary Structure module, not directly from Employee master data.
-
----
-
-## 6. Reference Payroll Form Requirements
-
-Old Employee Form / Office Info references should inform future UI/API design.
-
-Important fields from old employee form:
+Important employee form fields:
 
 - Office / Company
 - Designation
 - Department
 - Sub Department
 - Joining Date
-- Confirm Date
+- Confirmation Date
 - Salary Gross
 - Duty Hour / Day
 - Leave Day
 - Status
 
-Important salary charge fields from old payroll reference:
+Important salary charge fields:
 
 - Gross
 - Basic
@@ -216,385 +381,199 @@ Important salary charge fields from old payroll reference:
 - Tax
 - Shift
 
----
+Important report references:
 
-## 7. Salary, OT, and Tiffin Formula Requirements
-
-Salary sheet formula references:
-
-Deducted Amount:
-Gross Salary / 30 × Absence, rounded.
-
-Days:
-30 - Absence
-
-Net Salary:
-Gross Salary - Deducted Amount
-
-OT Per Hour:
-Gross Salary / 30 / Duty Hour
-
-OT Amount:
-Total OT Hour × OT Per Hour
-
-Tiffin Amount:
-Tiffin × Duty Day / OT Day
-
-Total Time Bill Amount:
-OT Amount + Tiffin Amount
-
-Future modules must respect these formulas unless CSRM policy changes.
+- Salary Sheet
+- Salary Statement
+- Time Bill
+- OT Statement
+- Bank Sheet
+- Bonus Sheet
+- Bonus Statement
+- Payment Distribution
+- Department-wise summary
+- Company/concern-wise summary
+- Signature sections for prepared/checked/accounts/approved
 
 ---
 
-## 8. Required Payroll Reports
+## 9. Current Technical Observations
 
-Eventually the software should generate:
+Current positive state:
 
-1. Monthly Salary Sheet / Salary Summary
-2. Department-wise Salary Summary
-3. Employee-wise Payslip
-4. Time Bill / OT Bill Detail
-5. Time Bill Summary
-6. Tiffin Bill Summary
-7. Bank Payment Statement
-8. Cash Payment Statement
-9. Salary Disbursement Statement
-10. Leave Balance Report
-11. Leave History Report
-12. Replacement Leave Report
-13. Attendance Summary Report
-14. Absent / Deduction Report
-15. Joining Record / New Employee Report
-16. Increment / Salary Revision Report
-17. Mobile Bill / Allowance Report
-18. Department / Major Department Employee List
-19. Bank Account List
-20. Payroll Approval / Lock Status Report
-21. Festival Bonus Sheet
-22. TA/DA Claim Sheet
-23. Sales Visit Expense Summary
-24. Bank Sheet for Salary, OT, TA/DA, Festival Bonus, and Allowance
+- Backend module coverage is broad.
+- Many real payroll workflows are already represented.
+- Route registry is mostly aligned with modules.
+- Project has moved toward enterprise-grade domain separation.
+- Documentation library is rich and useful.
 
----
+Current risks:
 
-## 9. Bank Sheet Requirement
+1. Documentation drift:
+   - Some docs still described older Part-30 stage.
+   - Part-48.0 updates the key continuity docs to the current state.
 
-Bank sheet should be generated by software, not manually.
+2. Soft delete inconsistency:
+   - Many modules have `isDeleted`.
+   - Some modules also have `deletedAt`, `updatedBy`, etc.
+   - Restore behavior is not standardized yet.
+   - Deleted-list APIs are not standardized yet.
+   - Audit log metadata for delete/restore is not standardized yet.
 
-Reference output structure:
+3. Hard delete risk:
+   - Some regeneration flows may use hard delete patterns.
+   - For payroll/leave/attendance/accounting-grade data, hard delete should be avoided unless there is a very specific safe reason.
 
-1. Bank forwarding letter
-2. Bank account-wise payment sheet
+4. RBAC inconsistency:
+   - Some routes are permission-based.
+   - Some routes are still role-based.
+   - A future RBAC enforcement consistency pass is required.
 
-Common bank sheet columns:
+5. Build health:
+   - Dependency install is clean.
+   - TypeScript build should be separately checked and stabilized.
+   - Large Mongoose + TypeScript project may require compile performance review.
 
-- SL No
-- Name of A/C
-- A/C Bank Branch Code
-- A/C No
-- Process Bank Branch No
-- Branch
-- Amount in Tk
+6. Frontend:
+   - Frontend is still starter/scaffold level.
+   - Real frontend should start only after API conventions, docs, and key backend workflows are stable.
 
-Bank forwarding letter should include:
-
-- Company letterhead
-- Date
-- To: The Manager, Bank Name, Branch
-- Subject
-- Company debit account
-- Cheque number
-- Cheque date
-- Total amount in number
-- Total amount in words
-- Request to process payment
-- Authorized signature
-
-Bank sheet source should come from approved/locked payment data, not directly from employee master data.
-
-Supported future payment sources:
-
-- Monthly salary
-- Worker time bill / OT bill
-- Festival bonus
-- TA/DA
-- Allowance
-- Other approved employee payment
+7. Cleanup:
+   - There is a suspicious stray file-like path: `server/srccommontypes.ts`.
+   - There is an unusual docs filename containing multiple document names together.
+   - Cleanup can be handled later after current backend standards are locked.
 
 ---
 
-## 10. Employee Bank & Payment Info Requirement
+## 10. Current Sync Point
 
-Part-30.7 should introduce Employee Bank & Payment Info.
+Latest sync step:
 
-Suggested fields:
+Part-48.0 — Docs Sync & Current State Lock
 
-- employee
-- company
-- accountName
-- bankName
-- bankBranchName
-- bankBranchCode
-- accountNo
-- processBankBranchNo
-- routingNo
-- paymentMode
-- mobileBankingProvider
-- mobileBankingNo
-- cashPayReason
-- effectiveFrom
-- effectiveTo
-- isPrimary
-- status
-- isDeleted
+Purpose:
 
-Payment modes:
+- Bring key docs up to date with the actual current backend.
+- Stop future chats from continuing from outdated Part-30 context.
+- Prepare the project for the next standardization part.
 
-- bank
-- cash
-- mobile_banking
+Next planned implementation part:
 
-Business rules:
-
-- Active employee required.
-- Bank payment requires accountName, bankName, branch info, accountNo.
-- Cash payment should require reason.
-- Mobile banking requires provider and number.
-- One active primary payment info per employee should exist.
-- Old payment info should be retained for history if changed.
+Part-48.1 — Soft Delete / Restore Standardization Foundation
 
 ---
 
-## 11. Company Bank Account Requirement
-
-After Employee Bank & Payment Info, add Company Bank Account module.
-
-Suggested fields:
-
-- company
-- bankName
-- bankBranchName
-- accountName
-- accountNo
-- accountType
-- branchCode
-- routingNo
-- swiftCode
-- isDefaultSalaryAccount
-- isDefaultTimeBillAccount
-- isDefaultBonusAccount
-- status
-- isDeleted
-
-This will be used for bank forwarding letters and payment sheet generation.
-
----
-
-## 12. TA/DA and Sales Visit Expense Requirement
-
-Future module:
-Employee Expense Claim / Sales Visit & TA/DA Claim Module.
-
-Main idea:
-Sales & Marketing employees should submit daily market visit and daily expense information through the system instead of manual PDF/Excel.
-
-Daily visit fields:
-
-- employee
-- visitDate
-- marketArea
-- partyName / dealer / customer
-- purpose
-- fromLocation
-- toLocation
-- transportType
-- remarks
-
-Daily expense line categories:
-
-- transport
-- fuel
-- hotel
-- courier
-- toll
-- parking
-- mobile / communication
-- others
-
-Daily calculation:
-
-- transport/fuel total
-- other expense total
-- fixed food allowance
-- daily grand total
-
-Food allowance:
-
-- Employee-wise fixed daily food allowance should be configurable.
-- Food allowance applies only when market visit/duty is submitted/approved for that date.
-- Food allowance should apply once per day, not once per expense line.
-
-Approval flow:
-draft
-→ submitted
-→ checked_by_admin_or_hr
-→ verified_by_accounts
-→ approved_by_director
-→ locked
-→ bank_sheet_generated
-→ paid
-
----
-
-## 13. Festival Bonus Requirement
-
-Festival bonus should be a separate module, not hard-coded inside monthly payroll.
-
-Suggested structure:
-
-1. Festival Bonus Policy
-2. Festival Bonus Run
-3. Festival Bonus Employee Item
-
-Possible calculation methods:
-
-- Percentage of gross salary
-- Percentage of basic salary
-- Fixed amount
-- Manual amount
-
-Typical flow:
-draft
-→ generated
-→ reviewed
-→ approved
-→ locked
-→ paid
-
-Festival bonus should reuse:
-
-- Employee master data
-- Salary Structure
-- Approval/Lock flow
-- Bank Sheet Engine
-- PDF/Excel Export
-
----
-
-## 14. Audit Log Requirement
-
-Important actions should create audit logs:
-
-- create
-- update
-- soft_delete
-- approve
-- reject
-- lock
-- unlock
-- pay
-- export
-- permission_denied
-- status_change
-
-Important future financial modules must log:
-
-- who created
-- who updated
-- who approved
-- who locked
-- who exported
-- who marked paid
-
-This applies to:
-
-- payroll
-- bank sheet
-- employee bank info
-- TA/DA
-- festival bonus
-- salary structure
-- attendance/leave where applicable
-
----
-
-## 15. RBAC Direction
-
-Current roles:
-
-- super_admin
-- admin
-- hr
-- accounts
-- manager
-- employee
-
-Future permissions should follow existing pattern:
-
-- module:read
-- module:manage
-- module:approve
-- module:lock
-- module:export
-- module:pay
-
-Recommended future permissions:
-
-- employee_bank_info:read
-- employee_bank_info:manage
-- company_bank_account:read
-- company_bank_account:manage
-- bank_sheet:read
-- bank_sheet:generate
-- bank_sheet:approve
-- bank_sheet:lock
-- bank_sheet:export
-- expense_claim:read
-- expense_claim:manage
-- expense_claim:approve
-- expense_claim:lock
-- festival_bonus:read
-- festival_bonus:manage
-- festival_bonus:approve
-- festival_bonus:lock
-- festival_bonus:export
-
----
-
-## 16. Development Style Rules
-
-Every future coding response should follow:
-
-1. Check current GitHub repo before giving code.
-2. Give full updated files, not snippets.
-3. Mention exact file paths.
-4. Maintain existing project structure.
-5. Do not randomly change database/deployment approach.
-6. Keep code production-ready and clean.
-7. Follow existing naming conventions.
-8. Explain business logic clearly.
-9. Give organized Postman test cases after each part.
-10. End every code-change response with Git commands.
-11. Git commands must stage only changed/added files.
-12. Use Bangla + English mixed explanation where helpful.
-13. Avoid breaking existing working APIs.
-
----
-
-## 17. Immediate Roadmap
+## 11. Immediate Next Development Sequence
 
 Recommended next sequence:
 
-1. Part-30.7: Employee Bank & Payment Info Module
-2. Part-30.8: Company Bank Account Module
-3. Part-30.9: Bank Sheet Engine
-4. Part-30.10: Bank Sheet PDF + Excel Export
-5. Part-31: Salary Structure Refactor
-6. Part-32: Payroll Calculation Improvement
-7. Part-33: TA/DA & Sales Visit Expense Module
-8. Part-34: Festival Bonus Module
+1. Part-48.0 — Docs Sync & Current State Lock
+2. Part-48.1 — Soft Delete / Restore Standardization Foundation
+3. Part-48.2 — Apply Soft Delete Standard to Core Master Modules
+4. Part-48.3 — Restore + Deleted List APIs
+5. Part-48.4 — Apply Soft Delete Standard to HR / Employee Modules
+6. Part-48.5 — Apply Soft Delete Standard to Payroll / Payment / Report Modules
+7. Part-49.1 — Build Health / TypeScript Compile Stabilization
+8. Part-49.2 — RBAC Route Enforcement Consistency Pass
+9. Part-50.1 — README + Final Continuity Pack Update
+10. Part-51.1 — Frontend Planning or API Documentation Pack
 
-Reason:
-Employee Bank Info and Company Bank Account should come before Bank Sheet Engine.
-Bank Sheet Engine should come before TA/DA and Festival Bonus payment export.
+---
+
+## 12. Part-48.1 Scope Preview
+
+Part-48.1 should not randomly refactor all modules at once.
+
+Part-48.1 should create the standard foundation first:
+
+Expected output:
+
+- A reusable soft delete/restore standard
+- Shared TypeScript interfaces/types where useful
+- Standard metadata fields:
+  - isDeleted
+  - deletedAt
+  - deletedBy
+  - deleteReason
+  - restoredAt
+  - restoredBy
+  - restoreReason
+  - updatedBy
+- Standard service behavior
+- Standard query behavior
+- Standard audit behavior
+- Standard route convention
+- Standard Postman test guide
+
+Part-48.1 should avoid dangerous broad rewrites.
+
+Apply gradually by module groups in later parts.
+
+---
+
+## 13. Development Style Rules
+
+For all future parts:
+
+1. Give full updated files only, not partial snippets.
+2. Mention exact file paths.
+3. Keep compatibility with existing folder structure.
+4. Do not break existing APIs unless the change is explicitly intentional.
+5. Keep code production-ready and clean.
+6. Use consistent naming conventions.
+7. Explain business logic clearly.
+8. Give step-by-step Postman testing guide for code/API changes.
+9. End every code-change response with Git commands.
+10. Git commands must include only changed/added files.
+11. Use Bangla + English mixed explanation where helpful.
+12. If repo cannot be inspected, ask for ZIP or specific files instead of guessing blindly.
+13. For docs-only changes, no Postman test is required.
+
+---
+
+## 14. GitHub / Continuation Rule
+
+Primary repo:
+
+https://github.com/mohammadsoheluddin/csrm-payroll-system
+
+If a future chat cannot inspect GitHub properly:
+
+- Ask the user to upload a ZIP of the repo.
+- Or ask the user to paste specific files.
+- Do not guess the current code blindly.
+
+Most important docs to read first in a new chat:
+
+1. `docs/PROJECT_CONTINUITY.md`
+2. `docs/NEXT_CHAT_PROMPT.md`
+3. `docs/MODULE_STATUS_TRACKER.md`
+4. `docs/SOFT_DELETE_RESTORE_STANDARD.md`
+5. `docs/RBAC_PERMISSION_MATRIX.md`
+6. `docs/API_CONVENTIONS.md`
+7. `docs/CODEBASE_RULES.md`
+8. `docs/POSTMAN_TESTING_STRATEGY.md`
+
+---
+
+## 15. Final Current Direction
+
+The project is not lost or messy beyond recovery.
+
+The correct current phase is:
+
+Standardization before expansion.
+
+Before adding many new modules, the backend should standardize:
+
+- Soft delete / restore
+- RBAC route enforcement
+- audit metadata
+- build health
+- docs continuity
+- API conventions
+- report/export conventions
+
+Current next best step:
+
+Part-48.1 — Soft Delete / Restore Standardization Foundation
