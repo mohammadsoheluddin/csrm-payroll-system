@@ -57,6 +57,23 @@ router.get(
   EmployeeBulkImportControllers.exportEmployeeBulkImportRejectionsExcel,
 );
 
+
+router.get(
+  "/:id/revert/preview",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportIdParamValidationSchema),
+  EmployeeBulkImportControllers.getEmployeeBulkImportRevertPreview,
+);
+
+router.patch(
+  "/:id/revert",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_REVERT),
+  validateRequest(EmployeeBulkImportValidations.revertEmployeeBulkImportValidationSchema),
+  EmployeeBulkImportControllers.revertEmployeeBulkImportBatch,
+);
+
 router.post(
   "/preview",
   auth(),

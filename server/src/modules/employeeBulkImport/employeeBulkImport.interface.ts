@@ -13,7 +13,9 @@ export type TEmployeeBulkImportBatchStatus =
   | "previewed"
   | "committed"
   | "partial_committed"
-  | "failed";
+  | "failed"
+  | "reverted"
+  | "partial_reverted";
 
 export type TEmployeeBulkImportRowAction = "create" | "reject" | "skip";
 
@@ -107,6 +109,50 @@ export interface TEmployeeBulkImportExportFileResult {
     | TEmployeeBulkImportRejectionReportPreview;
 }
 
+
+export type TEmployeeBulkImportRevertAction =
+  | "soft_delete_created_employee"
+  | "skip_already_deleted"
+  | "blocked";
+
+export interface TEmployeeBulkImportRevertItem {
+  rowNo?: number;
+  employee: Types.ObjectId;
+  employeeId: string;
+  employeeName: string;
+  email?: string;
+  action: TEmployeeBulkImportRevertAction;
+  canRevert: boolean;
+  blockers: string[];
+}
+
+export interface TEmployeeBulkImportRollbackSummary {
+  totalCreatedEmployees: number;
+  revertableEmployees: number;
+  blockedEmployees: number;
+  alreadyDeletedEmployees: number;
+  revertedEmployeeCount: number;
+  blockers: string[];
+  warnings: string[];
+  items: TEmployeeBulkImportRevertItem[];
+}
+
+export interface TEmployeeBulkImportRevertPayload {
+  note?: string;
+}
+
+export interface TEmployeeBulkImportRevertPreview {
+  batch: {
+    id: string;
+    batchNo: string;
+    source: TEmployeeBulkImportSource;
+    sourceFileName?: string;
+    status: TEmployeeBulkImportBatchStatus;
+  };
+  canRevert: boolean;
+  summary: TEmployeeBulkImportRollbackSummary;
+}
+
 export interface TEmployeeBulkImportRejectedRow {
   rowNo?: number;
   employeeId?: string;
@@ -186,6 +232,11 @@ export interface TEmployeeBulkImportBatch {
   validEmployeeRows: TEmployeeBulkImportValidRow[];
   createdEmployees: TEmployeeBulkImportCreatedEmployee[];
   warnings: string[];
+
+  rollbackSummary?: TEmployeeBulkImportRollbackSummary;
+  revertedBy?: Types.ObjectId;
+  revertedAt?: Date;
+  revertNote?: string;
 
   remarks?: string;
   processedBy?: Types.ObjectId;

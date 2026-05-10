@@ -1,17 +1,38 @@
 import mongoose, { Types } from "mongoose";
 import AppError from "../../errors/AppError";
+import Attendance from "../attendance/attendance.model";
+import AttendanceFinalization from "../attendanceFinalization/attendanceFinalization.model";
+import AttendanceImportBatch from "../attendanceImport/attendanceImport.model";
 import Branch from "../branch/branch.model";
 import Company from "../company/company.model";
 import Department from "../department/department.model";
 import Designation from "../designation/designation.model";
 import Employee from "../employee/employee.model";
+import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
+import { EmployeeMovement } from "../employeeMovement/employeeMovement.model";
+import Leave from "../leave/leave.model";
+import LeaveBalance from "../leaveBalance/leaveBalance.model";
 import MajorDepartment from "../majorDepartment/majorDepartment.model";
+import { Payroll } from "../payroll/payroll.model";
+import SalaryStructure from "../salaryStructure/salaryStructure.model";
+import SalarySheet from "../salarySheet/salarySheet.model";
+import SalaryStatement from "../salaryStatement/salaryStatement.model";
+import SalaryPaymentDistribution from "../salaryPaymentDistribution/salaryPaymentDistribution.model";
+import TimeBill from "../timeBill/timeBill.model";
+import BonusSheet from "../bonusSheet/bonusSheet.model";
+import BonusStatement from "../bonusStatement/bonusStatement.model";
+import BonusPaymentDistribution from "../bonusPaymentDistribution/bonusPaymentDistribution.model";
+import OtStatement from "../otStatement/otStatement.model";
+import OtPaymentDistribution from "../otPaymentDistribution/otPaymentDistribution.model";
 import User from "../user/user.model";
 import {
   TEmployeeBulkImportBatch,
   TEmployeeBulkImportExportFileResult,
   TEmployeeBulkImportPayload,
   TEmployeeBulkImportQueryFilters,
+  TEmployeeBulkImportRevertItem,
+  TEmployeeBulkImportRevertPayload,
+  TEmployeeBulkImportRollbackSummary,
   TEmployeeBulkImportRawRow,
   TEmployeeBulkImportRejectionReportPreview,
   TEmployeeBulkImportRejectedRow,
@@ -31,6 +52,34 @@ import {
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
+
+const EMPLOYEE_IMPORT_ROLLBACK_BLOCKING_MODELS = [
+  { label: "Attendance", model: Attendance, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Attendance Finalization", model: AttendanceFinalization, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Attendance Import", model: AttendanceImportBatch, filter: (employee: Types.ObjectId) => ({ "processedAttendances.employee": employee, status: { $ne: "reverted" }, isDeleted: { $ne: true } }) },
+  { label: "Employee Bank Info", model: EmployeeBankInfo, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Employee Movement", model: EmployeeMovement, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Leave", model: Leave, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Leave Balance", model: LeaveBalance, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Payroll", model: Payroll, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Salary Structure", model: SalaryStructure, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Salary Sheet", model: SalarySheet, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Salary Statement", model: SalaryStatement, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Salary Payment Distribution", model: SalaryPaymentDistribution, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Time Bill", model: TimeBill, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Bonus Sheet", model: BonusSheet, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Bonus Statement", model: BonusStatement, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "Bonus Payment Distribution", model: BonusPaymentDistribution, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "OT Statement", model: OtStatement, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+  { label: "OT Payment Distribution", model: OtPaymentDistribution, filter: (employee: Types.ObjectId) => ({ employee, isDeleted: { $ne: true } }) },
+];
+
+const EMPLOYEE_IMPORT_REVERT_ALLOWED_STATUSES = [
+  "committed",
+  "partial_committed",
+] as const;
+
+const EMPLOYEE_MODIFICATION_GRACE_MS = 5000;
 
 const EMPLOYEE_BULK_IMPORT_TEMPLATE_COLUMNS: TEmployeeBulkImportTemplateColumn[] = [
   {
@@ -907,6 +956,268 @@ const exportEmployeeBulkImportRejectionsExcel = async (
   return generateEmployeeBulkImportRejectionExcel(preview);
 };
 
+
+const getEmployeeDependencyBlockers = async (employee: Types.ObjectId) => {
+  const counts = await Promise.all(
+    EMPLOYEE_IMPORT_ROLLBACK_BLOCKING_MODELS.map(async (dependency) => {
+      const count = await (dependency.model as any).countDocuments(
+        dependency.filter(employee),
+      );
+
+      return {
+        label: dependency.label,
+        count,
+      };
+    }),
+  );
+
+  return counts
+    .filter((item) => item.count > 0)
+    .map((item) => `${item.label} has ${item.count} linked record(s)`);
+};
+
+const buildEmployeeBulkImportRollbackSummary = async (
+  batch: TEmployeeBulkImportBatch & { _id?: Types.ObjectId },
+): Promise<TEmployeeBulkImportRollbackSummary> => {
+  const items: TEmployeeBulkImportRevertItem[] = [];
+  const warnings: string[] = [];
+  const batchProcessedAt = batch.processedAt?.getTime() ?? 0;
+
+  for (const createdEmployee of batch.createdEmployees) {
+    const employee = await Employee.findById(createdEmployee.employee).lean();
+    const itemBlockers: string[] = [];
+
+    if (!employee) {
+      itemBlockers.push("Employee record was not found");
+      items.push({
+        rowNo: createdEmployee.rowNo,
+        employee: createdEmployee.employee,
+        employeeId: createdEmployee.employeeId,
+        employeeName: createdEmployee.employeeName,
+        email: createdEmployee.email,
+        action: "blocked",
+        canRevert: false,
+        blockers: itemBlockers,
+      });
+      continue;
+    }
+
+    if (employee.isDeleted) {
+      items.push({
+        rowNo: createdEmployee.rowNo,
+        employee: createdEmployee.employee,
+        employeeId: createdEmployee.employeeId,
+        employeeName: createdEmployee.employeeName,
+        email: createdEmployee.email,
+        action: "skip_already_deleted",
+        canRevert: true,
+        blockers: [],
+      });
+      continue;
+    }
+
+    if (employee.user) {
+      itemBlockers.push("Employee has linked user account");
+    }
+
+    const employeeUpdatedAtValue = (employee as { updatedAt?: Date }).updatedAt;
+    const employeeUpdatedAt =
+      employeeUpdatedAtValue instanceof Date ? employeeUpdatedAtValue.getTime() : 0;
+
+    if (
+      batchProcessedAt > 0 &&
+      employeeUpdatedAt > batchProcessedAt + EMPLOYEE_MODIFICATION_GRACE_MS
+    ) {
+      itemBlockers.push(
+        "Employee record was modified after import commit; manual review is required",
+      );
+    }
+
+    const dependencyBlockers = await getEmployeeDependencyBlockers(
+      createdEmployee.employee,
+    );
+    itemBlockers.push(...dependencyBlockers);
+
+    items.push({
+      rowNo: createdEmployee.rowNo,
+      employee: createdEmployee.employee,
+      employeeId: createdEmployee.employeeId,
+      employeeName: createdEmployee.employeeName,
+      email: createdEmployee.email,
+      action: itemBlockers.length ? "blocked" : "soft_delete_created_employee",
+      canRevert: itemBlockers.length === 0,
+      blockers: itemBlockers,
+    });
+  }
+
+  if (!batch.createdEmployees.length) {
+    warnings.push("This import batch has no created employee records to revert");
+  }
+
+  const blockedItems = items.filter((item) => item.action === "blocked");
+  const alreadyDeletedItems = items.filter(
+    (item) => item.action === "skip_already_deleted",
+  );
+  const revertableItems = items.filter(
+    (item) => item.action === "soft_delete_created_employee",
+  );
+
+  const blockers = blockedItems.flatMap((item) =>
+    item.blockers.map((blocker) => `${item.employeeId}: ${blocker}`),
+  );
+
+  return {
+    totalCreatedEmployees: batch.createdEmployees.length,
+    revertableEmployees: revertableItems.length,
+    blockedEmployees: blockedItems.length,
+    alreadyDeletedEmployees: alreadyDeletedItems.length,
+    revertedEmployeeCount: batch.rollbackSummary?.revertedEmployeeCount ?? 0,
+    blockers,
+    warnings,
+    items,
+  };
+};
+
+const buildEmployeeBulkImportRevertPreviewFromDB = async (id: string) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid employee bulk import batch ID");
+  }
+
+  const batch = await EmployeeBulkImportBatch.findOne({
+    _id: id,
+    isDeleted: false,
+  }).lean();
+
+  if (!batch) {
+    throw new AppError(404, "Employee bulk import batch not found");
+  }
+
+  const statusAllowsRevert = EMPLOYEE_IMPORT_REVERT_ALLOWED_STATUSES.includes(
+    batch.status as (typeof EMPLOYEE_IMPORT_REVERT_ALLOWED_STATUSES)[number],
+  );
+
+  const summary = await buildEmployeeBulkImportRollbackSummary(batch);
+  const batchBlockers: string[] = [];
+
+  if (!statusAllowsRevert) {
+    batchBlockers.push(
+      `Only committed or partial_committed batches can be reverted. Current status is ${batch.status}`,
+    );
+  }
+
+  if (!batch.createdEmployees.length) {
+    batchBlockers.push("No created employees are available for revert");
+  }
+
+  const mergedSummary = {
+    ...summary,
+    blockers: [...batchBlockers, ...summary.blockers],
+  };
+
+  return {
+    batch: {
+      id: batch._id.toString(),
+      batchNo: batch.batchNo,
+      source: batch.source,
+      sourceFileName: batch.sourceFileName,
+      status: batch.status,
+    },
+    canRevert:
+      statusAllowsRevert &&
+      batch.createdEmployees.length > 0 &&
+      mergedSummary.blockedEmployees === 0,
+    summary: mergedSummary,
+  };
+};
+
+const revertEmployeeBulkImportBatchIntoDB = async (
+  id: string,
+  payload: TEmployeeBulkImportRevertPayload = {},
+  revertedBy?: string,
+) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid employee bulk import batch ID");
+  }
+
+  if (revertedBy && !mongoose.isValidObjectId(revertedBy)) {
+    throw new AppError(400, "Invalid user ID");
+  }
+
+  if (revertedBy) {
+    const user = await User.findOne({
+      _id: revertedBy,
+      isDeleted: false,
+    }).lean();
+
+    if (!user) {
+      throw new AppError(404, "User not found");
+    }
+  }
+
+  const preview = await buildEmployeeBulkImportRevertPreviewFromDB(id);
+
+  if (!preview.canRevert) {
+    throw new AppError(
+      409,
+      `Employee bulk import revert blocked. ${preview.summary.blockers.join("; ")}`,
+    );
+  }
+
+  const revertableItems = preview.summary.items.filter(
+    (item) => item.action === "soft_delete_created_employee" && item.canRevert,
+  );
+
+  for (const item of revertableItems) {
+    await Employee.findOneAndUpdate(
+      {
+        _id: item.employee,
+        isDeleted: false,
+      },
+      {
+        status: "inactive",
+        employmentStatus: "terminated",
+        isDeleted: true,
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  const rollbackSummary: TEmployeeBulkImportRollbackSummary = {
+    ...preview.summary,
+    revertedEmployeeCount: revertableItems.length,
+  };
+
+  const result = await EmployeeBulkImportBatch.findByIdAndUpdate(
+    id,
+    {
+      status:
+        rollbackSummary.alreadyDeletedEmployees > 0 &&
+        rollbackSummary.revertedEmployeeCount === 0
+          ? "partial_reverted"
+          : "reverted",
+      rollbackSummary,
+      revertedBy: revertedBy ? new Types.ObjectId(revertedBy) : undefined,
+      revertedAt: new Date(),
+      revertNote: payload.note,
+    },
+    {
+      new: true,
+    },
+  ).populate([
+    { path: "processedBy", select: "name email role" },
+    { path: "revertedBy", select: "name email role" },
+    { path: "createdEmployees.employee", select: "employeeId name email phone status isDeleted" },
+  ]);
+
+  if (!result) {
+    throw new AppError(404, "Employee bulk import batch not found");
+  }
+
+  return result;
+};
+
 export const EmployeeBulkImportServices = {
   previewEmployeeBulkImportFromPayload,
   commitEmployeeBulkImportIntoDB,
@@ -918,4 +1229,6 @@ export const EmployeeBulkImportServices = {
   exportEmployeeBulkImportTemplateExcel,
   exportEmployeeBulkImportRejectionsCsv,
   exportEmployeeBulkImportRejectionsExcel,
+  buildEmployeeBulkImportRevertPreviewFromDB,
+  revertEmployeeBulkImportBatchIntoDB,
 };

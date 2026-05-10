@@ -245,6 +245,95 @@ const createdEmployeeSchema = new Schema(
   },
 );
 
+
+const rollbackItemSchema = new Schema(
+  {
+    rowNo: Number,
+    employee: {
+      type: Schema.Types.ObjectId,
+      ref: "Employee",
+      required: true,
+    },
+    employeeId: {
+      type: String,
+      required: true,
+      trim: true,
+      uppercase: true,
+    },
+    employeeName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    action: {
+      type: String,
+      enum: ["soft_delete_created_employee", "skip_already_deleted", "blocked"],
+      required: true,
+    },
+    canRevert: {
+      type: Boolean,
+      required: true,
+    },
+    blockers: {
+      type: [String],
+      default: [],
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
+const rollbackSummarySchema = new Schema(
+  {
+    totalCreatedEmployees: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    revertableEmployees: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    blockedEmployees: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    alreadyDeletedEmployees: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    revertedEmployeeCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    blockers: {
+      type: [String],
+      default: [],
+    },
+    warnings: {
+      type: [String],
+      default: [],
+    },
+    items: {
+      type: [rollbackItemSchema],
+      default: [],
+    },
+  },
+  {
+    _id: false,
+  },
+);
+
 const employeeBulkImportBatchSchema = new Schema<TEmployeeBulkImportBatch>(
   {
     batchNo: {
@@ -269,7 +358,14 @@ const employeeBulkImportBatchSchema = new Schema<TEmployeeBulkImportBatch>(
     },
     status: {
       type: String,
-      enum: ["previewed", "committed", "partial_committed", "failed"],
+      enum: [
+        "previewed",
+        "committed",
+        "partial_committed",
+        "failed",
+        "reverted",
+        "partial_reverted",
+      ],
       default: "committed",
     },
     totalRows: {
@@ -327,6 +423,21 @@ const employeeBulkImportBatchSchema = new Schema<TEmployeeBulkImportBatch>(
     warnings: {
       type: [String],
       default: [],
+    },
+    rollbackSummary: {
+      type: rollbackSummarySchema,
+      default: null,
+    },
+    revertedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+    revertedAt: {
+      type: Date,
+    },
+    revertNote: {
+      type: String,
+      trim: true,
     },
     remarks: {
       type: String,

@@ -242,6 +242,23 @@ const employeeBulkImportTemplateQueryValidationSchema = z.object({
     .optional(),
 });
 
+
+const revertEmployeeBulkImportValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("employee bulk import batch id"),
+  }),
+  body: z
+    .object({
+      note: z
+        .string()
+        .trim()
+        .max(1000, "Revert note cannot exceed 1000 characters")
+        .optional(),
+    })
+    .strict()
+    .optional(),
+});
+
 const employeeBulkImportIdParamValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("employee bulk import batch id"),
@@ -253,5 +270,6 @@ export const EmployeeBulkImportValidations = {
   commitEmployeeBulkImportValidationSchema,
   getAllEmployeeBulkImportsValidationSchema,
   employeeBulkImportTemplateQueryValidationSchema,
+  revertEmployeeBulkImportValidationSchema,
   employeeBulkImportIdParamValidationSchema,
 };

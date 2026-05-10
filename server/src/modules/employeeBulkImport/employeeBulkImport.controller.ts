@@ -287,6 +287,68 @@ const exportEmployeeBulkImportRejectionsExcel = catchAsync(
   },
 );
 
+
+const getEmployeeBulkImportRevertPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await EmployeeBulkImportServices.buildEmployeeBulkImportRevertPreviewFromDB(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "read",
+      entityId: result.batch.id,
+      entityName: result.batch.batchNo,
+      description: "Employee bulk import revert preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        canRevert: result.canRevert,
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bulk import revert preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const revertEmployeeBulkImportBatch = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = getUserIdFromRequest(req);
+    const result = await EmployeeBulkImportServices.revertEmployeeBulkImportBatchIntoDB(
+      getParamId(req, "id"),
+      req.body,
+      userId,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "soft_delete",
+      entityId: getAuditEntityId(result),
+      entityName: result?.batchNo,
+      description: "Employee bulk import batch reverted",
+      previousData: null,
+      newData: toAuditData(result),
+      metadata: {
+        status: result?.status,
+        rollbackSummary: result?.rollbackSummary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bulk import batch reverted successfully",
+      data: result,
+    });
+  },
+);
+
 export const EmployeeBulkImportControllers = {
   previewEmployeeBulkImport,
   commitEmployeeBulkImport,
@@ -298,4 +360,6 @@ export const EmployeeBulkImportControllers = {
   getEmployeeBulkImportRejectionReportPreview,
   exportEmployeeBulkImportRejectionsCsv,
   exportEmployeeBulkImportRejectionsExcel,
+  getEmployeeBulkImportRevertPreview,
+  revertEmployeeBulkImportBatch,
 };
