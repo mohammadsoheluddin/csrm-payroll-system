@@ -19,6 +19,11 @@ const yearStringSchema = z
   .regex(/^\d{4}$/, "Year must follow YYYY format")
   .optional();
 
+const dateStringSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must follow YYYY-MM-DD format");
+
 const booleanStringSchema = z.enum(["true", "false"]).optional();
 const leaveTypeSchema = z.enum(LEAVE_TYPES).optional();
 
@@ -81,6 +86,43 @@ const leaveBalanceActionValidationSchema = z.object({
   body: actionBodySchema,
 });
 
+const leaveBalanceOpeningBalanceValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("leave balance id"),
+  }),
+  body: z
+    .object({
+      openingBalance: z
+        .number()
+        .min(0, "Opening balance cannot be negative")
+        .max(365, "Opening balance is unusually high"),
+      reason: z.string().trim().min(3).max(500),
+      effectiveDate: dateStringSchema.optional(),
+      note: z.string().trim().max(500).optional(),
+      actionBy: objectIdSchema("action by user id").optional(),
+    })
+    .strict(),
+});
+
+const leaveBalanceAdjustmentValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("leave balance id"),
+  }),
+  body: z
+    .object({
+      adjustmentType: z.enum(["credit", "debit"]),
+      days: z
+        .number()
+        .positive("Adjustment days must be greater than zero")
+        .max(365, "Adjustment days is unusually high"),
+      reason: z.string().trim().min(3).max(500),
+      effectiveDate: dateStringSchema.optional(),
+      note: z.string().trim().max(500).optional(),
+      actionBy: objectIdSchema("action by user id").optional(),
+    })
+    .strict(),
+});
+
 const leaveBalanceBulkActionValidationSchema = z.object({
   body: z
     .object({
@@ -103,5 +145,7 @@ export const LeaveBalanceValidations = {
   leaveBalanceSummaryQueryValidationSchema,
   leaveBalanceIdParamValidationSchema,
   leaveBalanceActionValidationSchema,
+  leaveBalanceOpeningBalanceValidationSchema,
+  leaveBalanceAdjustmentValidationSchema,
   leaveBalanceBulkActionValidationSchema,
 };

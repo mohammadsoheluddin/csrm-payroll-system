@@ -24,6 +24,7 @@ const leaveBalanceSourceSummarySchema = new Schema(
     cancelledLeaveIds: { type: [String], default: [] },
     replacementEarnedAttendanceIds: { type: [String], default: [] },
     replacementEarnedHolidayDates: { type: [String], default: [] },
+    previousYearLeaveBalanceId: { type: String, trim: true },
   },
   { _id: false },
 );
@@ -32,12 +33,26 @@ const leaveBalanceActionHistorySchema = new Schema(
   {
     action: {
       type: String,
-      enum: ["generate", "lock", "unlock"],
+      enum: [
+        "generate",
+        "lock",
+        "unlock",
+        "set_opening_balance",
+        "adjustment_credit",
+        "adjustment_debit",
+      ],
       required: true,
     },
     actionAt: { type: Date, required: true },
     actionBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     note: { type: String, trim: true },
+    reason: { type: String, trim: true },
+    effectiveDate: { type: String, trim: true },
+    days: { type: Number },
+    openingBalanceBefore: { type: Number },
+    openingBalanceAfter: { type: Number },
+    adjustedDaysBefore: { type: Number },
+    adjustedDaysAfter: { type: Number },
   },
   { _id: false },
 );
@@ -111,6 +126,22 @@ const leaveBalanceSchema = new Schema<TLeaveBalance>(
     isPaidLeave: {
       type: Boolean,
       required: true,
+    },
+    carryForwardPolicy: {
+      type: String,
+      enum: ["no_carry_forward"],
+      default: "no_carry_forward",
+      required: true,
+    },
+    carryForwardFromPreviousYear: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    expiredPreviousYearRemainingDays: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
     openingBalance: {
       type: Number,
@@ -236,6 +267,7 @@ leaveBalanceSchema.index(
 );
 
 leaveBalanceSchema.index({ company: 1, year: 1, leaveType: 1, isLocked: 1 });
+leaveBalanceSchema.index({ carryForwardPolicy: 1, year: 1 });
 leaveBalanceSchema.index({ majorDepartment: 1, department: 1, branch: 1 });
 leaveBalanceSchema.index({ status: 1, isDeleted: 1 });
 

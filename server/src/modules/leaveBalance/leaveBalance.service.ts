@@ -15,7 +15,9 @@ import type {
   TGenerateLeaveBalancePayload,
   TLeaveBalance,
   TLeaveBalanceActionPayload,
+  TLeaveBalanceAdjustmentPayload,
   TLeaveBalanceBulkActionPayload,
+  TLeaveBalanceOpeningBalancePayload,
   TLeaveBalanceQuery,
   TLeaveBalanceSourceSummary,
   TLeaveBalanceSummaryQuery,
@@ -384,6 +386,29 @@ const getLeavePolicy = (leaveType: TLeaveType) => {
   };
 };
 
+const recalculateLeaveBalanceValues = (record: TLeaveBalance) => {
+  record.carryForwardPolicy = "no_carry_forward";
+  record.carryForwardFromPreviousYear = 0;
+  record.totalCreditDays =
+    record.openingBalance +
+    record.yearlyEntitlement +
+    record.earnedDays +
+    record.adjustedDays +
+    record.carryForwardFromPreviousYear;
+
+  record.remainingDays = record.isLimited
+    ? record.totalCreditDays - record.approvedConsumedDays
+    : 0;
+  record.availableDays = record.isLimited
+    ? record.remainingDays - record.pendingDays
+    : 0;
+  record.overConsumedDays = record.isLimited
+    ? Math.max(record.remainingDays * -1, 0)
+    : 0;
+
+  return record;
+};
+
 const buildLeaveBalanceRecord = async ({
   employee,
   leaveType,
@@ -423,11 +448,30 @@ const buildLeaveBalanceRecord = async ({
           holidayDates: [] as string[],
         };
 
+  const previousYearBalance = await LeaveBalance.findOne({
+    employee: employeeObjectId,
+    year: year - 1,
+    leaveType,
+    isDeleted: false,
+  }).select("_id remainingDays");
+
+  // CSRM policy: unused yearly leave is not carried forward.
+  // Previous year remaining balance is tracked as expired for audit only.
   const openingBalance = 0;
   const adjustedDays = 0;
   const yearlyEntitlement = policy.entitlement;
   const earnedDays = replacementEarnedSummary.earnedDays;
-  const totalCreditDays = openingBalance + yearlyEntitlement + earnedDays + adjustedDays;
+  const carryForwardPolicy = "no_carry_forward" as const;
+  const carryForwardFromPreviousYear = 0;
+  const expiredPreviousYearRemainingDays = previousYearBalance
+    ? Math.max(Number(previousYearBalance.remainingDays || 0), 0)
+    : 0;
+  const totalCreditDays =
+    openingBalance +
+    yearlyEntitlement +
+    earnedDays +
+    adjustedDays +
+    carryForwardFromPreviousYear;
   const remainingDays = policy.isLimited
     ? totalCreditDays - leaveUsage.usage.approved
     : 0;
@@ -462,6 +506,9 @@ const buildLeaveBalanceRecord = async ({
     leaveLabel: policy.label,
     isLimited: policy.isLimited,
     isPaidLeave: PAID_LEAVE_TYPES.has(leaveType),
+    carryForwardPolicy,
+    carryForwardFromPreviousYear,
+    expiredPreviousYearRemainingDays,
     openingBalance,
     yearlyEntitlement,
     earnedDays,
@@ -478,6 +525,9 @@ const buildLeaveBalanceRecord = async ({
       ...leaveUsage.sourceSummary,
       replacementEarnedAttendanceIds: replacementEarnedSummary.attendanceIds,
       replacementEarnedHolidayDates: replacementEarnedSummary.holidayDates,
+      previousYearLeaveBalanceId: previousYearBalance
+        ? getObjectIdString(previousYearBalance._id)
+        : undefined,
     },
     status: "generated",
     isLocked: false,
@@ -637,6 +687,10 @@ const getLeaveBalanceSummaryFromDB = async (
     employeeCount: new Set(records.map((record) => getObjectIdString(record.employee))).size,
     generatedRecords: 0,
     lockedRecords: 0,
+    openingBalanceDays: 0,
+    adjustedDays: 0,
+    carryForwardFromPreviousYear: 0,
+    expiredPreviousYearRemainingDays: 0,
     totalCreditDays: 0,
     approvedConsumedDays: 0,
     pendingDays: 0,
@@ -647,6 +701,10 @@ const getLeaveBalanceSummaryFromDB = async (
         accumulator[leaveType] = {
           recordCount: 0,
           lockedRecords: 0,
+          openingBalanceDays: 0,
+          adjustedDays: 0,
+          carryForwardFromPreviousYear: 0,
+          expiredPreviousYearRemainingDays: 0,
           totalCreditDays: 0,
           approvedConsumedDays: 0,
           pendingDays: 0,
@@ -661,6 +719,10 @@ const getLeaveBalanceSummaryFromDB = async (
         {
           recordCount: number;
           lockedRecords: number;
+          openingBalanceDays: number;
+          adjustedDays: number;
+          carryForwardFromPreviousYear: number;
+          expiredPreviousYearRemainingDays: number;
           totalCreditDays: number;
           approvedConsumedDays: number;
           pendingDays: number;
@@ -687,6 +749,10 @@ const getLeaveBalanceSummaryFromDB = async (
       summary.lockedRecords += 1;
     }
 
+    summary.openingBalanceDays += record.openingBalance;
+    summary.adjustedDays += record.adjustedDays;
+    summary.carryForwardFromPreviousYear += record.carryForwardFromPreviousYear;
+    summary.expiredPreviousYearRemainingDays += record.expiredPreviousYearRemainingDays;
     summary.totalCreditDays += record.totalCreditDays;
     summary.approvedConsumedDays += record.approvedConsumedDays;
     summary.pendingDays += record.pendingDays;
@@ -696,6 +762,11 @@ const getLeaveBalanceSummaryFromDB = async (
     const leaveTypeSummary = summary.byLeaveType[record.leaveType];
     leaveTypeSummary.recordCount += 1;
     leaveTypeSummary.lockedRecords += record.isLocked ? 1 : 0;
+    leaveTypeSummary.openingBalanceDays += record.openingBalance;
+    leaveTypeSummary.adjustedDays += record.adjustedDays;
+    leaveTypeSummary.carryForwardFromPreviousYear += record.carryForwardFromPreviousYear;
+    leaveTypeSummary.expiredPreviousYearRemainingDays +=
+      record.expiredPreviousYearRemainingDays;
     leaveTypeSummary.totalCreditDays += record.totalCreditDays;
     leaveTypeSummary.approvedConsumedDays += record.approvedConsumedDays;
     leaveTypeSummary.pendingDays += record.pendingDays;
@@ -855,11 +926,111 @@ const bulkUpdateLeaveBalanceLockState = async ({
   };
 };
 
+const setLeaveBalanceOpeningBalanceIntoDB = async ({
+  id,
+  payload,
+}: {
+  id: string;
+  payload: TLeaveBalanceOpeningBalancePayload;
+}) => {
+  const record = await getSingleLeaveBalanceFromDB(id);
+
+  if (record.isLocked) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Leave balance opening balance update blocked. The selected leave balance is locked.",
+    );
+  }
+
+  const now = new Date();
+  const actionBy = buildActionBy(payload.actionBy);
+  const openingBalanceBefore = record.openingBalance;
+  const adjustedDaysBefore = record.adjustedDays;
+
+  record.openingBalance = payload.openingBalance;
+  recalculateLeaveBalanceValues(record);
+
+  record.actionHistory.push({
+    action: "set_opening_balance",
+    actionAt: now,
+    actionBy,
+    note: payload.note,
+    reason: payload.reason,
+    effectiveDate: payload.effectiveDate,
+    days: payload.openingBalance,
+    openingBalanceBefore,
+    openingBalanceAfter: record.openingBalance,
+    adjustedDaysBefore,
+    adjustedDaysAfter: record.adjustedDays,
+  });
+
+  await record.save();
+
+  return getSingleLeaveBalanceFromDB(id);
+};
+
+const adjustLeaveBalanceIntoDB = async ({
+  id,
+  payload,
+}: {
+  id: string;
+  payload: TLeaveBalanceAdjustmentPayload;
+}) => {
+  const record = await getSingleLeaveBalanceFromDB(id);
+
+  if (record.isLocked) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Leave balance adjustment blocked. The selected leave balance is locked.",
+    );
+  }
+
+  if (!record.isLimited) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Leave balance adjustment is allowed only for limited leave types.",
+    );
+  }
+
+  const now = new Date();
+  const actionBy = buildActionBy(payload.actionBy);
+  const openingBalanceBefore = record.openingBalance;
+  const adjustedDaysBefore = record.adjustedDays;
+  const signedAdjustmentDays =
+    payload.adjustmentType === "credit" ? payload.days : payload.days * -1;
+
+  record.adjustedDays += signedAdjustmentDays;
+  recalculateLeaveBalanceValues(record);
+
+  record.actionHistory.push({
+    action:
+      payload.adjustmentType === "credit"
+        ? "adjustment_credit"
+        : "adjustment_debit",
+    actionAt: now,
+    actionBy,
+    note: payload.note,
+    reason: payload.reason,
+    effectiveDate: payload.effectiveDate,
+    days: payload.days,
+    openingBalanceBefore,
+    openingBalanceAfter: record.openingBalance,
+    adjustedDaysBefore,
+    adjustedDaysAfter: record.adjustedDays,
+  });
+
+  await record.save();
+
+  return getSingleLeaveBalanceFromDB(id);
+};
+
 export const LeaveBalanceServices = {
   generateLeaveBalancesIntoDB,
   getAllLeaveBalancesFromDB,
   getSingleLeaveBalanceFromDB,
   getLeaveBalanceSummaryFromDB,
+  setLeaveBalanceOpeningBalanceIntoDB,
+  adjustLeaveBalanceIntoDB,
   updateLeaveBalanceLockState,
   bulkUpdateLeaveBalanceLockState,
 };

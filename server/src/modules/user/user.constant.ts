@@ -63,6 +63,7 @@ export const PERMISSIONS = {
 
   LEAVE_BALANCE_READ: "leave_balance:read",
   LEAVE_BALANCE_PROCESS: "leave_balance:process",
+  LEAVE_BALANCE_ADJUST: "leave_balance:adjust",
   LEAVE_BALANCE_LOCK: "leave_balance:lock",
   LEAVE_BALANCE_UNLOCK: "leave_balance:unlock",
 
@@ -214,6 +215,7 @@ export const ROLE_PERMISSIONS: Record<TUserRole, TPermission[]> = {
 
     PERMISSIONS.LEAVE_BALANCE_READ,
     PERMISSIONS.LEAVE_BALANCE_PROCESS,
+    PERMISSIONS.LEAVE_BALANCE_ADJUST,
     PERMISSIONS.LEAVE_BALANCE_LOCK,
     PERMISSIONS.LEAVE_BALANCE_UNLOCK,
 

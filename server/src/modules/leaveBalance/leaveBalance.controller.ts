@@ -85,6 +85,71 @@ const getSingleLeaveBalance = catchAsync(
   },
 );
 
+const setLeaveBalanceOpeningBalance = catchAsync(
+  async (req: Request, res: Response) => {
+    const leaveBalanceId = req.params.id as string;
+    const previousRecord = await LeaveBalanceServices.getSingleLeaveBalanceFromDB(
+      leaveBalanceId,
+    );
+
+    const result = await LeaveBalanceServices.setLeaveBalanceOpeningBalanceIntoDB({
+      id: leaveBalanceId,
+      payload: req.body,
+    });
+
+    await createAuditLogFromRequest(req, {
+      module: "leave_balance",
+      action: "update",
+      entityId: getAuditEntityId(result, leaveBalanceId),
+      description: "Leave balance opening balance updated",
+      previousData: toAuditData(previousRecord),
+      newData: toAuditData(result),
+      metadata: {
+        requestBody: req.body,
+        policy: "no_carry_forward",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Leave balance opening balance updated successfully",
+      data: result,
+    });
+  },
+);
+
+const adjustLeaveBalance = catchAsync(async (req: Request, res: Response) => {
+  const leaveBalanceId = req.params.id as string;
+  const previousRecord = await LeaveBalanceServices.getSingleLeaveBalanceFromDB(
+    leaveBalanceId,
+  );
+
+  const result = await LeaveBalanceServices.adjustLeaveBalanceIntoDB({
+    id: leaveBalanceId,
+    payload: req.body,
+  });
+
+  await createAuditLogFromRequest(req, {
+    module: "leave_balance",
+    action: "update",
+    entityId: getAuditEntityId(result, leaveBalanceId),
+    description: "Leave balance adjusted",
+    previousData: toAuditData(previousRecord),
+    newData: toAuditData(result),
+    metadata: {
+      requestBody: req.body,
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Leave balance adjusted successfully",
+    data: result,
+  });
+});
+
 const lockLeaveBalance = catchAsync(async (req: Request, res: Response) => {
   const leaveBalanceId = req.params.id as string;
   const previousRecord = await LeaveBalanceServices.getSingleLeaveBalanceFromDB(
@@ -202,6 +267,8 @@ export const LeaveBalanceControllers = {
   getAllLeaveBalances,
   getLeaveBalanceSummary,
   getSingleLeaveBalance,
+  setLeaveBalanceOpeningBalance,
+  adjustLeaveBalance,
   lockLeaveBalance,
   unlockLeaveBalance,
   bulkLockLeaveBalances,

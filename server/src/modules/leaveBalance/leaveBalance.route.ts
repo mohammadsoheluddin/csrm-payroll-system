@@ -48,6 +48,25 @@ router.patch(
   LeaveBalanceControllers.bulkUnlockLeaveBalances,
 );
 
+
+router.patch(
+  "/:id/opening-balance",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_ADJUST),
+  validateRequest(
+    LeaveBalanceValidations.leaveBalanceOpeningBalanceValidationSchema,
+  ),
+  LeaveBalanceControllers.setLeaveBalanceOpeningBalance,
+);
+
+router.patch(
+  "/:id/adjust",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_ADJUST),
+  validateRequest(LeaveBalanceValidations.leaveBalanceAdjustmentValidationSchema),
+  LeaveBalanceControllers.adjustLeaveBalance,
+);
+
 router.get(
   "/:id",
   auth(),

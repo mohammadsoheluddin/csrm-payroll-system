@@ -3,7 +3,17 @@ import type { TLeaveType } from "../leave/leave.constant";
 
 export type TLeaveBalanceStatus = "generated" | "locked";
 
-export type TLeaveBalanceActionType = "lock" | "unlock";
+export type TLeaveBalanceActionType =
+  | "generate"
+  | "lock"
+  | "unlock"
+  | "set_opening_balance"
+  | "adjustment_credit"
+  | "adjustment_debit";
+
+export type TLeaveBalanceCarryForwardPolicy = "no_carry_forward";
+
+export type TLeaveBalanceAdjustmentType = "credit" | "debit";
 
 export interface TLeaveBalanceEmployeeSnapshot {
   employeeId: string;
@@ -23,13 +33,21 @@ export interface TLeaveBalanceSourceSummary {
   cancelledLeaveIds: string[];
   replacementEarnedAttendanceIds: string[];
   replacementEarnedHolidayDates: string[];
+  previousYearLeaveBalanceId?: string;
 }
 
 export interface TLeaveBalanceActionHistory {
-  action: TLeaveBalanceActionType | "generate";
+  action: TLeaveBalanceActionType;
   actionAt: Date;
   actionBy?: Types.ObjectId | null;
   note?: string;
+  reason?: string;
+  effectiveDate?: string;
+  days?: number;
+  openingBalanceBefore?: number;
+  openingBalanceAfter?: number;
+  adjustedDaysBefore?: number;
+  adjustedDaysAfter?: number;
 }
 
 export interface TLeaveBalance {
@@ -50,6 +68,10 @@ export interface TLeaveBalance {
   leaveLabel: string;
   isLimited: boolean;
   isPaidLeave: boolean;
+
+  carryForwardPolicy: TLeaveBalanceCarryForwardPolicy;
+  carryForwardFromPreviousYear: number;
+  expiredPreviousYearRemainingDays: number;
 
   openingBalance: number;
   yearlyEntitlement: number;
@@ -118,6 +140,19 @@ export interface TLeaveBalanceSummaryQuery {
 export interface TLeaveBalanceActionPayload {
   note?: string;
   actionBy?: string;
+}
+
+export interface TLeaveBalanceOpeningBalancePayload extends TLeaveBalanceActionPayload {
+  openingBalance: number;
+  reason: string;
+  effectiveDate?: string;
+}
+
+export interface TLeaveBalanceAdjustmentPayload extends TLeaveBalanceActionPayload {
+  adjustmentType: TLeaveBalanceAdjustmentType;
+  days: number;
+  reason: string;
+  effectiveDate?: string;
 }
 
 export interface TLeaveBalanceBulkActionPayload extends TLeaveBalanceSummaryQuery {
