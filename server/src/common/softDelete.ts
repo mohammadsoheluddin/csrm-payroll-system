@@ -38,26 +38,9 @@ export type TRestoreRequestBody = {
   restoreReason?: string;
 };
 
-export type TSoftDeleteAuditContext = {
-  module: string;
-  entityId?: string;
-  entityName?: string;
-  actorId?: string;
-  deleteReason?: string | null;
-  restoreReason?: string | null;
-};
+export type TSoftDeleteMongoFilter<T = unknown> = Record<string, any>;
 
-export type TSoftDeleteConflictCheckResult = {
-  hasConflict: boolean;
-  message?: string;
-};
-
-export type TSoftDeleteMongoFilter<T> = Partial<Record<keyof T, unknown>> &
-  Record<string, unknown>;
-
-export type TSoftDeleteMongoUpdate<T = unknown> = {
-  $set: Record<string, unknown>;
-};
+export type TSoftDeleteMongoUpdate<T = unknown> = Record<string, any>;
 
 const softDeleteReasonSchema = z
   .string()
@@ -152,9 +135,7 @@ export const normalizeSoftDeleteReason = (reason?: unknown): string | null => {
   return trimmedReason || null;
 };
 
-export const getRequestUser = (
-  req: Request,
-): TSoftDeleteRequestUser | undefined =>
+export const getRequestUser = (req: Request): TSoftDeleteRequestUser | undefined =>
   (req as Request & { user?: TSoftDeleteRequestUser }).user;
 
 export const getRequestUserId = (req: Request): string | undefined =>
@@ -227,24 +208,6 @@ export const buildRestoreUpdate = <T>(options?: {
       updatedBy: actorObjectId,
     },
   };
-};
-
-export const ensureRecordIsNotDeleted = (
-  record: TSoftDeleteFields | null | undefined,
-  message = "Record not found",
-) => {
-  if (!record || record.isDeleted === true) {
-    throw new AppError(404, message);
-  }
-};
-
-export const ensureRecordIsDeleted = (
-  record: TSoftDeleteFields | null | undefined,
-  message = "Deleted record not found",
-) => {
-  if (!record || record.isDeleted !== true) {
-    throw new AppError(404, message);
-  }
 };
 
 export const SOFT_DELETE_ROUTE_CONVENTION = {

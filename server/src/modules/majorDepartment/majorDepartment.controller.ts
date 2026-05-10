@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -49,6 +50,22 @@ const getAllMajorDepartments = catchAsync(
       statusCode: 200,
       success: true,
       message: "Major departments retrieved successfully",
+      data: result,
+    });
+  },
+);
+
+const getDeletedMajorDepartments = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await MajorDepartmentServices.getDeletedMajorDepartmentsFromDB(
+        req.query as unknown as Record<string, unknown>,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Deleted major departments retrieved successfully",
       data: result,
     });
   },
@@ -124,6 +141,10 @@ const deleteMajorDepartment = catchAsync(
     const result =
       await MajorDepartmentServices.deleteMajorDepartmentFromDB(
         majorDepartmentId,
+        {
+          userId: getRequestUserId(req),
+          deleteReason: req.body?.deleteReason,
+        },
       );
 
     await createAuditLogFromRequest(req, {
@@ -134,6 +155,9 @@ const deleteMajorDepartment = catchAsync(
       description: "Major department soft deleted",
       previousData: toAuditData(previousMajorDepartment),
       newData: toAuditData(result),
+      metadata: {
+        deleteReason: req.body?.deleteReason || null,
+      },
     });
 
     sendResponse(res, {
@@ -145,10 +169,52 @@ const deleteMajorDepartment = catchAsync(
   },
 );
 
+const restoreMajorDepartment = catchAsync(
+  async (req: Request, res: Response) => {
+    const majorDepartmentId = req.params.id as string;
+
+    const previousMajorDepartment =
+      await MajorDepartmentServices.getSingleDeletedMajorDepartmentFromDB(
+        majorDepartmentId,
+      );
+
+    const result =
+      await MajorDepartmentServices.restoreMajorDepartmentIntoDB(
+        majorDepartmentId,
+        {
+          userId: getRequestUserId(req),
+          restoreReason: req.body?.restoreReason,
+        },
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "major_department",
+      action: "restore",
+      entityId: getAuditEntityId(result, majorDepartmentId),
+      entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
+      description: "Major department restored",
+      previousData: toAuditData(previousMajorDepartment),
+      newData: toAuditData(result),
+      metadata: {
+        restoreReason: req.body?.restoreReason || null,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Major department restored successfully",
+      data: result,
+    });
+  },
+);
+
 export const MajorDepartmentControllers = {
   createMajorDepartment,
   getAllMajorDepartments,
+  getDeletedMajorDepartments,
   getSingleMajorDepartment,
   updateMajorDepartment,
   deleteMajorDepartment,
+  restoreMajorDepartment,
 };

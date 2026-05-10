@@ -25,11 +25,27 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_READ),
+  validateRequest(DepartmentValidations.getAllDepartmentsValidationSchema),
+  DepartmentControllers.getDeletedDepartments,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.DEPARTMENT_READ),
   validateRequest(DepartmentValidations.departmentIdValidationSchema),
   DepartmentControllers.getSingleDepartment,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.DEPARTMENT_MANAGE),
+  validateRequest(DepartmentValidations.restoreDepartmentValidationSchema),
+  DepartmentControllers.restoreDepartment,
 );
 
 router.patch(
@@ -44,7 +60,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.DEPARTMENT_MANAGE),
-  validateRequest(DepartmentValidations.departmentIdValidationSchema),
+  validateRequest(DepartmentValidations.deleteDepartmentValidationSchema),
   DepartmentControllers.deleteDepartment,
 );
 

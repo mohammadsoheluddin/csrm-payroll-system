@@ -1,3 +1,7 @@
+import {
+  createRestoreValidationSchema,
+  createSoftDeleteValidationSchema,
+} from "../../common/softDelete";
 import { z } from "zod";
 
 const objectIdSchema = (fieldName: string) =>
@@ -188,9 +192,14 @@ const companyIdParamValidationSchema = z.object({
   }),
 });
 
+const deleteCompanyValidationSchema = createSoftDeleteValidationSchema("id");
+const restoreCompanyValidationSchema = createRestoreValidationSchema("id");
+
 export const CompanyValidations = {
   createCompanyValidationSchema,
   updateCompanyValidationSchema,
   getAllCompaniesValidationSchema,
   companyIdParamValidationSchema,
+  deleteCompanyValidationSchema,
+  restoreCompanyValidationSchema,
 };

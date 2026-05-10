@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import { TBranch } from "./branch.interface";
 
 const branchSchema = new Schema<TBranch>(
@@ -6,14 +7,13 @@ const branchSchema = new Schema<TBranch>(
     name: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
     code: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
+      uppercase: true,
     },
     address: {
       type: String,
@@ -25,15 +25,41 @@ const branchSchema = new Schema<TBranch>(
       enum: ["active", "inactive"],
       default: "active",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,
   },
 );
+
+branchSchema.index(
+  {
+    name: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+    },
+  },
+);
+
+branchSchema.index(
+  {
+    code: 1,
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      isDeleted: false,
+    },
+  },
+);
+
+branchSchema.index({
+  status: 1,
+  isDeleted: 1,
+});
 
 const Branch = model<TBranch>("Branch", branchSchema);
 

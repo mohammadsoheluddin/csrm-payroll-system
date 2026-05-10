@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import type { TMajorDepartment } from "./majorDepartment.interface";
 
 const majorDepartmentSchema = new Schema<TMajorDepartment>(
@@ -37,10 +38,7 @@ const majorDepartmentSchema = new Schema<TMajorDepartment>(
       enum: ["active", "inactive"],
       default: "active",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

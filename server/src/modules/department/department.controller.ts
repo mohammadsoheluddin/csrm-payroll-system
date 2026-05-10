@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -44,6 +45,19 @@ const getAllDepartments = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
     success: true,
     message: "Departments retrieved successfully",
+    data: result,
+  });
+});
+
+const getDeletedDepartments = catchAsync(async (req: Request, res: Response) => {
+  const result = await DepartmentServices.getDeletedDepartmentsFromDB(
+    req.query as unknown as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted departments retrieved successfully",
     data: result,
   });
 });
@@ -104,7 +118,13 @@ const deleteDepartment = catchAsync(async (req: Request, res: Response) => {
   const previousDepartment =
     await DepartmentServices.getSingleDepartmentFromDB(departmentId);
 
-  const result = await DepartmentServices.deleteDepartmentFromDB(departmentId);
+  const result = await DepartmentServices.deleteDepartmentFromDB(
+    departmentId,
+    {
+      userId: getRequestUserId(req),
+      deleteReason: req.body?.deleteReason,
+    },
+  );
 
   await createAuditLogFromRequest(req, {
     module: "department",
@@ -114,6 +134,9 @@ const deleteDepartment = catchAsync(async (req: Request, res: Response) => {
     description: "Department soft deleted",
     previousData: toAuditData(previousDepartment),
     newData: toAuditData(result),
+    metadata: {
+      deleteReason: req.body?.deleteReason || null,
+    },
   });
 
   sendResponse(res, {
@@ -124,11 +147,47 @@ const deleteDepartment = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const restoreDepartment = catchAsync(async (req: Request, res: Response) => {
+  const departmentId = req.params.id as string;
+
+  const previousDepartment =
+    await DepartmentServices.getSingleDeletedDepartmentFromDB(departmentId);
+
+  const result = await DepartmentServices.restoreDepartmentIntoDB(
+    departmentId,
+    {
+      userId: getRequestUserId(req),
+      restoreReason: req.body?.restoreReason,
+    },
+  );
+
+  await createAuditLogFromRequest(req, {
+    module: "department",
+    action: "restore",
+    entityId: getAuditEntityId(result, departmentId),
+    entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
+    description: "Department restored",
+    previousData: toAuditData(previousDepartment),
+    newData: toAuditData(result),
+    metadata: {
+      restoreReason: req.body?.restoreReason || null,
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Department restored successfully",
+    data: result,
+  });
+});
+
 export const DepartmentControllers = {
   createDepartment,
   getAllDepartments,
+  getDeletedDepartments,
   getSingleDepartment,
   updateDepartment,
   deleteDepartment,
+  restoreDepartment,
 };
-// Updated

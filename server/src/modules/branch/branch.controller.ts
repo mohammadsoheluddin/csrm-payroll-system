@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -17,7 +18,6 @@ const createBranch = catchAsync(async (req: Request, res: Response) => {
 
   const result = await BranchServices.createBranchIntoDB(req.body);
 
-  // Added: Audit log for branch creation
   await createAuditLogFromRequest(req, {
     module: "branch",
     action: "create",
@@ -49,6 +49,19 @@ const getAllBranches = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getDeletedBranches = catchAsync(async (req: Request, res: Response) => {
+  const result = await BranchServices.getDeletedBranchesFromDB(
+    req.query.status as string,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted branches retrieved successfully",
+    data: result,
+  });
+});
+
 const getSingleBranch = catchAsync(async (req: Request, res: Response) => {
   const branchId = req.params.id as string;
 
@@ -73,7 +86,6 @@ const updateBranch = catchAsync(async (req: Request, res: Response) => {
 
   const result = await BranchServices.updateBranchIntoDB(branchId, req.body);
 
-  // Added: Audit log for branch update
   await createAuditLogFromRequest(req, {
     module: "branch",
     action: "update",
@@ -100,9 +112,11 @@ const deleteBranch = catchAsync(async (req: Request, res: Response) => {
 
   const previousBranch = await BranchServices.getSingleBranchFromDB(branchId);
 
-  const result = await BranchServices.deleteBranchFromDB(branchId);
+  const result = await BranchServices.deleteBranchFromDB(branchId, {
+    userId: getRequestUserId(req),
+    deleteReason: req.body?.deleteReason,
+  });
 
-  // Added: Audit log for branch soft delete
   await createAuditLogFromRequest(req, {
     module: "branch",
     action: "soft_delete",
@@ -111,6 +125,9 @@ const deleteBranch = catchAsync(async (req: Request, res: Response) => {
     description: "Branch soft deleted",
     previousData: toAuditData(previousBranch),
     newData: toAuditData(result),
+    metadata: {
+      deleteReason: req.body?.deleteReason || null,
+    },
   });
 
   sendResponse(res, {
@@ -121,10 +138,45 @@ const deleteBranch = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const restoreBranch = catchAsync(async (req: Request, res: Response) => {
+  const branchId = req.params.id as string;
+
+  const previousBranch = await BranchServices.getSingleDeletedBranchFromDB(
+    branchId,
+  );
+
+  const result = await BranchServices.restoreBranchIntoDB(branchId, {
+    userId: getRequestUserId(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  await createAuditLogFromRequest(req, {
+    module: "branch",
+    action: "restore",
+    entityId: getAuditEntityId(result, branchId),
+    entityName: getAuditEntityName(result, ["name", "code"]),
+    description: "Branch restored",
+    previousData: toAuditData(previousBranch),
+    newData: toAuditData(result),
+    metadata: {
+      restoreReason: req.body?.restoreReason || null,
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Branch restored successfully",
+    data: result,
+  });
+});
+
 export const BranchControllers = {
   createBranch,
   getAllBranches,
+  getDeletedBranches,
   getSingleBranch,
   updateBranch,
   deleteBranch,
+  restoreBranch,
 };

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -44,6 +45,19 @@ const getAllCompanies = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
     success: true,
     message: "Companies retrieved successfully",
+    data: result,
+  });
+});
+
+const getDeletedCompanies = catchAsync(async (req: Request, res: Response) => {
+  const result = await CompanyServices.getDeletedCompaniesFromDB(
+    req.query as unknown as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted companies retrieved successfully",
     data: result,
   });
 });
@@ -100,7 +114,10 @@ const deleteCompany = catchAsync(async (req: Request, res: Response) => {
   const previousCompany =
     await CompanyServices.getSingleCompanyFromDB(companyId);
 
-  const result = await CompanyServices.deleteCompanyFromDB(companyId);
+  const result = await CompanyServices.deleteCompanyFromDB(companyId, {
+    userId: getRequestUserId(req),
+    deleteReason: req.body?.deleteReason,
+  });
 
   await createAuditLogFromRequest(req, {
     module: "company",
@@ -110,6 +127,9 @@ const deleteCompany = catchAsync(async (req: Request, res: Response) => {
     description: "Company/Concern soft deleted",
     previousData: toAuditData(previousCompany),
     newData: toAuditData(result),
+    metadata: {
+      deleteReason: req.body?.deleteReason || null,
+    },
   });
 
   sendResponse(res, {
@@ -120,10 +140,44 @@ const deleteCompany = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const restoreCompany = catchAsync(async (req: Request, res: Response) => {
+  const companyId = req.params.id as string;
+
+  const previousCompany =
+    await CompanyServices.getSingleDeletedCompanyFromDB(companyId);
+
+  const result = await CompanyServices.restoreCompanyIntoDB(companyId, {
+    userId: getRequestUserId(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  await createAuditLogFromRequest(req, {
+    module: "company",
+    action: "restore",
+    entityId: getAuditEntityId(result, companyId),
+    entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
+    description: "Company/Concern restored",
+    previousData: toAuditData(previousCompany),
+    newData: toAuditData(result),
+    metadata: {
+      restoreReason: req.body?.restoreReason || null,
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Company restored successfully",
+    data: result,
+  });
+});
+
 export const CompanyControllers = {
   createCompany,
   getAllCompanies,
+  getDeletedCompanies,
   getSingleCompany,
   updateCompany,
   deleteCompany,
+  restoreCompany,
 };

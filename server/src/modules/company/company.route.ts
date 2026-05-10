@@ -25,11 +25,27 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_READ),
+  validateRequest(CompanyValidations.getAllCompaniesValidationSchema),
+  CompanyControllers.getDeletedCompanies,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.COMPANY_READ),
   validateRequest(CompanyValidations.companyIdParamValidationSchema),
   CompanyControllers.getSingleCompany,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.COMPANY_MANAGE),
+  validateRequest(CompanyValidations.restoreCompanyValidationSchema),
+  CompanyControllers.restoreCompany,
 );
 
 router.patch(
@@ -44,7 +60,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.COMPANY_MANAGE),
-  validateRequest(CompanyValidations.companyIdParamValidationSchema),
+  validateRequest(CompanyValidations.deleteCompanyValidationSchema),
   CompanyControllers.deleteCompany,
 );
 

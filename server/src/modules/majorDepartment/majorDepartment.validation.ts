@@ -1,3 +1,7 @@
+import {
+  createRestoreValidationSchema,
+  createSoftDeleteValidationSchema,
+} from "../../common/softDelete";
 import { z } from "zod";
 
 const objectIdSchema = (fieldName: string) =>
@@ -104,9 +108,16 @@ const majorDepartmentIdParamValidationSchema = z.object({
   }),
 });
 
+const deleteMajorDepartmentValidationSchema =
+  createSoftDeleteValidationSchema("id");
+const restoreMajorDepartmentValidationSchema =
+  createRestoreValidationSchema("id");
+
 export const MajorDepartmentValidations = {
   createMajorDepartmentValidationSchema,
   updateMajorDepartmentValidationSchema,
   getAllMajorDepartmentsValidationSchema,
   majorDepartmentIdParamValidationSchema,
+  deleteMajorDepartmentValidationSchema,
+  restoreMajorDepartmentValidationSchema,
 };

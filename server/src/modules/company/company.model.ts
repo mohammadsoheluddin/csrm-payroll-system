@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import type { TCompany } from "./company.interface";
 
 const companySchema = new Schema<TCompany>(
@@ -77,10 +78,7 @@ const companySchema = new Schema<TCompany>(
       type: String,
       trim: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

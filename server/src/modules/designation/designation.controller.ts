@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -47,6 +48,21 @@ const getAllDesignations = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+const getDeletedDesignations = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await DesignationServices.getDeletedDesignationsFromDB(
+      req.query as unknown as Record<string, unknown>,
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Deleted designations retrieved successfully",
+      data: result,
+    });
+  },
+);
 
 const getSingleDesignation = catchAsync(async (req: Request, res: Response) => {
   const designationId = req.params.id as string;
@@ -104,8 +120,13 @@ const deleteDesignation = catchAsync(async (req: Request, res: Response) => {
   const previousDesignation =
     await DesignationServices.getSingleDesignationFromDB(designationId);
 
-  const result =
-    await DesignationServices.deleteDesignationFromDB(designationId);
+  const result = await DesignationServices.deleteDesignationFromDB(
+    designationId,
+    {
+      userId: getRequestUserId(req),
+      deleteReason: req.body?.deleteReason,
+    },
+  );
 
   await createAuditLogFromRequest(req, {
     module: "designation",
@@ -115,6 +136,9 @@ const deleteDesignation = catchAsync(async (req: Request, res: Response) => {
     description: "Designation soft deleted",
     previousData: toAuditData(previousDesignation),
     newData: toAuditData(result),
+    metadata: {
+      deleteReason: req.body?.deleteReason || null,
+    },
   });
 
   sendResponse(res, {
@@ -125,10 +149,47 @@ const deleteDesignation = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const restoreDesignation = catchAsync(async (req: Request, res: Response) => {
+  const designationId = req.params.id as string;
+
+  const previousDesignation =
+    await DesignationServices.getSingleDeletedDesignationFromDB(designationId);
+
+  const result = await DesignationServices.restoreDesignationIntoDB(
+    designationId,
+    {
+      userId: getRequestUserId(req),
+      restoreReason: req.body?.restoreReason,
+    },
+  );
+
+  await createAuditLogFromRequest(req, {
+    module: "designation",
+    action: "restore",
+    entityId: getAuditEntityId(result, designationId),
+    entityName: getAuditEntityName(result, ["name", "code", "shortName"]),
+    description: "Designation restored",
+    previousData: toAuditData(previousDesignation),
+    newData: toAuditData(result),
+    metadata: {
+      restoreReason: req.body?.restoreReason || null,
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Designation restored successfully",
+    data: result,
+  });
+});
+
 export const DesignationControllers = {
   createDesignation,
   getAllDesignations,
+  getDeletedDesignations,
   getSingleDesignation,
   updateDesignation,
   deleteDesignation,
+  restoreDesignation,
 };

@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TCompanyStatus = "active" | "inactive";
 
@@ -9,7 +10,7 @@ export type TCompanyType =
   | "unit"
   | "project";
 
-export interface TCompany {
+export interface TCompany extends TSoftDeleteFields {
   name: string;
   code: string;
   shortName?: string;
@@ -27,5 +28,4 @@ export interface TCompany {
   logoUrl?: string;
   status?: TCompanyStatus;
   notes?: string;
-  isDeleted?: boolean;
 }

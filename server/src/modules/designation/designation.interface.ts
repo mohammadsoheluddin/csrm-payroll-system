@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TDesignationStatus = "active" | "inactive";
 
@@ -13,7 +14,7 @@ export type TDesignationCategory =
   | "sales"
   | "other";
 
-export interface TDesignation {
+export interface TDesignation extends TSoftDeleteFields {
   company: Types.ObjectId;
   name: string;
   code: string;
@@ -23,5 +24,4 @@ export interface TDesignation {
   description?: string;
   sortOrder?: number;
   status?: TDesignationStatus;
-  isDeleted?: boolean;
 }

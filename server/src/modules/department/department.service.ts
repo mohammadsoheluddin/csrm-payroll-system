@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
+import {
+  buildActiveFilter,
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Company from "../company/company.model";
+import Employee from "../employee/employee.model";
 import MajorDepartment from "../majorDepartment/majorDepartment.model";
 import type { TDepartment, TDepartmentStatus } from "./department.interface";
 import Department from "./department.model";
@@ -21,10 +28,19 @@ type TUpdateDepartmentPayload = Partial<
 };
 
 type TDepartmentDBQuery = {
-  isDeleted: boolean;
   company?: mongoose.Types.ObjectId;
   majorDepartment?: mongoose.Types.ObjectId;
   status?: TDepartmentStatus;
+};
+
+type TSoftDeleteOptions = {
+  userId?: string;
+  deleteReason?: string | null;
+};
+
+type TRestoreOptions = {
+  userId?: string;
+  restoreReason?: string | null;
 };
 
 const getStringQueryValue = (
@@ -104,15 +120,11 @@ const ensureUniqueDepartment = async ({
   const conditions = [];
 
   if (name) {
-    conditions.push({
-      name,
-    });
+    conditions.push({ name });
   }
 
   if (code) {
-    conditions.push({
-      code,
-    });
+    conditions.push({ code });
   }
 
   if (!conditions.length) {
@@ -139,6 +151,28 @@ const ensureUniqueDepartment = async ({
       "Department already exists with this name or code under this major department",
     );
   }
+};
+
+const buildDepartmentFilterFromQuery = (query: Record<string, unknown>) => {
+  const filter: TDepartmentDBQuery = {};
+
+  const company = getStringQueryValue(query, "company");
+  const majorDepartment = getStringQueryValue(query, "majorDepartment");
+  const status = getStringQueryValue(query, "status");
+
+  if (company) {
+    filter.company = toObjectId(company, "company ID");
+  }
+
+  if (majorDepartment) {
+    filter.majorDepartment = toObjectId(majorDepartment, "major department ID");
+  }
+
+  if (status) {
+    filter.status = status as TDepartmentStatus;
+  }
+
+  return filter;
 };
 
 const createDepartmentIntoDB = async (payload: TCreateDepartmentPayload) => {
@@ -170,27 +204,9 @@ const createDepartmentIntoDB = async (payload: TCreateDepartmentPayload) => {
 };
 
 const getAllDepartmentsFromDB = async (query: Record<string, unknown>) => {
-  const filter: TDepartmentDBQuery = {
-    isDeleted: false,
-  };
+  const filter = buildDepartmentFilterFromQuery(query);
 
-  const company = getStringQueryValue(query, "company");
-  const majorDepartment = getStringQueryValue(query, "majorDepartment");
-  const status = getStringQueryValue(query, "status");
-
-  if (company) {
-    filter.company = toObjectId(company, "company ID");
-  }
-
-  if (majorDepartment) {
-    filter.majorDepartment = toObjectId(majorDepartment, "major department ID");
-  }
-
-  if (status) {
-    filter.status = status as TDepartmentStatus;
-  }
-
-  const result = await Department.find(filter)
+  const result = await Department.find(buildActiveFilter<TDepartment>(filter))
     .populate("company")
     .populate("majorDepartment")
     .sort({
@@ -201,15 +217,26 @@ const getAllDepartmentsFromDB = async (query: Record<string, unknown>) => {
   return result;
 };
 
-const getSingleDepartmentFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid department ID");
-  }
+const getDeletedDepartmentsFromDB = async (query: Record<string, unknown>) => {
+  const filter = buildDepartmentFilterFromQuery(query);
 
-  const result = await Department.findOne({
-    _id: id,
-    isDeleted: false,
-  })
+  const result = await Department.find(buildDeletedFilter<TDepartment>(filter))
+    .populate("company")
+    .populate("majorDepartment")
+    .sort({
+      deletedAt: -1,
+      name: 1,
+    });
+
+  return result;
+};
+
+const getSingleDepartmentFromDB = async (id: string) => {
+  toObjectId(id, "department ID");
+
+  const result = await Department.findOne(
+    buildActiveFilter<TDepartment>({ _id: id }),
+  )
     .populate("company")
     .populate("majorDepartment");
 
@@ -220,18 +247,31 @@ const getSingleDepartmentFromDB = async (id: string) => {
   return result;
 };
 
+const getSingleDeletedDepartmentFromDB = async (id: string) => {
+  toObjectId(id, "department ID");
+
+  const result = await Department.findOne(
+    buildDeletedFilter<TDepartment>({ _id: id }),
+  )
+    .populate("company")
+    .populate("majorDepartment");
+
+  if (!result) {
+    throw new AppError(404, "Deleted department not found");
+  }
+
+  return result;
+};
+
 const updateDepartmentIntoDB = async (
   id: string,
   payload: TUpdateDepartmentPayload,
 ) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid department ID");
-  }
+  toObjectId(id, "department ID");
 
-  const existingDepartment = await Department.findOne({
-    _id: id,
-    isDeleted: false,
-  });
+  const existingDepartment = await Department.findOne(
+    buildActiveFilter<TDepartment>({ _id: id }),
+  );
 
   if (!existingDepartment) {
     throw new AppError(404, "Department not found");
@@ -260,10 +300,7 @@ const updateDepartmentIntoDB = async (
   });
 
   const result = await Department.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
+    buildActiveFilter<TDepartment>({ _id: id }),
     {
       ...payload,
       company: nextCompany,
@@ -284,28 +321,77 @@ const updateDepartmentIntoDB = async (
   return result;
 };
 
-const deleteDepartmentFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid department ID");
+const deleteDepartmentFromDB = async (
+  id: string,
+  options?: TSoftDeleteOptions,
+) => {
+  toObjectId(id, "department ID");
+
+  const activeEmployee = await Employee.findOne({
+    department: id,
+    isDeleted: false,
+  }).select("_id employeeId");
+
+  if (activeEmployee) {
+    throw new AppError(
+      409,
+      "This department is assigned to active employees. Reassign employees before deleting this department.",
+    );
   }
 
   const result = await Department.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
-    {
-      isDeleted: true,
-    },
+    buildActiveFilter<TDepartment>({ _id: id }),
+    buildSoftDeleteUpdate<TDepartment>({
+      userId: options?.userId,
+      deleteReason: options?.deleteReason,
+    }),
     {
       new: true,
+      runValidators: true,
     },
   )
     .populate("company")
     .populate("majorDepartment");
 
   if (!result) {
-    throw new AppError(404, "Department not found");
+    throw new AppError(404, "Department not found or already deleted");
+  }
+
+  return result;
+};
+
+const restoreDepartmentIntoDB = async (id: string, options?: TRestoreOptions) => {
+  const deletedDepartment = await getSingleDeletedDepartmentFromDB(id);
+  const companyObjectId = await ensureCompanyExists(deletedDepartment.company);
+  const majorDepartmentObjectId = await ensureMajorDepartmentExists({
+    company: companyObjectId,
+    majorDepartment: deletedDepartment.majorDepartment,
+  });
+
+  await ensureUniqueDepartment({
+    company: companyObjectId,
+    majorDepartment: majorDepartmentObjectId,
+    name: deletedDepartment.name,
+    code: deletedDepartment.code,
+    excludeDepartmentId: id,
+  });
+
+  const result = await Department.findOneAndUpdate(
+    buildDeletedFilter<TDepartment>({ _id: id }),
+    buildRestoreUpdate<TDepartment>({
+      userId: options?.userId,
+      restoreReason: options?.restoreReason,
+    }),
+    {
+      new: true,
+      runValidators: true,
+    },
+  )
+    .populate("company")
+    .populate("majorDepartment");
+
+  if (!result) {
+    throw new AppError(404, "Deleted department not found");
   }
 
   return result;
@@ -314,7 +400,10 @@ const deleteDepartmentFromDB = async (id: string) => {
 export const DepartmentServices = {
   createDepartmentIntoDB,
   getAllDepartmentsFromDB,
+  getDeletedDepartmentsFromDB,
   getSingleDepartmentFromDB,
+  getSingleDeletedDepartmentFromDB,
   updateDepartmentIntoDB,
   deleteDepartmentFromDB,
+  restoreDepartmentIntoDB,
 };

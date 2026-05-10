@@ -1,6 +1,14 @@
 import mongoose from "mongoose";
+import {
+  buildActiveFilter,
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Company from "../company/company.model";
+import Department from "../department/department.model";
+import Employee from "../employee/employee.model";
 import type {
   TMajorDepartment,
   TMajorDepartmentStatus,
@@ -18,9 +26,18 @@ type TUpdateMajorDepartmentPayload = Partial<
 };
 
 type TMajorDepartmentDBQuery = {
-  isDeleted: boolean;
   company?: mongoose.Types.ObjectId;
   status?: TMajorDepartmentStatus;
+};
+
+type TSoftDeleteOptions = {
+  userId?: string;
+  deleteReason?: string | null;
+};
+
+type TRestoreOptions = {
+  userId?: string;
+  restoreReason?: string | null;
 };
 
 const getStringQueryValue = (
@@ -105,6 +122,23 @@ const ensureUniqueMajorDepartment = async ({
   }
 };
 
+const buildMajorDepartmentFilterFromQuery = (query: Record<string, unknown>) => {
+  const filter: TMajorDepartmentDBQuery = {};
+
+  const company = getStringQueryValue(query, "company");
+  const status = getStringQueryValue(query, "status");
+
+  if (company) {
+    filter.company = toObjectId(company, "company ID");
+  }
+
+  if (status) {
+    filter.status = status as TMajorDepartmentStatus;
+  }
+
+  return filter;
+};
+
 const createMajorDepartmentIntoDB = async (
   payload: TCreateMajorDepartmentPayload,
 ) => {
@@ -129,41 +163,60 @@ const createMajorDepartmentIntoDB = async (
 };
 
 const getAllMajorDepartmentsFromDB = async (query: Record<string, unknown>) => {
-  const filter: TMajorDepartmentDBQuery = {
-    isDeleted: false,
-  };
+  const filter = buildMajorDepartmentFilterFromQuery(query);
 
-  const company = getStringQueryValue(query, "company");
-  const status = getStringQueryValue(query, "status");
+  const result = await MajorDepartment.find(
+    buildActiveFilter<TMajorDepartment>(filter),
+  )
+    .populate("company")
+    .sort({
+      sortOrder: 1,
+      name: 1,
+    });
 
-  if (company) {
-    filter.company = toObjectId(company, "company ID");
-  }
+  return result;
+};
 
-  if (status) {
-    filter.status = status as TMajorDepartmentStatus;
-  }
+const getDeletedMajorDepartmentsFromDB = async (
+  query: Record<string, unknown>,
+) => {
+  const filter = buildMajorDepartmentFilterFromQuery(query);
 
-  const result = await MajorDepartment.find(filter).populate("company").sort({
-    sortOrder: 1,
-    name: 1,
-  });
+  const result = await MajorDepartment.find(
+    buildDeletedFilter<TMajorDepartment>(filter),
+  )
+    .populate("company")
+    .sort({
+      deletedAt: -1,
+      name: 1,
+    });
 
   return result;
 };
 
 const getSingleMajorDepartmentFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid major department ID");
-  }
+  toObjectId(id, "major department ID");
 
-  const result = await MajorDepartment.findOne({
-    _id: id,
-    isDeleted: false,
-  }).populate("company");
+  const result = await MajorDepartment.findOne(
+    buildActiveFilter<TMajorDepartment>({ _id: id }),
+  ).populate("company");
 
   if (!result) {
     throw new AppError(404, "Major department not found");
+  }
+
+  return result;
+};
+
+const getSingleDeletedMajorDepartmentFromDB = async (id: string) => {
+  toObjectId(id, "major department ID");
+
+  const result = await MajorDepartment.findOne(
+    buildDeletedFilter<TMajorDepartment>({ _id: id }),
+  ).populate("company");
+
+  if (!result) {
+    throw new AppError(404, "Deleted major department not found");
   }
 
   return result;
@@ -173,14 +226,11 @@ const updateMajorDepartmentIntoDB = async (
   id: string,
   payload: TUpdateMajorDepartmentPayload,
 ) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid major department ID");
-  }
+  toObjectId(id, "major department ID");
 
-  const existingMajorDepartment = await MajorDepartment.findOne({
-    _id: id,
-    isDeleted: false,
-  });
+  const existingMajorDepartment = await MajorDepartment.findOne(
+    buildActiveFilter<TMajorDepartment>({ _id: id }),
+  );
 
   if (!existingMajorDepartment) {
     throw new AppError(404, "Major department not found");
@@ -198,10 +248,7 @@ const updateMajorDepartmentIntoDB = async (
   });
 
   const result = await MajorDepartment.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
+    buildActiveFilter<TMajorDepartment>({ _id: id }),
     {
       ...payload,
       company: nextCompany,
@@ -219,26 +266,86 @@ const updateMajorDepartmentIntoDB = async (
   return result;
 };
 
-const deleteMajorDepartmentFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid major department ID");
+const deleteMajorDepartmentFromDB = async (
+  id: string,
+  options?: TSoftDeleteOptions,
+) => {
+  toObjectId(id, "major department ID");
+
+  const activeDepartment = await Department.findOne({
+    majorDepartment: id,
+    isDeleted: false,
+  }).select("_id name code");
+
+  if (activeDepartment) {
+    throw new AppError(
+      409,
+      "This major department has active departments. Delete or reassign them first.",
+    );
+  }
+
+  const activeEmployee = await Employee.findOne({
+    majorDepartment: id,
+    isDeleted: false,
+  }).select("_id employeeId");
+
+  if (activeEmployee) {
+    throw new AppError(
+      409,
+      "This major department is assigned to active employees. Reassign employees before deleting this major department.",
+    );
   }
 
   const result = await MajorDepartment.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
-    {
-      isDeleted: true,
-    },
+    buildActiveFilter<TMajorDepartment>({ _id: id }),
+    buildSoftDeleteUpdate<TMajorDepartment>({
+      userId: options?.userId,
+      deleteReason: options?.deleteReason,
+    }),
     {
       new: true,
+      runValidators: true,
     },
-  );
+  ).populate("company");
 
   if (!result) {
-    throw new AppError(404, "Major department not found");
+    throw new AppError(404, "Major department not found or already deleted");
+  }
+
+  return result;
+};
+
+const restoreMajorDepartmentIntoDB = async (
+  id: string,
+  options?: TRestoreOptions,
+) => {
+  const deletedMajorDepartment =
+    await getSingleDeletedMajorDepartmentFromDB(id);
+  const companyObjectId = await ensureCompanyExists(
+    deletedMajorDepartment.company,
+  );
+
+  await ensureUniqueMajorDepartment({
+    company: companyObjectId,
+    name: deletedMajorDepartment.name,
+    code: deletedMajorDepartment.code,
+    excludeMajorDepartmentId: id,
+  });
+
+  const result = await MajorDepartment.findOneAndUpdate(
+    buildDeletedFilter<TMajorDepartment>({ _id: id }),
+    buildRestoreUpdate<TMajorDepartment>({
+      userId: options?.userId,
+      restoreReason: options?.restoreReason,
+    }),
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate("company");
+
+  if (!result) {
+    throw new AppError(404, "Deleted major department not found");
   }
 
   return result;
@@ -247,7 +354,10 @@ const deleteMajorDepartmentFromDB = async (id: string) => {
 export const MajorDepartmentServices = {
   createMajorDepartmentIntoDB,
   getAllMajorDepartmentsFromDB,
+  getDeletedMajorDepartmentsFromDB,
   getSingleMajorDepartmentFromDB,
+  getSingleDeletedMajorDepartmentFromDB,
   updateMajorDepartmentIntoDB,
   deleteMajorDepartmentFromDB,
+  restoreMajorDepartmentIntoDB,
 };

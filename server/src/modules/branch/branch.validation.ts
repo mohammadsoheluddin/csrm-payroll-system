@@ -1,3 +1,7 @@
+import {
+  createRestoreValidationSchema,
+  createSoftDeleteValidationSchema,
+} from "../../common/softDelete";
 import { z } from "zod";
 
 const objectIdSchema = z
@@ -79,9 +83,14 @@ const branchIdValidationSchema = z.object({
   }),
 });
 
+const deleteBranchValidationSchema = createSoftDeleteValidationSchema("id");
+const restoreBranchValidationSchema = createRestoreValidationSchema("id");
+
 export const BranchValidations = {
   createBranchValidationSchema,
   updateBranchValidationSchema,
   getAllBranchesValidationSchema,
   branchIdValidationSchema,
+  deleteBranchValidationSchema,
+  restoreBranchValidationSchema,
 };

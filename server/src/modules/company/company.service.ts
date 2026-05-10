@@ -1,5 +1,15 @@
 import mongoose from "mongoose";
+import {
+  buildActiveFilter,
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
+import Department from "../department/department.model";
+import Designation from "../designation/designation.model";
+import Employee from "../employee/employee.model";
+import MajorDepartment from "../majorDepartment/majorDepartment.model";
 import type {
   TCompany,
   TCompanyStatus,
@@ -11,11 +21,20 @@ type TCreateCompanyPayload = TCompany;
 type TUpdateCompanyPayload = Partial<TCompany>;
 
 type TCompanyDBQuery = {
-  isDeleted: boolean;
   status?: TCompanyStatus;
   type?: TCompanyType;
   parentCompany?: mongoose.Types.ObjectId;
   isPrimary?: boolean;
+};
+
+type TSoftDeleteOptions = {
+  userId?: string;
+  deleteReason?: string | null;
+};
+
+type TRestoreOptions = {
+  userId?: string;
+  restoreReason?: string | null;
 };
 
 const getStringQueryValue = (
@@ -49,10 +68,9 @@ const ensureParentCompanyExists = async (parentCompanyId?: unknown) => {
     "parent company ID",
   );
 
-  const parentCompany = await Company.findOne({
-    _id: parentCompanyObjectId,
-    isDeleted: false,
-  });
+  const parentCompany = await Company.findOne(
+    buildActiveFilter<TCompany>({ _id: parentCompanyObjectId }),
+  );
 
   if (!parentCompany) {
     throw new AppError(404, "Parent company not found");
@@ -73,15 +91,11 @@ const ensureUniqueCompanyNameOrCode = async ({
   const conditions = [];
 
   if (name) {
-    conditions.push({
-      name,
-    });
+    conditions.push({ name });
   }
 
   if (code) {
-    conditions.push({
-      code,
-    });
+    conditions.push({ code });
   }
 
   if (!conditions.length) {
@@ -105,27 +119,8 @@ const ensureUniqueCompanyNameOrCode = async ({
   }
 };
 
-const createCompanyIntoDB = async (payload: TCreateCompanyPayload) => {
-  await ensureUniqueCompanyNameOrCode({
-    name: payload.name,
-    code: payload.code,
-  });
-
-  await ensureParentCompanyExists(payload.parentCompany);
-
-  const result = await Company.create(payload);
-
-  const populatedResult = await Company.findById(result._id).populate(
-    "parentCompany",
-  );
-
-  return populatedResult;
-};
-
-const getAllCompaniesFromDB = async (query: Record<string, unknown>) => {
-  const filter: TCompanyDBQuery = {
-    isDeleted: false,
-  };
+const buildCompanyFilterFromQuery = (query: Record<string, unknown>) => {
+  const filter: TCompanyDBQuery = {};
 
   const status = getStringQueryValue(query, "status");
   const type = getStringQueryValue(query, "type");
@@ -152,26 +147,75 @@ const getAllCompaniesFromDB = async (query: Record<string, unknown>) => {
     filter.isPrimary = false;
   }
 
-  const result = await Company.find(filter).populate("parentCompany").sort({
-    isPrimary: -1,
-    name: 1,
+  return filter;
+};
+
+const createCompanyIntoDB = async (payload: TCreateCompanyPayload) => {
+  await ensureUniqueCompanyNameOrCode({
+    name: payload.name,
+    code: payload.code,
   });
+
+  await ensureParentCompanyExists(payload.parentCompany);
+
+  const result = await Company.create(payload);
+
+  const populatedResult = await Company.findById(result._id).populate(
+    "parentCompany",
+  );
+
+  return populatedResult;
+};
+
+const getAllCompaniesFromDB = async (query: Record<string, unknown>) => {
+  const filter = buildCompanyFilterFromQuery(query);
+
+  const result = await Company.find(buildActiveFilter<TCompany>(filter))
+    .populate("parentCompany")
+    .sort({
+      isPrimary: -1,
+      name: 1,
+    });
+
+  return result;
+};
+
+const getDeletedCompaniesFromDB = async (query: Record<string, unknown>) => {
+  const filter = buildCompanyFilterFromQuery(query);
+
+  const result = await Company.find(buildDeletedFilter<TCompany>(filter))
+    .populate("parentCompany")
+    .sort({
+      deletedAt: -1,
+      name: 1,
+    });
 
   return result;
 };
 
 const getSingleCompanyFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid company ID");
-  }
+  toObjectId(id, "company ID");
 
-  const result = await Company.findOne({
-    _id: id,
-    isDeleted: false,
-  }).populate("parentCompany");
+  const result = await Company.findOne(
+    buildActiveFilter<TCompany>({ _id: id }),
+  ).populate("parentCompany");
 
   if (!result) {
     throw new AppError(404, "Company not found");
+  }
+
+  return result;
+};
+
+const getSingleDeletedCompanyFromDB = async (id: string) => {
+  toObjectId(id, "company ID");
+
+  const result = await Company.findOne(
+    buildDeletedFilter<TCompany>({ _id: id }),
+  ).populate("parentCompany");
+
+  if (!result) {
+    throw new AppError(404, "Deleted company not found");
   }
 
   return result;
@@ -181,14 +225,11 @@ const updateCompanyIntoDB = async (
   id: string,
   payload: TUpdateCompanyPayload,
 ) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid company ID");
-  }
+  toObjectId(id, "company ID");
 
-  const existingCompany = await Company.findOne({
-    _id: id,
-    isDeleted: false,
-  });
+  const existingCompany = await Company.findOne(
+    buildActiveFilter<TCompany>({ _id: id }),
+  );
 
   if (!existingCompany) {
     throw new AppError(404, "Company not found");
@@ -214,10 +255,7 @@ const updateCompanyIntoDB = async (
   }
 
   const result = await Company.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
+    buildActiveFilter<TCompany>({ _id: id }),
     payload,
     {
       new: true,
@@ -232,11 +270,7 @@ const updateCompanyIntoDB = async (
   return result;
 };
 
-const deleteCompanyFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid company ID");
-  }
-
+const ensureCompanyCanBeDeleted = async (id: string) => {
   const childCompany = await Company.findOne({
     parentCompany: id,
     isDeleted: false,
@@ -249,21 +283,106 @@ const deleteCompanyFromDB = async (id: string) => {
     );
   }
 
+  const activeMajorDepartment = await MajorDepartment.findOne({
+    company: id,
+    isDeleted: false,
+  }).select("_id name code");
+
+  if (activeMajorDepartment) {
+    throw new AppError(
+      409,
+      "This company has active major departments. Delete or reassign them first.",
+    );
+  }
+
+  const activeDepartment = await Department.findOne({
+    company: id,
+    isDeleted: false,
+  }).select("_id name code");
+
+  if (activeDepartment) {
+    throw new AppError(
+      409,
+      "This company has active departments. Delete or reassign them first.",
+    );
+  }
+
+  const activeDesignation = await Designation.findOne({
+    company: id,
+    isDeleted: false,
+  }).select("_id name code");
+
+  if (activeDesignation) {
+    throw new AppError(
+      409,
+      "This company has active designations. Delete or reassign them first.",
+    );
+  }
+
+  const activeEmployee = await Employee.findOne({
+    company: id,
+    isDeleted: false,
+  }).select("_id employeeId");
+
+  if (activeEmployee) {
+    throw new AppError(
+      409,
+      "This company is assigned to active employees. Reassign employees before deleting this company.",
+    );
+  }
+};
+
+const deleteCompanyFromDB = async (id: string, options?: TSoftDeleteOptions) => {
+  toObjectId(id, "company ID");
+
+  await ensureCompanyCanBeDeleted(id);
+
   const result = await Company.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
-    {
-      isDeleted: true,
-    },
+    buildActiveFilter<TCompany>({ _id: id }),
+    buildSoftDeleteUpdate<TCompany>({
+      userId: options?.userId,
+      deleteReason: options?.deleteReason,
+    }),
     {
       new: true,
+      runValidators: true,
     },
-  );
+  ).populate("parentCompany");
 
   if (!result) {
-    throw new AppError(404, "Company not found");
+    throw new AppError(404, "Company not found or already deleted");
+  }
+
+  return result;
+};
+
+const restoreCompanyIntoDB = async (id: string, options?: TRestoreOptions) => {
+  const deletedCompany = await getSingleDeletedCompanyFromDB(id);
+
+  await ensureUniqueCompanyNameOrCode({
+    name: deletedCompany.name,
+    code: deletedCompany.code,
+    excludeCompanyId: id,
+  });
+
+  if (deletedCompany.parentCompany) {
+    await ensureParentCompanyExists(deletedCompany.parentCompany);
+  }
+
+  const result = await Company.findOneAndUpdate(
+    buildDeletedFilter<TCompany>({ _id: id }),
+    buildRestoreUpdate<TCompany>({
+      userId: options?.userId,
+      restoreReason: options?.restoreReason,
+    }),
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate("parentCompany");
+
+  if (!result) {
+    throw new AppError(404, "Deleted company not found");
   }
 
   return result;
@@ -272,7 +391,10 @@ const deleteCompanyFromDB = async (id: string) => {
 export const CompanyServices = {
   createCompanyIntoDB,
   getAllCompaniesFromDB,
+  getDeletedCompaniesFromDB,
   getSingleCompanyFromDB,
+  getSingleDeletedCompanyFromDB,
   updateCompanyIntoDB,
   deleteCompanyFromDB,
+  restoreCompanyIntoDB,
 };

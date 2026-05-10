@@ -25,11 +25,27 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_READ),
+  validateRequest(BranchValidations.getAllBranchesValidationSchema),
+  BranchControllers.getDeletedBranches,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.BRANCH_READ),
   validateRequest(BranchValidations.branchIdValidationSchema),
   BranchControllers.getSingleBranch,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.BRANCH_MANAGE),
+  validateRequest(BranchValidations.restoreBranchValidationSchema),
+  BranchControllers.restoreBranch,
 );
 
 router.patch(
@@ -44,7 +60,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.BRANCH_MANAGE),
-  validateRequest(BranchValidations.branchIdValidationSchema),
+  validateRequest(BranchValidations.deleteBranchValidationSchema),
   BranchControllers.deleteBranch,
 );
 

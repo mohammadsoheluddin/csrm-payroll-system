@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
+import {
+  buildActiveFilter,
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Company from "../company/company.model";
+import Employee from "../employee/employee.model";
 import type {
   TDesignation,
   TDesignationCategory,
@@ -17,10 +24,19 @@ type TUpdateDesignationPayload = Partial<Omit<TDesignation, "company">> & {
 };
 
 type TDesignationDBQuery = {
-  isDeleted: boolean;
   company?: mongoose.Types.ObjectId;
   category?: TDesignationCategory;
   status?: TDesignationStatus;
+};
+
+type TSoftDeleteOptions = {
+  userId?: string;
+  deleteReason?: string | null;
+};
+
+type TRestoreOptions = {
+  userId?: string;
+  restoreReason?: string | null;
 };
 
 const getStringQueryValue = (
@@ -73,15 +89,11 @@ const ensureUniqueDesignation = async ({
   const conditions = [];
 
   if (name) {
-    conditions.push({
-      name,
-    });
+    conditions.push({ name });
   }
 
   if (code) {
-    conditions.push({
-      code,
-    });
+    conditions.push({ code });
   }
 
   if (!conditions.length) {
@@ -109,6 +121,28 @@ const ensureUniqueDesignation = async ({
   }
 };
 
+const buildDesignationFilterFromQuery = (query: Record<string, unknown>) => {
+  const filter: TDesignationDBQuery = {};
+
+  const company = getStringQueryValue(query, "company");
+  const category = getStringQueryValue(query, "category");
+  const status = getStringQueryValue(query, "status");
+
+  if (company) {
+    filter.company = toObjectId(company, "company ID");
+  }
+
+  if (category) {
+    filter.category = category as TDesignationCategory;
+  }
+
+  if (status) {
+    filter.status = status as TDesignationStatus;
+  }
+
+  return filter;
+};
+
 const createDesignationIntoDB = async (payload: TCreateDesignationPayload) => {
   const companyObjectId = await ensureCompanyExists(payload.company);
 
@@ -131,46 +165,54 @@ const createDesignationIntoDB = async (payload: TCreateDesignationPayload) => {
 };
 
 const getAllDesignationsFromDB = async (query: Record<string, unknown>) => {
-  const filter: TDesignationDBQuery = {
-    isDeleted: false,
-  };
+  const filter = buildDesignationFilterFromQuery(query);
 
-  const company = getStringQueryValue(query, "company");
-  const category = getStringQueryValue(query, "category");
-  const status = getStringQueryValue(query, "status");
+  const result = await Designation.find(buildActiveFilter<TDesignation>(filter))
+    .populate("company")
+    .sort({
+      sortOrder: 1,
+      name: 1,
+    });
 
-  if (company) {
-    filter.company = toObjectId(company, "company ID");
-  }
+  return result;
+};
 
-  if (category) {
-    filter.category = category as TDesignationCategory;
-  }
+const getDeletedDesignationsFromDB = async (query: Record<string, unknown>) => {
+  const filter = buildDesignationFilterFromQuery(query);
 
-  if (status) {
-    filter.status = status as TDesignationStatus;
-  }
-
-  const result = await Designation.find(filter).populate("company").sort({
-    sortOrder: 1,
-    name: 1,
-  });
+  const result = await Designation.find(buildDeletedFilter<TDesignation>(filter))
+    .populate("company")
+    .sort({
+      deletedAt: -1,
+      name: 1,
+    });
 
   return result;
 };
 
 const getSingleDesignationFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid designation ID");
-  }
+  toObjectId(id, "designation ID");
 
-  const result = await Designation.findOne({
-    _id: id,
-    isDeleted: false,
-  }).populate("company");
+  const result = await Designation.findOne(
+    buildActiveFilter<TDesignation>({ _id: id }),
+  ).populate("company");
 
   if (!result) {
     throw new AppError(404, "Designation not found");
+  }
+
+  return result;
+};
+
+const getSingleDeletedDesignationFromDB = async (id: string) => {
+  toObjectId(id, "designation ID");
+
+  const result = await Designation.findOne(
+    buildDeletedFilter<TDesignation>({ _id: id }),
+  ).populate("company");
+
+  if (!result) {
+    throw new AppError(404, "Deleted designation not found");
   }
 
   return result;
@@ -180,14 +222,11 @@ const updateDesignationIntoDB = async (
   id: string,
   payload: TUpdateDesignationPayload,
 ) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid designation ID");
-  }
+  toObjectId(id, "designation ID");
 
-  const existingDesignation = await Designation.findOne({
-    _id: id,
-    isDeleted: false,
-  });
+  const existingDesignation = await Designation.findOne(
+    buildActiveFilter<TDesignation>({ _id: id }),
+  );
 
   if (!existingDesignation) {
     throw new AppError(404, "Designation not found");
@@ -205,10 +244,7 @@ const updateDesignationIntoDB = async (
   });
 
   const result = await Designation.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
+    buildActiveFilter<TDesignation>({ _id: id }),
     {
       ...payload,
       company: nextCompany,
@@ -226,26 +262,71 @@ const updateDesignationIntoDB = async (
   return result;
 };
 
-const deleteDesignationFromDB = async (id: string) => {
-  if (!mongoose.isValidObjectId(id)) {
-    throw new AppError(400, "Invalid designation ID");
+const deleteDesignationFromDB = async (
+  id: string,
+  options?: TSoftDeleteOptions,
+) => {
+  toObjectId(id, "designation ID");
+
+  const activeEmployee = await Employee.findOne({
+    designation: id,
+    isDeleted: false,
+  }).select("_id employeeId");
+
+  if (activeEmployee) {
+    throw new AppError(
+      409,
+      "This designation is assigned to active employees. Reassign employees before deleting this designation.",
+    );
   }
 
   const result = await Designation.findOneAndUpdate(
-    {
-      _id: id,
-      isDeleted: false,
-    },
-    {
-      isDeleted: true,
-    },
+    buildActiveFilter<TDesignation>({ _id: id }),
+    buildSoftDeleteUpdate<TDesignation>({
+      userId: options?.userId,
+      deleteReason: options?.deleteReason,
+    }),
     {
       new: true,
+      runValidators: true,
     },
   ).populate("company");
 
   if (!result) {
-    throw new AppError(404, "Designation not found");
+    throw new AppError(404, "Designation not found or already deleted");
+  }
+
+  return result;
+};
+
+const restoreDesignationIntoDB = async (
+  id: string,
+  options?: TRestoreOptions,
+) => {
+  const deletedDesignation = await getSingleDeletedDesignationFromDB(id);
+  const companyObjectId = await ensureCompanyExists(deletedDesignation.company);
+
+  await ensureUniqueDesignation({
+    company: companyObjectId,
+    name: deletedDesignation.name,
+    code: deletedDesignation.code,
+    excludeDesignationId: id,
+  });
+
+  const result = await Designation.findOneAndUpdate(
+    buildDeletedFilter<TDesignation>({ _id: id }),
+    buildRestoreUpdate<TDesignation>({
+      userId: options?.userId,
+      restoreReason: options?.restoreReason,
+    }),
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate("company");
+
+  if (!result) {
+    throw new AppError(404, "Deleted designation not found");
   }
 
   return result;
@@ -254,7 +335,10 @@ const deleteDesignationFromDB = async (id: string) => {
 export const DesignationServices = {
   createDesignationIntoDB,
   getAllDesignationsFromDB,
+  getDeletedDesignationsFromDB,
   getSingleDesignationFromDB,
+  getSingleDeletedDesignationFromDB,
   updateDesignationIntoDB,
   deleteDesignationFromDB,
+  restoreDesignationIntoDB,
 };

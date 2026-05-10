@@ -1,8 +1,9 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TMajorDepartmentStatus = "active" | "inactive";
 
-export interface TMajorDepartment {
+export interface TMajorDepartment extends TSoftDeleteFields {
   company: Types.ObjectId;
   name: string;
   code: string;
@@ -10,5 +11,4 @@ export interface TMajorDepartment {
   description?: string;
   sortOrder?: number;
   status?: TMajorDepartmentStatus;
-  isDeleted?: boolean;
 }

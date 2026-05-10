@@ -46,7 +46,6 @@ export type TAuditLogModule =
 
 export type TAuditLogAction =
   | "create"
-  | "created"
   | "read"
   | "update"
   | "delete"
@@ -55,30 +54,17 @@ export type TAuditLogAction =
   | "login"
   | "logout"
   | "process"
-  | "processed"
   | "approve"
-  | "approved"
   | "reject"
   | "pay"
-  | "generate"
-  | "generated"
-  | "regenerated"
-  | "finalize"
-  | "finalized"
   | "lock"
-  | "locked"
   | "unlock"
-  | "unlocked"
   | "export"
   | "download"
   | "role_change"
   | "permission_denied"
   | "status_change"
-  | "system_event"
-  | "applied"
-  | "blocked"
-  | "set_opening_balance"
-  | "skip_already_deleted";
+  | "system_event";
 
 export type TAuditDeviceType =
   | "desktop"

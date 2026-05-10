@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import type { TDesignation } from "./designation.interface";
 
 const designationSchema = new Schema<TDesignation>(
@@ -56,10 +57,7 @@ const designationSchema = new Schema<TDesignation>(
       enum: ["active", "inactive"],
       default: "active",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

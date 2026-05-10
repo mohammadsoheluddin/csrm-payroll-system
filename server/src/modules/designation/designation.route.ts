@@ -25,11 +25,27 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.DESIGNATION_READ),
+  validateRequest(DesignationValidations.getAllDesignationsValidationSchema),
+  DesignationControllers.getDeletedDesignations,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.DESIGNATION_READ),
   validateRequest(DesignationValidations.designationIdParamValidationSchema),
   DesignationControllers.getSingleDesignation,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.DESIGNATION_MANAGE),
+  validateRequest(DesignationValidations.restoreDesignationValidationSchema),
+  DesignationControllers.restoreDesignation,
 );
 
 router.patch(
@@ -44,7 +60,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.DESIGNATION_MANAGE),
-  validateRequest(DesignationValidations.designationIdParamValidationSchema),
+  validateRequest(DesignationValidations.deleteDesignationValidationSchema),
   DesignationControllers.deleteDesignation,
 );
 
