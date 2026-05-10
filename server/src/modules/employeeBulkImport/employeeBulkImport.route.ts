@@ -8,6 +8,55 @@ import { EmployeeBulkImportValidations } from "./employeeBulkImport.validation";
 
 const router = Router();
 
+
+router.get(
+  "/template/preview",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportTemplateQueryValidationSchema),
+  EmployeeBulkImportControllers.getEmployeeBulkImportTemplatePreview,
+);
+
+router.get(
+  "/template/csv",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_EXPORT),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportTemplateQueryValidationSchema),
+  EmployeeBulkImportControllers.exportEmployeeBulkImportTemplateCsv,
+);
+
+router.get(
+  "/template/excel",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_EXPORT),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportTemplateQueryValidationSchema),
+  EmployeeBulkImportControllers.exportEmployeeBulkImportTemplateExcel,
+);
+
+router.get(
+  "/:id/rejections/preview",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportIdParamValidationSchema),
+  EmployeeBulkImportControllers.getEmployeeBulkImportRejectionReportPreview,
+);
+
+router.get(
+  "/:id/rejections/csv",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_EXPORT),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportIdParamValidationSchema),
+  EmployeeBulkImportControllers.exportEmployeeBulkImportRejectionsCsv,
+);
+
+router.get(
+  "/:id/rejections/excel",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_EXPORT),
+  validateRequest(EmployeeBulkImportValidations.employeeBulkImportIdParamValidationSchema),
+  EmployeeBulkImportControllers.exportEmployeeBulkImportRejectionsExcel,
+);
+
 router.post(
   "/preview",
   auth(),

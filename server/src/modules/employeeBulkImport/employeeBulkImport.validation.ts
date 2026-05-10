@@ -229,6 +229,19 @@ const getAllEmployeeBulkImportsValidationSchema = z.object({
     .optional(),
 });
 
+
+const employeeBulkImportTemplateQueryValidationSchema = z.object({
+  query: z
+    .object({
+      source: employeeBulkImportSourceSchema.optional(),
+      includeSample: z
+        .union([z.boolean(), z.enum(["true", "false"])])
+        .optional(),
+    })
+    .strict()
+    .optional(),
+});
+
 const employeeBulkImportIdParamValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("employee bulk import batch id"),
@@ -239,5 +252,6 @@ export const EmployeeBulkImportValidations = {
   previewEmployeeBulkImportValidationSchema,
   commitEmployeeBulkImportValidationSchema,
   getAllEmployeeBulkImportsValidationSchema,
+  employeeBulkImportTemplateQueryValidationSchema,
   employeeBulkImportIdParamValidationSchema,
 };

@@ -53,6 +53,60 @@ export interface TEmployeeBulkImportRawRow {
   rawPayload?: Record<string, unknown>;
 }
 
+
+export interface TEmployeeBulkImportTemplateColumn {
+  header: string;
+  key: keyof TEmployeeBulkImportRawRow | string;
+  required: boolean;
+  format?: string;
+  description: string;
+  width: number;
+}
+
+export type TEmployeeBulkImportTemplateQuery = {
+  source?: TEmployeeBulkImportSource;
+  includeSample?: string | boolean;
+};
+
+export interface TEmployeeBulkImportTemplatePreview {
+  template: {
+    source: TEmployeeBulkImportSource;
+    includeSample: boolean;
+    generatedAt: string;
+    note: string;
+  };
+  columns: TEmployeeBulkImportTemplateColumn[];
+  sampleRows: TEmployeeBulkImportRawRow[];
+  instructions: string[];
+}
+
+export interface TEmployeeBulkImportRejectionReportPreview {
+  batch: {
+    id: string;
+    batchNo: string;
+    source: TEmployeeBulkImportSource;
+    sourceFileName?: string;
+    status: TEmployeeBulkImportBatchStatus;
+  };
+  summary: {
+    totalRows: number;
+    rejectedRows: number;
+    duplicateRows: number;
+    existingEmployeeBlockers: number;
+    referenceBlockers: number;
+  };
+  rejectedRows: TEmployeeBulkImportRejectedRow[];
+}
+
+export interface TEmployeeBulkImportExportFileResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+  reportData:
+    | TEmployeeBulkImportTemplatePreview
+    | TEmployeeBulkImportRejectionReportPreview;
+}
+
 export interface TEmployeeBulkImportRejectedRow {
   rowNo?: number;
   employeeId?: string;

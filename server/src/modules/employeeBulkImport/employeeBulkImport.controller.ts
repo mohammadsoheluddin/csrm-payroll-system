@@ -128,9 +128,174 @@ const getSingleEmployeeBulkImport = catchAsync(
   },
 );
 
+
+const getEmployeeBulkImportTemplatePreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = EmployeeBulkImportServices.buildEmployeeBulkImportTemplatePreview(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "read",
+      entityName: result.template.source,
+      description: "Employee bulk import template preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        template: result.template,
+        columns: result.columns.map((column) => column.header),
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bulk import template preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const exportEmployeeBulkImportTemplateCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = EmployeeBulkImportServices.exportEmployeeBulkImportTemplateCsv(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "export",
+      entityName: result.fileName,
+      description: "Employee bulk import CSV template exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        template: (result.reportData as any).template,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportEmployeeBulkImportTemplateExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await EmployeeBulkImportServices.exportEmployeeBulkImportTemplateExcel(
+      req.query as any,
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "export",
+      entityName: result.fileName,
+      description: "Employee bulk import Excel template exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        template: (result.reportData as any).template,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const getEmployeeBulkImportRejectionReportPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await EmployeeBulkImportServices.buildEmployeeBulkImportRejectionReportFromDB(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "read",
+      entityId: result.batch.id,
+      entityName: result.batch.batchNo,
+      description: "Employee bulk import rejection report preview generated",
+      previousData: null,
+      newData: null,
+      metadata: {
+        summary: result.summary,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bulk import rejection report preview generated successfully",
+      data: result,
+    });
+  },
+);
+
+const exportEmployeeBulkImportRejectionsCsv = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await EmployeeBulkImportServices.exportEmployeeBulkImportRejectionsCsv(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "export",
+      entityId: (result.reportData as any).batch.id,
+      entityName: (result.reportData as any).batch.batchNo,
+      description: "Employee bulk import rejection CSV exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        summary: (result.reportData as any).summary,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
+const exportEmployeeBulkImportRejectionsExcel = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await EmployeeBulkImportServices.exportEmployeeBulkImportRejectionsExcel(
+      getParamId(req, "id"),
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "export",
+      entityId: (result.reportData as any).batch.id,
+      entityName: (result.reportData as any).batch.batchNo,
+      description: "Employee bulk import rejection Excel exported",
+      previousData: null,
+      newData: null,
+      metadata: {
+        fileName: result.fileName,
+        summary: (result.reportData as any).summary,
+      },
+    });
+
+    res.setHeader("Content-Type", result.mimeType);
+    res.setHeader("Content-Disposition", `attachment; filename="${result.fileName}"`);
+    res.status(200).send(result.buffer);
+  },
+);
+
 export const EmployeeBulkImportControllers = {
   previewEmployeeBulkImport,
   commitEmployeeBulkImport,
   getAllEmployeeBulkImports,
   getSingleEmployeeBulkImport,
+  getEmployeeBulkImportTemplatePreview,
+  exportEmployeeBulkImportTemplateCsv,
+  exportEmployeeBulkImportTemplateExcel,
+  getEmployeeBulkImportRejectionReportPreview,
+  exportEmployeeBulkImportRejectionsCsv,
+  exportEmployeeBulkImportRejectionsExcel,
 };

@@ -9,17 +9,273 @@ import MajorDepartment from "../majorDepartment/majorDepartment.model";
 import User from "../user/user.model";
 import {
   TEmployeeBulkImportBatch,
+  TEmployeeBulkImportExportFileResult,
   TEmployeeBulkImportPayload,
   TEmployeeBulkImportQueryFilters,
   TEmployeeBulkImportRawRow,
+  TEmployeeBulkImportRejectionReportPreview,
   TEmployeeBulkImportRejectedRow,
   TEmployeeBulkImportSummary,
+  TEmployeeBulkImportTemplateColumn,
+  TEmployeeBulkImportTemplatePreview,
+  TEmployeeBulkImportTemplateQuery,
   TEmployeeBulkImportValidRow,
 } from "./employeeBulkImport.interface";
 import EmployeeBulkImportBatch from "./employeeBulkImport.model";
+import {
+  generateEmployeeBulkImportRejectionCsv,
+  generateEmployeeBulkImportRejectionExcel,
+  generateEmployeeBulkImportTemplateCsv,
+  generateEmployeeBulkImportTemplateExcel,
+} from "./employeeBulkImport.export";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 50;
+
+const EMPLOYEE_BULK_IMPORT_TEMPLATE_COLUMNS: TEmployeeBulkImportTemplateColumn[] = [
+  {
+    header: "rowNo",
+    key: "rowNo",
+    required: false,
+    format: "1, 2, 3...",
+    description: "Optional source row number. System will auto-generate when blank.",
+    width: 10,
+  },
+  {
+    header: "employeeId",
+    key: "employeeId",
+    required: true,
+    format: "EMP-1001",
+    description: "Permanent unique employee ID. It cannot be reused after import.",
+    width: 18,
+  },
+  {
+    header: "officeId",
+    key: "officeId",
+    required: false,
+    format: "OFF-1001",
+    description: "Office ID if maintained by HR/Admin. Must be unique among active employees.",
+    width: 18,
+  },
+  {
+    header: "cardNo",
+    key: "cardNo",
+    required: false,
+    format: "CARD-1001",
+    description: "Biometric/card number. Must be unique among active employees when supplied.",
+    width: 18,
+  },
+  {
+    header: "firstName",
+    key: "firstName",
+    required: true,
+    format: "Text",
+    description: "Employee first name.",
+    width: 18,
+  },
+  {
+    header: "middleName",
+    key: "middleName",
+    required: false,
+    format: "Text",
+    description: "Employee middle name, if any.",
+    width: 18,
+  },
+  {
+    header: "lastName",
+    key: "lastName",
+    required: true,
+    format: "Text",
+    description: "Employee last name.",
+    width: 18,
+  },
+  {
+    header: "email",
+    key: "email",
+    required: true,
+    format: "employee@example.com",
+    description: "Unique employee email.",
+    width: 32,
+  },
+  {
+    header: "phone",
+    key: "phone",
+    required: true,
+    format: "+8801711111111",
+    description: "Employee phone number.",
+    width: 20,
+  },
+  {
+    header: "gender",
+    key: "gender",
+    required: true,
+    format: "male | female | other",
+    description: "Employee gender enum value.",
+    width: 16,
+  },
+  {
+    header: "dateOfBirth",
+    key: "dateOfBirth",
+    required: false,
+    format: "YYYY-MM-DD",
+    description: "Date of birth if available.",
+    width: 18,
+  },
+  {
+    header: "company",
+    key: "company",
+    required: true,
+    format: "MongoDB ObjectId",
+    description: "Active company/concern ObjectId.",
+    width: 28,
+  },
+  {
+    header: "majorDepartment",
+    key: "majorDepartment",
+    required: true,
+    format: "MongoDB ObjectId",
+    description: "Active major department ObjectId under selected company.",
+    width: 28,
+  },
+  {
+    header: "department",
+    key: "department",
+    required: true,
+    format: "MongoDB ObjectId",
+    description: "Active department/section ObjectId under selected company and major department.",
+    width: 28,
+  },
+  {
+    header: "designation",
+    key: "designation",
+    required: true,
+    format: "MongoDB ObjectId",
+    description: "Active designation ObjectId.",
+    width: 28,
+  },
+  {
+    header: "branch",
+    key: "branch",
+    required: true,
+    format: "MongoDB ObjectId",
+    description: "Active branch ObjectId.",
+    width: 28,
+  },
+  {
+    header: "joiningDate",
+    key: "joiningDate",
+    required: true,
+    format: "YYYY-MM-DD",
+    description: "Employee joining date.",
+    width: 18,
+  },
+  {
+    header: "confirmationDate",
+    key: "confirmationDate",
+    required: false,
+    format: "YYYY-MM-DD",
+    description: "Confirmation date. Must not be before joining date.",
+    width: 18,
+  },
+  {
+    header: "serviceType",
+    key: "serviceType",
+    required: false,
+    format: "permanent | probation | contractual | temporary | daily_wage | intern",
+    description: "Defaults to permanent when blank.",
+    width: 24,
+  },
+  {
+    header: "payType",
+    key: "payType",
+    required: false,
+    format: "monthly | daily | hourly",
+    description: "Defaults to monthly when blank.",
+    width: 18,
+  },
+  {
+    header: "dutyHourPerDay",
+    key: "dutyHourPerDay",
+    required: false,
+    format: "0-24",
+    description: "Daily duty hour. Defaults to 8 when blank.",
+    width: 16,
+  },
+  {
+    header: "leaveDay",
+    key: "leaveDay",
+    required: false,
+    format: "0-365",
+    description: "Default weekly/monthly leave day setting. Defaults to 0 when blank.",
+    width: 14,
+  },
+  {
+    header: "employmentStatus",
+    key: "employmentStatus",
+    required: false,
+    format: "active | probation | confirmed | resigned | terminated | retired | suspended",
+    description: "Defaults to active when blank.",
+    width: 26,
+  },
+  {
+    header: "basicSalary",
+    key: "basicSalary",
+    required: false,
+    format: "Number",
+    description: "Initial basic salary. Defaults to 0 when blank.",
+    width: 16,
+  },
+  {
+    header: "status",
+    key: "status",
+    required: false,
+    format: "active | inactive",
+    description: "Employee master active/inactive status. Defaults to active when blank.",
+    width: 16,
+  },
+];
+
+const SAMPLE_EMPLOYEE_BULK_IMPORT_ROWS: TEmployeeBulkImportRawRow[] = [
+  {
+    rowNo: 1,
+    employeeId: "EMP-1001",
+    officeId: "OFF-1001",
+    cardNo: "CARD-1001",
+    firstName: "Mohammad",
+    middleName: "Sohel",
+    lastName: "Uddin",
+    email: "sohel1001@example.com",
+    phone: "+8801711111111",
+    gender: "male",
+    dateOfBirth: "1994-01-01",
+    company: "PUT_COMPANY_OBJECT_ID_HERE",
+    majorDepartment: "PUT_MAJOR_DEPARTMENT_OBJECT_ID_HERE",
+    department: "PUT_DEPARTMENT_OBJECT_ID_HERE",
+    designation: "PUT_DESIGNATION_OBJECT_ID_HERE",
+    branch: "PUT_BRANCH_OBJECT_ID_HERE",
+    joiningDate: "2026-05-01",
+    confirmationDate: "2026-11-01",
+    serviceType: "permanent",
+    payType: "monthly",
+    dutyHourPerDay: 8,
+    leaveDay: 0,
+    employmentStatus: "active",
+    basicSalary: 25000,
+    status: "active",
+  },
+];
+
+const normalizeBooleanQuery = (value: string | boolean | undefined, defaultValue = true) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.toLowerCase() !== "false";
+  }
+
+  return defaultValue;
+};
 
 const normalizeUpper = (value?: string) => value?.trim().toUpperCase();
 const normalizeEmail = (value?: string) => value?.trim().toLowerCase();
@@ -557,9 +813,109 @@ const getSingleEmployeeBulkImportFromDB = async (id: string) => {
   return result;
 };
 
+
+const buildEmployeeBulkImportTemplatePreview = (
+  query: TEmployeeBulkImportTemplateQuery = {},
+): TEmployeeBulkImportTemplatePreview => {
+  const source = query.source ?? "excel";
+  const includeSample = normalizeBooleanQuery(query.includeSample, true);
+
+  return {
+    template: {
+      source,
+      includeSample,
+      generatedAt: new Date().toISOString(),
+      note:
+        "Use ObjectId values for company, majorDepartment, department, designation and branch. Run preview before commit to validate duplicate and reference issues.",
+    },
+    columns: EMPLOYEE_BULK_IMPORT_TEMPLATE_COLUMNS,
+    sampleRows: includeSample ? SAMPLE_EMPLOYEE_BULK_IMPORT_ROWS : [],
+    instructions: [
+      "Do not edit employeeId format after an employee is created; it is treated as permanent identity.",
+      "officeId and cardNo are optional, but must be unique among active employees when supplied.",
+      "company, majorDepartment, department, designation and branch must be active ObjectId values from master setup.",
+      "Use preview endpoint before commit. In strictMode=true, commit is blocked if any row is rejected.",
+      "Keep the same column headers when importing from Excel/CSV.",
+    ],
+  };
+};
+
+const buildEmployeeBulkImportRejectionReportFromDB = async (
+  id: string,
+): Promise<TEmployeeBulkImportRejectionReportPreview> => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid employee bulk import batch ID");
+  }
+
+  const batch = await EmployeeBulkImportBatch.findOne({
+    _id: id,
+    isDeleted: false,
+  }).lean();
+
+  if (!batch) {
+    throw new AppError(404, "Employee bulk import batch not found");
+  }
+
+  return {
+    batch: {
+      id: batch._id.toString(),
+      batchNo: batch.batchNo,
+      source: batch.source,
+      sourceFileName: batch.sourceFileName,
+      status: batch.status,
+    },
+    summary: {
+      totalRows: batch.totalRows,
+      rejectedRows: batch.rejectedRows.length,
+      duplicateRows: batch.duplicateRows,
+      existingEmployeeBlockers: batch.existingEmployeeBlockers,
+      referenceBlockers: batch.referenceBlockers,
+    },
+    rejectedRows: batch.rejectedRows,
+  };
+};
+
+const exportEmployeeBulkImportTemplateCsv = (
+  query: TEmployeeBulkImportTemplateQuery = {},
+): TEmployeeBulkImportExportFileResult => {
+  const preview = buildEmployeeBulkImportTemplatePreview(query);
+
+  return generateEmployeeBulkImportTemplateCsv(preview);
+};
+
+const exportEmployeeBulkImportTemplateExcel = async (
+  query: TEmployeeBulkImportTemplateQuery = {},
+): Promise<TEmployeeBulkImportExportFileResult> => {
+  const preview = buildEmployeeBulkImportTemplatePreview(query);
+
+  return generateEmployeeBulkImportTemplateExcel(preview);
+};
+
+const exportEmployeeBulkImportRejectionsCsv = async (
+  id: string,
+): Promise<TEmployeeBulkImportExportFileResult> => {
+  const preview = await buildEmployeeBulkImportRejectionReportFromDB(id);
+
+  return generateEmployeeBulkImportRejectionCsv(preview);
+};
+
+const exportEmployeeBulkImportRejectionsExcel = async (
+  id: string,
+): Promise<TEmployeeBulkImportExportFileResult> => {
+  const preview = await buildEmployeeBulkImportRejectionReportFromDB(id);
+
+  return generateEmployeeBulkImportRejectionExcel(preview);
+};
+
 export const EmployeeBulkImportServices = {
   previewEmployeeBulkImportFromPayload,
   commitEmployeeBulkImportIntoDB,
   getAllEmployeeBulkImportsFromDB,
   getSingleEmployeeBulkImportFromDB,
+  buildEmployeeBulkImportTemplatePreview,
+  buildEmployeeBulkImportRejectionReportFromDB,
+  exportEmployeeBulkImportTemplateCsv,
+  exportEmployeeBulkImportTemplateExcel,
+  exportEmployeeBulkImportRejectionsCsv,
+  exportEmployeeBulkImportRejectionsExcel,
 };

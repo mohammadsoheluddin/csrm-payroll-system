@@ -1,0 +1,310 @@
+import ExcelJS from "exceljs";
+import {
+  TEmployeeBulkImportExportFileResult,
+  TEmployeeBulkImportRejectedRow,
+  TEmployeeBulkImportRejectionReportPreview,
+  TEmployeeBulkImportTemplateColumn,
+  TEmployeeBulkImportTemplatePreview,
+} from "./employeeBulkImport.interface";
+
+const CSV_MIME_TYPE = "text/csv; charset=utf-8";
+const EXCEL_MIME_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const COMPANY_NAME = "Chakda Steel & Re-Rolling Mills (Pvt.) Ltd.";
+const SYSTEM_NAME = "CSRM Payroll System";
+
+const sanitizeFileNamePart = (value: string) =>
+  value
+    .trim()
+    .replace(/[^a-zA-Z0-9-_]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const getGeneratedAtLabel = () =>
+  new Date().toLocaleString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+const escapeCsvValue = (value: unknown) => {
+  const normalizedValue = value === undefined || value === null ? "" : String(value);
+
+  if (
+    normalizedValue.includes(",") ||
+    normalizedValue.includes("\n") ||
+    normalizedValue.includes('"')
+  ) {
+    return `"${normalizedValue.replace(/"/g, '""')}"`;
+  }
+
+  return normalizedValue;
+};
+
+const applyHeaderStyle = (row: ExcelJS.Row) => {
+  row.font = { bold: true };
+  row.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+
+  row.eachCell((cell) => {
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+};
+
+const applyBodyBorder = (row: ExcelJS.Row) => {
+  row.eachCell((cell) => {
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+};
+
+const getTemplateFileBaseName = (preview: TEmployeeBulkImportTemplatePreview) =>
+  sanitizeFileNamePart(`Employee-Bulk-Import-Template-${preview.template.source}`);
+
+const getRejectionFileBaseName = (
+  preview: TEmployeeBulkImportRejectionReportPreview,
+) => sanitizeFileNamePart(`Employee-Bulk-Import-Rejections-${preview.batch.batchNo}`);
+
+const getTemplateRows = (preview: TEmployeeBulkImportTemplatePreview) =>
+  preview.sampleRows.map((row) => {
+    const rowRecord = row as unknown as Record<string, unknown>;
+
+    return preview.columns.map((column) => rowRecord[column.key] ?? "");
+  });
+
+export const generateEmployeeBulkImportTemplateCsv = (
+  preview: TEmployeeBulkImportTemplatePreview,
+): TEmployeeBulkImportExportFileResult => {
+  const lines = [
+    preview.columns.map((column) => escapeCsvValue(column.header)).join(","),
+    ...getTemplateRows(preview).map((row) => row.map(escapeCsvValue).join(",")),
+  ];
+
+  const csvText = `\uFEFF${lines.join("\n")}`;
+
+  return {
+    buffer: Buffer.from(csvText, "utf8"),
+    fileName: `${getTemplateFileBaseName(preview)}.csv`,
+    mimeType: CSV_MIME_TYPE,
+    reportData: preview,
+  };
+};
+
+const addTemplateInstructionSheet = (
+  workbook: ExcelJS.Workbook,
+  preview: TEmployeeBulkImportTemplatePreview,
+) => {
+  const worksheet = workbook.addWorksheet("Instructions");
+
+  worksheet.columns = [
+    { header: "Field", key: "field", width: 28 },
+    { header: "Required", key: "required", width: 12 },
+    { header: "Format / Allowed Values", key: "format", width: 42 },
+    { header: "Description", key: "description", width: 72 },
+  ];
+
+  worksheet.mergeCells(1, 1, 1, 4);
+  worksheet.getCell(1, 1).value = COMPANY_NAME;
+  worksheet.getCell(1, 1).font = { bold: true, size: 15 };
+  worksheet.getCell(1, 1).alignment = { horizontal: "center" };
+
+  worksheet.mergeCells(2, 1, 2, 4);
+  worksheet.getCell(2, 1).value = `Employee Bulk Import Template Instructions - ${preview.template.source}`;
+  worksheet.getCell(2, 1).font = { bold: true, size: 13 };
+  worksheet.getCell(2, 1).alignment = { horizontal: "center" };
+
+  worksheet.mergeCells(3, 1, 3, 4);
+  worksheet.getCell(3, 1).value = `Generated: ${getGeneratedAtLabel()} | Optional sample rows: ${preview.sampleRows.length}`;
+  worksheet.getCell(3, 1).alignment = { horizontal: "center" };
+
+  const headerRowNumber = 5;
+  const headerRow = worksheet.getRow(headerRowNumber);
+  ["Field", "Required", "Format / Allowed Values", "Description"].forEach(
+    (header, index) => {
+      headerRow.getCell(index + 1).value = header;
+    },
+  );
+  applyHeaderStyle(headerRow);
+
+  preview.columns.forEach((column: TEmployeeBulkImportTemplateColumn) => {
+    const row = worksheet.addRow({
+      field: column.header,
+      required: column.required ? "Yes" : "No",
+      format: column.format || "",
+      description: column.description,
+    });
+    row.alignment = { vertical: "middle", wrapText: true };
+    applyBodyBorder(row);
+  });
+
+  worksheet.views = [{ state: "frozen", ySplit: headerRowNumber }];
+};
+
+export const generateEmployeeBulkImportTemplateExcel = async (
+  preview: TEmployeeBulkImportTemplatePreview,
+): Promise<TEmployeeBulkImportExportFileResult> => {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = SYSTEM_NAME;
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet("Employee Import");
+
+  worksheet.columns = preview.columns.map((column) => ({
+    header: column.header,
+    key: column.key,
+    width: column.width,
+  }));
+
+  const headerRow = worksheet.getRow(1);
+  preview.columns.forEach((column, index) => {
+    headerRow.getCell(index + 1).value = column.header;
+  });
+  applyHeaderStyle(headerRow);
+
+  getTemplateRows(preview).forEach((rowValues) => {
+    const row = worksheet.addRow(rowValues);
+    row.alignment = { vertical: "middle", wrapText: true };
+    applyBodyBorder(row);
+  });
+
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+  worksheet.pageSetup = {
+    paperSize: 9,
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
+  addTemplateInstructionSheet(workbook, preview);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  return {
+    buffer: Buffer.from(buffer),
+    fileName: `${getTemplateFileBaseName(preview)}.xlsx`,
+    mimeType: EXCEL_MIME_TYPE,
+    reportData: preview,
+  };
+};
+
+const getRejectionColumns = () => [
+  { header: "SL", key: "slNo", width: 8 },
+  { header: "Row No", key: "rowNo", width: 12 },
+  { header: "Employee ID", key: "employeeId", width: 20 },
+  { header: "Email", key: "email", width: 32 },
+  { header: "Office ID", key: "officeId", width: 18 },
+  { header: "Card No", key: "cardNo", width: 18 },
+  { header: "Reason", key: "reason", width: 60 },
+  { header: "Raw Payload", key: "rawPayload", width: 70 },
+];
+
+const getRejectionRows = (rejectedRows: TEmployeeBulkImportRejectedRow[]) =>
+  rejectedRows.map((row, index) => ({
+    slNo: index + 1,
+    rowNo: row.rowNo || "",
+    employeeId: row.employeeId || "",
+    email: row.email || "",
+    officeId: row.officeId || "",
+    cardNo: row.cardNo || "",
+    reason: row.reason,
+    rawPayload: row.rawPayload ? JSON.stringify(row.rawPayload) : "",
+  }));
+
+export const generateEmployeeBulkImportRejectionCsv = (
+  preview: TEmployeeBulkImportRejectionReportPreview,
+): TEmployeeBulkImportExportFileResult => {
+  const columns = getRejectionColumns();
+  const rows = getRejectionRows(preview.rejectedRows);
+  const lines = [
+    columns.map((column) => escapeCsvValue(column.header)).join(","),
+    ...rows.map((row) => {
+      const rowRecord = row as Record<string, unknown>;
+
+      return columns.map((column) => escapeCsvValue(rowRecord[column.key])).join(",");
+    }),
+  ];
+
+  const csvText = `\uFEFF${lines.join("\n")}`;
+
+  return {
+    buffer: Buffer.from(csvText, "utf8"),
+    fileName: `${getRejectionFileBaseName(preview)}.csv`,
+    mimeType: CSV_MIME_TYPE,
+    reportData: preview,
+  };
+};
+
+export const generateEmployeeBulkImportRejectionExcel = async (
+  preview: TEmployeeBulkImportRejectionReportPreview,
+): Promise<TEmployeeBulkImportExportFileResult> => {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = SYSTEM_NAME;
+  workbook.created = new Date();
+
+  const worksheet = workbook.addWorksheet("Rejected Rows");
+  const columns = getRejectionColumns();
+
+  worksheet.mergeCells(1, 1, 1, columns.length);
+  worksheet.getCell(1, 1).value = COMPANY_NAME;
+  worksheet.getCell(1, 1).font = { bold: true, size: 15 };
+  worksheet.getCell(1, 1).alignment = { horizontal: "center" };
+
+  worksheet.mergeCells(2, 1, 2, columns.length);
+  worksheet.getCell(2, 1).value = `Employee Bulk Import Rejection Report - ${preview.batch.batchNo}`;
+  worksheet.getCell(2, 1).font = { bold: true, size: 13 };
+  worksheet.getCell(2, 1).alignment = { horizontal: "center" };
+
+  worksheet.mergeCells(3, 1, 3, columns.length);
+  worksheet.getCell(3, 1).value = `Source: ${preview.batch.source} | Total Rows: ${preview.summary.totalRows} | Rejected: ${preview.summary.rejectedRows} | Generated: ${getGeneratedAtLabel()}`;
+  worksheet.getCell(3, 1).alignment = { horizontal: "center" };
+
+  worksheet.columns = columns.map((column) => ({
+    header: column.header,
+    key: column.key,
+    width: column.width,
+  }));
+
+  const headerRowNumber = 5;
+  const headerRow = worksheet.getRow(headerRowNumber);
+  columns.forEach((column, index) => {
+    headerRow.getCell(index + 1).value = column.header;
+  });
+  applyHeaderStyle(headerRow);
+
+  getRejectionRows(preview.rejectedRows).forEach((rowData) => {
+    const rowRecord = rowData as Record<string, unknown>;
+    const row = worksheet.addRow(columns.map((column) => rowRecord[column.key]));
+    row.alignment = { vertical: "middle", wrapText: true };
+    row.getCell(1).alignment = { vertical: "middle", horizontal: "center" };
+    applyBodyBorder(row);
+  });
+
+  worksheet.views = [{ state: "frozen", ySplit: headerRowNumber }];
+  worksheet.pageSetup = {
+    paperSize: 9,
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+
+  return {
+    buffer: Buffer.from(buffer),
+    fileName: `${getRejectionFileBaseName(preview)}.xlsx`,
+    mimeType: EXCEL_MIME_TYPE,
+    reportData: preview,
+  };
+};
