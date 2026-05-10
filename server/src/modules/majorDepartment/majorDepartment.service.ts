@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
   buildActiveFilter,
+  getObjectIdStringOrThrow,
   buildDeletedFilter,
   buildRestoreUpdate,
   buildSoftDeleteUpdate,
@@ -321,9 +322,11 @@ const restoreMajorDepartmentIntoDB = async (
 ) => {
   const deletedMajorDepartment =
     await getSingleDeletedMajorDepartmentFromDB(id);
-  const companyObjectId = await ensureCompanyExists(
+  const companyId = getObjectIdStringOrThrow(
     deletedMajorDepartment.company,
+    "company ID",
   );
+  const companyObjectId = await ensureCompanyExists(companyId);
 
   await ensureUniqueMajorDepartment({
     company: companyObjectId,

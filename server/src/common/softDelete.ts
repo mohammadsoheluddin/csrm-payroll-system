@@ -141,6 +141,59 @@ export const getRequestUser = (req: Request): TSoftDeleteRequestUser | undefined
 export const getRequestUserId = (req: Request): string | undefined =>
   getRequestUser(req)?.userId;
 
+
+export const getObjectIdString = (value?: unknown): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value instanceof Types.ObjectId) {
+    return value.toString();
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "object") {
+    const objectValue = value as {
+      _id?: unknown;
+      id?: unknown;
+    };
+
+    if (objectValue._id instanceof Types.ObjectId) {
+      return objectValue._id.toString();
+    }
+
+    if (typeof objectValue._id === "string") {
+      return objectValue._id;
+    }
+
+    if (objectValue.id instanceof Types.ObjectId) {
+      return objectValue.id.toString();
+    }
+
+    if (typeof objectValue.id === "string") {
+      return objectValue.id;
+    }
+  }
+
+  return undefined;
+};
+
+export const getObjectIdStringOrThrow = (
+  value: unknown,
+  fieldName = "record ID",
+): string => {
+  const objectIdString = getObjectIdString(value);
+
+  if (!objectIdString || !Types.ObjectId.isValid(objectIdString)) {
+    throw new AppError(400, `Invalid ${fieldName}`);
+  }
+
+  return objectIdString;
+};
+
 export const toObjectIdOrNull = (value?: unknown): Types.ObjectId | null => {
   if (!value || !Types.ObjectId.isValid(String(value))) {
     return null;

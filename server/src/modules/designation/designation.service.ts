@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
   buildActiveFilter,
+  getObjectIdStringOrThrow,
   buildDeletedFilter,
   buildRestoreUpdate,
   buildSoftDeleteUpdate,
@@ -304,7 +305,11 @@ const restoreDesignationIntoDB = async (
   options?: TRestoreOptions,
 ) => {
   const deletedDesignation = await getSingleDeletedDesignationFromDB(id);
-  const companyObjectId = await ensureCompanyExists(deletedDesignation.company);
+  const companyId = getObjectIdStringOrThrow(
+    deletedDesignation.company,
+    "company ID",
+  );
+  const companyObjectId = await ensureCompanyExists(companyId);
 
   await ensureUniqueDesignation({
     company: companyObjectId,

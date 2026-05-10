@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
   buildActiveFilter,
+  getObjectIdStringOrThrow,
   buildDeletedFilter,
   buildRestoreUpdate,
   buildSoftDeleteUpdate,
@@ -366,7 +367,12 @@ const restoreCompanyIntoDB = async (id: string, options?: TRestoreOptions) => {
   });
 
   if (deletedCompany.parentCompany) {
-    await ensureParentCompanyExists(deletedCompany.parentCompany);
+    const parentCompanyId = getObjectIdStringOrThrow(
+      deletedCompany.parentCompany,
+      "parent company ID",
+    );
+
+    await ensureParentCompanyExists(parentCompanyId);
   }
 
   const result = await Company.findOneAndUpdate(

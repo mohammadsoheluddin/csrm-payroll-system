@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import {
   buildActiveFilter,
+  getObjectIdStringOrThrow,
   buildDeletedFilter,
   buildRestoreUpdate,
   buildSoftDeleteUpdate,
@@ -362,10 +363,18 @@ const deleteDepartmentFromDB = async (
 
 const restoreDepartmentIntoDB = async (id: string, options?: TRestoreOptions) => {
   const deletedDepartment = await getSingleDeletedDepartmentFromDB(id);
-  const companyObjectId = await ensureCompanyExists(deletedDepartment.company);
+  const companyId = getObjectIdStringOrThrow(
+    deletedDepartment.company,
+    "company ID",
+  );
+  const majorDepartmentId = getObjectIdStringOrThrow(
+    deletedDepartment.majorDepartment,
+    "major department ID",
+  );
+  const companyObjectId = await ensureCompanyExists(companyId);
   const majorDepartmentObjectId = await ensureMajorDepartmentExists({
     company: companyObjectId,
-    majorDepartment: deletedDepartment.majorDepartment,
+    majorDepartment: majorDepartmentId,
   });
 
   await ensureUniqueDepartment({
