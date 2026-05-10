@@ -34,6 +34,18 @@ router.patch(
 );
 
 router.get(
+  "/:id/payroll-impact/preview",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+    USER_ROLE.manager,
+  ),
+  EmployeeMovementController.getEmployeeMovementPayrollImpactPreview,
+);
+
+router.get(
   "/timeline/:employeeId",
   auth(
     USER_ROLE.super_admin,

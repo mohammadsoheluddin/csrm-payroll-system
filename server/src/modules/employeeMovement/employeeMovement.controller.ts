@@ -121,6 +121,28 @@ const applyEmployeeMovement = catchAsync(
   },
 );
 
+
+const getEmployeeMovementPayrollImpactPreview = catchAsync(
+  async (req: Request, res: Response) => {
+    const movementId = req.params.id as string;
+
+    const result =
+      await EmployeeMovementService.getEmployeeMovementPayrollImpactPreviewFromDB(
+        movementId,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+
+      success: true,
+
+      message: "Employee movement payroll impact preview retrieved successfully",
+
+      data: result,
+    });
+  },
+);
+
 const getEmployeeMovementTimeline = catchAsync(
   async (req: Request, res: Response) => {
     const employeeId = req.params.employeeId as string;
@@ -198,6 +220,8 @@ export const EmployeeMovementController = {
   approveEmployeeMovement,
 
   applyEmployeeMovement,
+
+  getEmployeeMovementPayrollImpactPreview,
 
   getEmployeeMovementTimeline,
 

@@ -7,7 +7,13 @@ export type TEmployeeMovementType =
   | "salary_revision"
   | "designation_change"
   | "department_change"
-  | "branch_transfer";
+  | "branch_transfer"
+  | "major_department_change"
+  | "employment_status_change"
+  | "service_type_change"
+  | "pay_type_change"
+  | "duty_hour_change"
+  | "confirmation";
 
 export type TEmployeeMovementStatus =
   | "draft"
@@ -16,58 +22,92 @@ export type TEmployeeMovementStatus =
   | "rejected"
   | "applied";
 
+export type TMovementPayrollImpactModule =
+  | "attendance_finalization"
+  | "salary_sheet"
+  | "time_bill"
+  | "bonus_sheet";
+
+export type TMovementPayrollImpactRecordStatus =
+  | "missing"
+  | "draft"
+  | "processed"
+  | "approved"
+  | "locked"
+  | "finalized"
+  | "generated"
+  | "unknown";
+
 export type TMovementSalaryInfo = {
   grossSalary?: number;
-
   basicSalary?: number;
-
+  houseRent?: number;
+  medicalAllowance?: number;
+  transportAllowance?: number;
+  otherAllowance?: number;
+  taxDeduction?: number;
+  providentFund?: number;
+  loanDeduction?: number;
+  otherDeduction?: number;
+  totalDeduction?: number;
   netSalary?: number;
 };
 
-export type TMovementDepartmentInfo = {
+export type TMovementIdNameInfo = {
   id?: string;
-
   name?: string;
 };
 
-export type TMovementDesignationInfo = {
-  id?: string;
+export type TMovementDepartmentInfo = TMovementIdNameInfo;
+export type TMovementDesignationInfo = TMovementIdNameInfo;
+export type TMovementBranchInfo = TMovementIdNameInfo;
 
-  name?: string;
-};
-
-export type TMovementBranchInfo = {
-  id?: string;
-
-  name?: string;
+export type TMovementServiceInfo = {
+  serviceType?: string;
+  payType?: string;
+  employmentStatus?: string;
+  dutyHourPerDay?: number;
+  leaveDay?: number;
+  confirmationDate?: string;
 };
 
 export type TEmployeeMovementSnapshot = {
   employeeId?: string;
-
   employeeName?: string;
-
-  company?: {
-    id?: string;
-
-    name?: string;
-  } | null;
-
+  company?: TMovementIdNameInfo | null;
+  fromMajorDepartment?: TMovementIdNameInfo | null;
+  toMajorDepartment?: TMovementIdNameInfo | null;
   fromDepartment?: TMovementDepartmentInfo | null;
-
   toDepartment?: TMovementDepartmentInfo | null;
-
   fromDesignation?: TMovementDesignationInfo | null;
-
   toDesignation?: TMovementDesignationInfo | null;
-
   fromBranch?: TMovementBranchInfo | null;
-
   toBranch?: TMovementBranchInfo | null;
-
+  fromServiceInfo?: TMovementServiceInfo | null;
+  toServiceInfo?: TMovementServiceInfo | null;
   fromSalary?: TMovementSalaryInfo | null;
-
   toSalary?: TMovementSalaryInfo | null;
+};
+
+export type TEmployeeMovementPayrollImpactRecord = {
+  module: TMovementPayrollImpactModule;
+  recordId?: string;
+  status: TMovementPayrollImpactRecordStatus;
+  isLocked: boolean;
+  isBlocking: boolean;
+  message: string;
+};
+
+export type TEmployeeMovementPayrollImpact = {
+  effectivePayrollMonth?: string;
+  effectiveDate?: Date | string;
+  affectedModules: TMovementPayrollImpactModule[];
+  records: TEmployeeMovementPayrollImpactRecord[];
+  hasBlockingLockedRecords: boolean;
+  blockers: string[];
+  warnings: string[];
+  nextRequiredAction?: string;
+  checkedAt?: Date;
 };
 
 export type TEmployeeMovementAuditLog = {
@@ -77,7 +117,8 @@ export type TEmployeeMovementAuditLog = {
     | "submitted"
     | "approved"
     | "rejected"
-    | "applied";
+    | "applied"
+    | "payroll_impact_checked";
 
   fromStatus?: TEmployeeMovementStatus | null;
 
@@ -104,6 +145,8 @@ export interface TEmployeeMovement {
   referenceNo?: string;
 
   snapshot?: TEmployeeMovementSnapshot | null;
+
+  payrollImpact?: TEmployeeMovementPayrollImpact | null;
 
   status: TEmployeeMovementStatus;
 
