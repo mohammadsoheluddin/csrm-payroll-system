@@ -8,3 +8,10 @@ export type TGenericErrorResponse = {
   message: string;
   errorSources: TErrorSource[];
 };
+
+export type TErrorResponseBody = {
+  success: false;
+  message: string;
+  errorSources: TErrorSource[];
+  stack?: string;
+};
