@@ -14,7 +14,8 @@
     "start": "node dist/server.js",
     "start:prod": "node dist/server.js",
     "test": "echo \"No automated tests configured yet\" && exit 1",
-    "test:manual": "echo \"Use Postman collections for manual API testing\" && exit 0"
+    "test:manual": "echo \"Use Postman collections for manual API testing\" && exit 0",
+    "route:sanity": "node ../scripts/route-sanity-check.cjs"
   },
   "keywords": [],
   "author": "",
