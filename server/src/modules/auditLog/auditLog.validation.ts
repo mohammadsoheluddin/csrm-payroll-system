@@ -16,6 +16,25 @@ const paginationQuerySchema = {
   limit: z.coerce.number().int().min(1).max(100).optional(),
 };
 
+const auditLogRiskLevelSchema = z
+  .enum(["low", "medium", "high", "critical"])
+  .optional();
+
+const auditLogCategorySchema = z
+  .enum([
+    "authentication",
+    "authorization",
+    "data_access",
+    "data_mutation",
+    "approval",
+    "lock_control",
+    "export",
+    "payroll_process",
+    "system",
+    "general",
+  ])
+  .optional();
+
 const auditLogSortBySchema = z
   .enum([
     "createdAt",
@@ -27,16 +46,28 @@ const auditLogSortBySchema = z
     "entityName",
     "ipAddress",
     "deviceType",
+    "riskLevel",
+    "category",
   ])
   .optional();
 
 const auditLogSortOrderSchema = z.enum(["asc", "desc"]).optional();
+
+const dateRangeRefinement = (data: { fromDate?: string; toDate?: string }) => {
+  if (!data.fromDate || !data.toDate) {
+    return true;
+  }
+
+  return new Date(data.fromDate).getTime() <= new Date(data.toDate).getTime();
+};
 
 const auditLogQueryValidationSchema = z.object({
   query: z
     .object({
       module: optionalStringSchema,
       action: optionalStringSchema,
+      riskLevel: auditLogRiskLevelSchema,
+      category: auditLogCategorySchema,
       actorId: optionalStringSchema,
       actorName: optionalStringSchema,
       actorEmail: optionalStringSchema,
@@ -58,6 +89,7 @@ const auditLogQueryValidationSchema = z.object({
       fromDate: optionalDateSchema,
       toDate: optionalDateSchema,
       includeData: booleanStringSchema,
+      sensitiveOnly: booleanStringSchema,
       hasPreviousData: booleanStringSchema,
       hasNewData: booleanStringSchema,
       hasMetadata: booleanStringSchema,
@@ -65,19 +97,10 @@ const auditLogQueryValidationSchema = z.object({
       sortOrder: auditLogSortOrderSchema,
       ...paginationQuerySchema,
     })
-    .refine(
-      (data) => {
-        if (!data.fromDate || !data.toDate) {
-          return true;
-        }
-
-        return new Date(data.fromDate).getTime() <= new Date(data.toDate).getTime();
-      },
-      {
-        message: "fromDate cannot be after toDate.",
-        path: ["fromDate"],
-      },
-    ),
+    .refine(dateRangeRefinement, {
+      message: "fromDate cannot be after toDate.",
+      path: ["fromDate"],
+    }),
 });
 
 const auditLogSummaryQueryValidationSchema = z.object({
@@ -85,6 +108,8 @@ const auditLogSummaryQueryValidationSchema = z.object({
     .object({
       module: optionalStringSchema,
       action: optionalStringSchema,
+      riskLevel: auditLogRiskLevelSchema,
+      category: auditLogCategorySchema,
       actorRole: optionalStringSchema,
       actorEmail: optionalStringSchema,
       entityId: optionalStringSchema,
@@ -98,19 +123,10 @@ const auditLogSummaryQueryValidationSchema = z.object({
       fromDate: optionalDateSchema,
       toDate: optionalDateSchema,
     })
-    .refine(
-      (data) => {
-        if (!data.fromDate || !data.toDate) {
-          return true;
-        }
-
-        return new Date(data.fromDate).getTime() <= new Date(data.toDate).getTime();
-      },
-      {
-        message: "fromDate cannot be after toDate.",
-        path: ["fromDate"],
-      },
-    ),
+    .refine(dateRangeRefinement, {
+      message: "fromDate cannot be after toDate.",
+      path: ["fromDate"],
+    }),
 });
 
 const auditLogTimelineQueryValidationSchema = z.object({
@@ -118,6 +134,8 @@ const auditLogTimelineQueryValidationSchema = z.object({
     .object({
       module: optionalStringSchema,
       action: optionalStringSchema,
+      riskLevel: auditLogRiskLevelSchema,
+      category: auditLogCategorySchema,
       actorRole: optionalStringSchema,
       actorEmail: optionalStringSchema,
       entityId: optionalStringSchema,
@@ -126,19 +144,10 @@ const auditLogTimelineQueryValidationSchema = z.object({
       groupBy: z.enum(["hour", "day", "month"]).optional(),
       limit: z.coerce.number().int().min(1).max(120).optional(),
     })
-    .refine(
-      (data) => {
-        if (!data.fromDate || !data.toDate) {
-          return true;
-        }
-
-        return new Date(data.fromDate).getTime() <= new Date(data.toDate).getTime();
-      },
-      {
-        message: "fromDate cannot be after toDate.",
-        path: ["fromDate"],
-      },
-    ),
+    .refine(dateRangeRefinement, {
+      message: "fromDate cannot be after toDate.",
+      path: ["fromDate"],
+    }),
 });
 
 const auditLogFilterOptionsQueryValidationSchema = z.object({
@@ -146,6 +155,27 @@ const auditLogFilterOptionsQueryValidationSchema = z.object({
     fromDate: optionalDateSchema,
     toDate: optionalDateSchema,
   }),
+});
+
+const auditLogSensitiveQueryValidationSchema = z.object({
+  query: z
+    .object({
+      module: optionalStringSchema,
+      action: optionalStringSchema,
+      riskLevel: auditLogRiskLevelSchema,
+      category: auditLogCategorySchema,
+      actorRole: optionalStringSchema,
+      actorEmail: optionalStringSchema,
+      entityId: optionalStringSchema,
+      fromDate: optionalDateSchema,
+      toDate: optionalDateSchema,
+      includeData: booleanStringSchema,
+      ...paginationQuerySchema,
+    })
+    .refine(dateRangeRefinement, {
+      message: "fromDate cannot be after toDate.",
+      path: ["fromDate"],
+    }),
 });
 
 const auditLogIdParamValidationSchema = z.object({
@@ -161,6 +191,8 @@ const auditLogEntityParamValidationSchema = z.object({
   query: z.object({
     module: optionalStringSchema,
     action: optionalStringSchema,
+    riskLevel: auditLogRiskLevelSchema,
+    category: auditLogCategorySchema,
     fromDate: optionalDateSchema,
     toDate: optionalDateSchema,
     includeData: booleanStringSchema,
@@ -174,6 +206,7 @@ export const AuditLogValidations = {
   auditLogSummaryQueryValidationSchema,
   auditLogTimelineQueryValidationSchema,
   auditLogFilterOptionsQueryValidationSchema,
+  auditLogSensitiveQueryValidationSchema,
   auditLogIdParamValidationSchema,
   auditLogEntityParamValidationSchema,
 };

@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import AppError from "../errors/AppError";
+import { createAuditLogFromRequest } from "../modules/auditLog/auditLog.utils";
 import { hasPermission, TPermission } from "../modules/user/user.constant";
 
 const HTTP_STATUS = {
@@ -20,6 +21,21 @@ const requirePermission =
       const isAllowed = hasPermission(user.role, requiredPermissions);
 
       if (!isAllowed) {
+        void createAuditLogFromRequest(req, {
+          module: "rbac",
+          action: "permission_denied",
+          riskLevel: "high",
+          category: "authorization",
+          entityName: requiredPermissions.join(", "),
+          description: "Permission denied by RBAC middleware",
+          metadata: {
+            requiredPermissions,
+            actorRole: user.role,
+            requestMethod: req.method,
+            requestOriginalUrl: req.originalUrl,
+          },
+        });
+
         throw new AppError(
           HTTP_STATUS.FORBIDDEN,
           "You do not have permission to perform this action.",

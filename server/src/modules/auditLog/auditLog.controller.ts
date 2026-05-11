@@ -6,6 +6,7 @@ import {
   TAuditLogEntityTrailQuery,
   TAuditLogFilterOptionsQuery,
   TAuditLogQuery,
+  TAuditLogSensitiveQuery,
   TAuditLogSummaryQuery,
   TAuditLogTimelineQuery,
 } from "./auditLog.interface";
@@ -82,6 +83,21 @@ const getAuditLogFilterOptions = catchAsync(
   },
 );
 
+
+const getSensitiveAuditLogs = catchAsync(async (req: Request, res: Response) => {
+  const result = await AuditLogServices.getSensitiveAuditLogsFromDB(
+    req.query as TAuditLogSensitiveQuery,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Sensitive audit logs retrieved successfully",
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
 const getSingleAuditLog = catchAsync(async (req: Request, res: Response) => {
   const auditLogId = getRequiredStringParam(req.params.id, "audit log id");
 
@@ -117,6 +133,7 @@ export const AuditLogControllers = {
   getAuditLogSummary,
   getAuditLogTimeline,
   getAuditLogFilterOptions,
+  getSensitiveAuditLogs,
   getSingleAuditLog,
   getAuditLogsByEntity,
 };

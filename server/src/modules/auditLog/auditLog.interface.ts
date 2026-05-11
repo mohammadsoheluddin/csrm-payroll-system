@@ -17,6 +17,7 @@ export type TAuditLogModule =
   | "employee_bank_info"
   | "employee_movement"
   | "bank_sheet"
+  | "bank_sheet_history"
   | "branch"
   | "department"
   | "employee"
@@ -81,6 +82,20 @@ export type TAuditLogAction =
   | "set_opening_balance"
   | "skip_already_deleted";
 
+export type TAuditRiskLevel = "low" | "medium" | "high" | "critical";
+
+export type TAuditLogCategory =
+  | "authentication"
+  | "authorization"
+  | "data_access"
+  | "data_mutation"
+  | "approval"
+  | "lock_control"
+  | "export"
+  | "payroll_process"
+  | "system"
+  | "general";
+
 export type TAuditDeviceType =
   | "desktop"
   | "mobile"
@@ -99,7 +114,9 @@ export type TAuditLogSortBy =
   | "actorEmail"
   | "entityName"
   | "ipAddress"
-  | "deviceType";
+  | "deviceType"
+  | "riskLevel"
+  | "category";
 
 export type TAuditLogSortOrder = "asc" | "desc";
 
@@ -122,6 +139,8 @@ export interface TAuditLog {
 
   module: TAuditLogModule;
   action: TAuditLogAction;
+  riskLevel?: TAuditRiskLevel;
+  category?: TAuditLogCategory;
 
   entityId?: string;
   entityName?: string;
@@ -166,6 +185,8 @@ export interface TCreateAuditLogPayload {
 
   module: TAuditLogModule;
   action: TAuditLogAction;
+  riskLevel?: TAuditRiskLevel;
+  category?: TAuditLogCategory;
 
   entityId?: string;
   entityName?: string;
@@ -202,6 +223,8 @@ export interface TCreateAuditLogPayload {
 export interface TAuditLogQuery {
   module?: string;
   action?: string;
+  riskLevel?: string;
+  category?: string;
   actorId?: string;
   actorName?: string;
   actorEmail?: string;
@@ -223,6 +246,7 @@ export interface TAuditLogQuery {
   fromDate?: string;
   toDate?: string;
   includeData?: string;
+  sensitiveOnly?: string;
   hasPreviousData?: string;
   hasNewData?: string;
   hasMetadata?: string;
@@ -235,6 +259,8 @@ export interface TAuditLogQuery {
 export interface TAuditLogSummaryQuery {
   module?: string;
   action?: string;
+  riskLevel?: string;
+  category?: string;
   actorRole?: string;
   actorEmail?: string;
   entityId?: string;
@@ -262,6 +288,23 @@ export interface TAuditLogFilterOptionsQuery {
 export interface TAuditLogEntityTrailQuery {
   module?: string;
   action?: string;
+  riskLevel?: string;
+  category?: string;
+  fromDate?: string;
+  toDate?: string;
+  includeData?: string;
+  page?: string | number;
+  limit?: string | number;
+}
+
+export interface TAuditLogSensitiveQuery {
+  module?: string;
+  action?: string;
+  riskLevel?: string;
+  category?: string;
+  actorRole?: string;
+  actorEmail?: string;
+  entityId?: string;
   fromDate?: string;
   toDate?: string;
   includeData?: string;

@@ -2,7 +2,11 @@ import { Request } from "express";
 import type { TRequestUser } from "../../middleware/auth";
 import {
   TAuditDeviceType,
+  TAuditLogAction,
+  TAuditLogCategory,
+  TAuditLogModule,
   TAuditNetworkType,
+  TAuditRiskLevel,
   TCreateAuditLogPayload,
 } from "./auditLog.interface";
 import { AuditLogServices } from "./auditLog.service";
@@ -14,6 +18,7 @@ type TRequestWithUser = Request & {
 type TAuditPayloadWithoutActorAndRequest = Omit<
   TCreateAuditLogPayload,
   | "actorId"
+  | "actorName"
   | "actorEmail"
   | "actorRole"
   | "ipAddress"
@@ -34,6 +39,73 @@ type TAuditPayloadWithoutActorAndRequest = Omit<
   | "clientId"
   | "sessionId"
 >;
+
+const SENSITIVE_KEYS = new Set([
+  "password",
+  "oldPassword",
+  "newPassword",
+  "confirmPassword",
+  "token",
+  "accessToken",
+  "refreshToken",
+  "authorization",
+  "cookie",
+  "secret",
+  "jwt",
+  "apiKey",
+  "pin",
+  "otp",
+]);
+
+const HIGH_RISK_ACTIONS = new Set<TAuditLogAction>([
+  "soft_delete",
+  "delete",
+  "restore",
+  "approve",
+  "approved",
+  "reject",
+  "lock",
+  "locked",
+  "unlock",
+  "unlocked",
+  "role_change",
+  "permission_denied",
+  "pay",
+]);
+
+const MEDIUM_RISK_ACTIONS = new Set<TAuditLogAction>([
+  "create",
+  "created",
+  "update",
+  "process",
+  "processed",
+  "generate",
+  "generated",
+  "regenerated",
+  "finalize",
+  "finalized",
+  "export",
+  "download",
+  "status_change",
+  "applied",
+  "blocked",
+  "set_opening_balance",
+]);
+
+const PAYROLL_RELATED_MODULES = new Set<TAuditLogModule>([
+  "payroll",
+  "salary_sheet",
+  "salary_statement",
+  "salary_payment_distribution",
+  "time_bill",
+  "ot_statement",
+  "ot_payment_distribution",
+  "bonus_sheet",
+  "bonus_statement",
+  "bonus_payment_distribution",
+  "bank_sheet",
+  "bank_sheet_history",
+]);
 
 const getHeaderValue = (
   req: Request,
@@ -204,10 +276,132 @@ const generateRequestId = (req: Request): string => {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 };
 
-/**
- * Fixed:
- * Uses Record<string, unknown> instead of raw Record.
- */
+const redactSensitiveData = (value: unknown, depth = 0): unknown => {
+  if (depth > 5) {
+    return "[MaxDepth]";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactSensitiveData(item, depth + 1));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const result: Record<string, unknown> = {};
+
+  Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+    if (SENSITIVE_KEYS.has(key)) {
+      result[key] = "[REDACTED]";
+      return;
+    }
+
+    result[key] = redactSensitiveData(item, depth + 1);
+  });
+
+  return result;
+};
+
+export const resolveAuditRiskLevel = (
+  action: TAuditLogAction,
+  module: TAuditLogModule,
+  explicitRiskLevel?: TAuditRiskLevel,
+): TAuditRiskLevel => {
+  if (explicitRiskLevel) {
+    return explicitRiskLevel;
+  }
+
+  if (action === "permission_denied") {
+    return "high";
+  }
+
+  if (
+    (action === "pay" || action === "unlock" || action === "unlocked") &&
+    PAYROLL_RELATED_MODULES.has(module)
+  ) {
+    return "critical";
+  }
+
+  if (HIGH_RISK_ACTIONS.has(action)) {
+    return "high";
+  }
+
+  if (MEDIUM_RISK_ACTIONS.has(action)) {
+    return "medium";
+  }
+
+  return "low";
+};
+
+export const resolveAuditCategory = (
+  action: TAuditLogAction,
+  module: TAuditLogModule,
+  explicitCategory?: TAuditLogCategory,
+): TAuditLogCategory => {
+  if (explicitCategory) {
+    return explicitCategory;
+  }
+
+  if (action === "login" || action === "logout") {
+    return "authentication";
+  }
+
+  if (action === "permission_denied" || action === "role_change") {
+    return "authorization";
+  }
+
+  if (action === "read") {
+    return "data_access";
+  }
+
+  if (action === "export" || action === "download") {
+    return "export";
+  }
+
+  if (action === "approve" || action === "approved" || action === "reject") {
+    return "approval";
+  }
+
+  if (
+    action === "lock" ||
+    action === "locked" ||
+    action === "unlock" ||
+    action === "unlocked"
+  ) {
+    return "lock_control";
+  }
+
+  if (
+    PAYROLL_RELATED_MODULES.has(module) ||
+    action === "process" ||
+    action === "processed" ||
+    action === "generate" ||
+    action === "generated" ||
+    action === "regenerated"
+  ) {
+    return "payroll_process";
+  }
+
+  if (action === "system_event") {
+    return "system";
+  }
+
+  if (
+    action === "create" ||
+    action === "created" ||
+    action === "update" ||
+    action === "delete" ||
+    action === "soft_delete" ||
+    action === "restore" ||
+    action === "status_change"
+  ) {
+    return "data_mutation";
+  }
+
+  return "general";
+};
+
 export const toAuditData = (data: unknown): Record<string, unknown> | null => {
   if (!data) {
     return null;
@@ -222,10 +416,13 @@ export const toAuditData = (data: unknown): Record<string, unknown> | null => {
   };
 
   if (typeof possibleMongooseDocument.toObject === "function") {
-    return possibleMongooseDocument.toObject();
+    return redactSensitiveData(possibleMongooseDocument.toObject()) as Record<
+      string,
+      unknown
+    >;
   }
 
-  return data as Record<string, unknown>;
+  return redactSensitiveData(data) as Record<string, unknown>;
 };
 
 export const getAuditEntityId = (
@@ -260,10 +457,14 @@ export const getAuditEntityName = (
   return undefined;
 };
 
-/**
- * Added:
- * Creates audit log from Express request with actor, device, IP, network and request metadata.
- */
+const getActorDisplayName = (user?: TRequestUser): string | undefined => {
+  if (!user?.email) {
+    return undefined;
+  }
+
+  return user.email.split("@")[0];
+};
+
 export const createAuditLogFromRequest = async (
   req: Request,
   payload: TAuditPayloadWithoutActorAndRequest,
@@ -274,11 +475,33 @@ export const createAuditLogFromRequest = async (
   const forwardedFor = getHeaderValue(req, "x-forwarded-for");
   const realIp = getHeaderValue(req, "x-real-ip");
 
+  const riskLevel = resolveAuditRiskLevel(
+    payload.action,
+    payload.module,
+    payload.riskLevel,
+  );
+  const category = resolveAuditCategory(
+    payload.action,
+    payload.module,
+    payload.category,
+  );
+
   await AuditLogServices.createAuditLogSafely({
     ...payload,
+    riskLevel,
+    category,
     actorId: user?.userId,
+    actorName: getActorDisplayName(user),
     actorEmail: user?.email,
     actorRole: user?.role,
+
+    previousData: toAuditData(payload.previousData),
+    newData: toAuditData(payload.newData),
+    metadata: toAuditData({
+      ...(payload.metadata || {}),
+      auditRiskLevel: riskLevel,
+      auditCategory: category,
+    }),
 
     requestId: generateRequestId(req),
     requestMethod: req.method,

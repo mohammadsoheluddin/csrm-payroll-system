@@ -5,6 +5,7 @@ import {
   TAuditLogEntityTrailQuery,
   TAuditLogFilterOptionsQuery,
   TAuditLogQuery,
+  TAuditLogSensitiveQuery,
   TAuditLogSummaryQuery,
   TAuditLogTimelineQuery,
   TCreateAuditLogPayload,
@@ -15,6 +16,26 @@ type TAuditLogMongoFilter = Record<string, any>;
 
 const MAX_AUDIT_LOG_LIMIT = 100;
 const DEFAULT_AUDIT_LOG_LIMIT = 20;
+
+const SENSITIVE_AUDIT_ACTIONS = [
+  "permission_denied",
+  "role_change",
+  "delete",
+  "soft_delete",
+  "restore",
+  "approve",
+  "approved",
+  "reject",
+  "lock",
+  "locked",
+  "unlock",
+  "unlocked",
+  "pay",
+  "export",
+  "download",
+] as const;
+
+const SENSITIVE_RISK_LEVELS = ["high", "critical"] as const;
 
 const createAuditLogIntoDB = async (payload: TCreateAuditLogPayload) => {
   const result = await AuditLog.create(payload);
@@ -114,6 +135,8 @@ const appendExactMatchFilters = (
   const exactFilterFields: Array<keyof TAuditLogQuery> = [
     "module",
     "action",
+    "riskLevel",
+    "category",
     "actorId",
     "actorRole",
     "entityId",
@@ -188,6 +211,13 @@ const buildAuditLogFilter = (
   appendDataPresenceFilter(filter, "newData", (query as TAuditLogQuery).hasNewData);
   appendDataPresenceFilter(filter, "metadata", (query as TAuditLogQuery).hasMetadata);
 
+  if ((query as TAuditLogQuery).sensitiveOnly === "true") {
+    filter.$or = [
+      { riskLevel: { $in: [...SENSITIVE_RISK_LEVELS] } },
+      { action: { $in: [...SENSITIVE_AUDIT_ACTIONS] } },
+    ];
+  }
+
   const searchTerm = (query as TAuditLogQuery).searchTerm;
 
   if (searchTerm?.trim()) {
@@ -233,6 +263,8 @@ const getAllAuditLogsFromDB = async (query: TAuditLogQuery) => {
     "entityName",
     "ipAddress",
     "deviceType",
+    "riskLevel",
+    "category",
   ]);
   const sortBy = allowedSortFields.has(String(query.sortBy))
     ? String(query.sortBy)
@@ -274,6 +306,10 @@ const getAuditLogSummaryFromDB = async (query: TAuditLogSummaryQuery) => {
     actorRoleSummary,
     networkSummary,
     deviceSummary,
+    riskLevelSummary,
+    categorySummary,
+    highRiskCount,
+    criticalRiskCount,
     recentSensitiveLogs,
   ] = await Promise.all([
     AuditLog.countDocuments(filter),
@@ -302,6 +338,18 @@ const getAuditLogSummaryFromDB = async (query: TAuditLogSummaryQuery) => {
       { $group: { _id: "$deviceType", count: { $sum: 1 } } },
       { $sort: { count: -1, _id: 1 } },
     ]),
+    AuditLog.aggregate([
+      { $match: filter },
+      { $group: { _id: "$riskLevel", count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+    ]),
+    AuditLog.aggregate([
+      { $match: filter },
+      { $group: { _id: "$category", count: { $sum: 1 } } },
+      { $sort: { count: -1, _id: 1 } },
+    ]),
+    AuditLog.countDocuments({ ...filter, riskLevel: "high" }),
+    AuditLog.countDocuments({ ...filter, riskLevel: "critical" }),
     AuditLog.find({
       ...filter,
       action: {
@@ -312,13 +360,21 @@ const getAuditLogSummaryFromDB = async (query: TAuditLogSummaryQuery) => {
           "soft_delete",
           "lock",
           "unlock",
+          "unlocked",
+          "restore",
+          "approve",
+          "approved",
+          "reject",
+          "pay",
+          "export",
+          "download",
         ],
       },
     })
       .sort({ createdAt: -1 })
       .limit(10)
       .select(
-        "module action actorEmail actorRole entityId entityName description ipAddress createdAt",
+        "module action riskLevel category actorEmail actorRole entityId entityName description ipAddress createdAt",
       ),
   ]);
 
@@ -345,8 +401,18 @@ const getAuditLogSummaryFromDB = async (query: TAuditLogSummaryQuery) => {
         deviceType: item._id || "unknown",
         count: item.count,
       })),
+      byRiskLevel: riskLevelSummary.map((item) => ({
+        riskLevel: item._id || "unknown",
+        count: item.count,
+      })),
+      byCategory: categorySummary.map((item) => ({
+        category: item._id || "unknown",
+        count: item.count,
+      })),
     },
     sensitiveActivity: {
+      highRiskCount,
+      criticalRiskCount,
       totalRecentSensitiveLogs: recentSensitiveLogs.length,
       recentLogs: recentSensitiveLogs,
     },
@@ -413,6 +479,8 @@ const getAuditLogFilterOptionsFromDB = async (
     actorRoles,
     networkTypes,
     deviceTypes,
+    riskLevels,
+    categories,
     browsers,
     operatingSystems,
     clientNames,
@@ -422,6 +490,8 @@ const getAuditLogFilterOptionsFromDB = async (
     AuditLog.distinct("actorRole", filter),
     AuditLog.distinct("networkType", filter),
     AuditLog.distinct("deviceType", filter),
+    AuditLog.distinct("riskLevel", filter),
+    AuditLog.distinct("category", filter),
     AuditLog.distinct("browser", filter),
     AuditLog.distinct("operatingSystem", filter),
     AuditLog.distinct("clientName", filter),
@@ -438,6 +508,8 @@ const getAuditLogFilterOptionsFromDB = async (
     actorRoles: sortValues(actorRoles),
     networkTypes: sortValues(networkTypes),
     deviceTypes: sortValues(deviceTypes),
+    riskLevels: sortValues(riskLevels),
+    categories: sortValues(categories),
     browsers: sortValues(browsers),
     operatingSystems: sortValues(operatingSystems),
     clientNames: sortValues(clientNames),
@@ -451,6 +523,8 @@ const getAuditLogFilterOptionsFromDB = async (
       "entityName",
       "ipAddress",
       "deviceType",
+      "riskLevel",
+      "category",
     ],
   };
 };
@@ -488,7 +562,59 @@ const getAuditLogsByEntityFromDB = async (
     filter.action = query.action;
   }
 
+  if (query.riskLevel) {
+    filter.riskLevel = query.riskLevel;
+  }
+
+  if (query.category) {
+    filter.category = query.category;
+  }
+
   appendDateRangeFilter(filter, query.fromDate, query.toDate);
+
+  const auditLogQuery = AuditLog.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limitNumber);
+
+  if (!includeData) {
+    auditLogQuery.select("-previousData -newData -metadata -requestQuery -userAgent");
+  }
+
+  const [data, total] = await Promise.all([
+    auditLogQuery,
+    AuditLog.countDocuments(filter),
+  ]);
+
+  return {
+    meta: {
+      page: pageNumber,
+      limit: limitNumber,
+      total,
+      totalPage: Math.ceil(total / limitNumber),
+    },
+    data,
+  };
+};
+
+
+
+const getSensitiveAuditLogsFromDB = async (
+  query: TAuditLogSensitiveQuery = {},
+) => {
+  const pageNumber = normalizeNumber(query.page, 1);
+  const limitNumber = normalizeNumber(
+    query.limit,
+    DEFAULT_AUDIT_LOG_LIMIT,
+    MAX_AUDIT_LOG_LIMIT,
+  );
+  const skip = (pageNumber - 1) * limitNumber;
+  const includeData = query.includeData !== "false";
+
+  const filter = buildAuditLogFilter({
+    ...query,
+    sensitiveOnly: "true",
+  } as TAuditLogQuery);
 
   const auditLogQuery = AuditLog.find(filter)
     .sort({ createdAt: -1 })
@@ -524,4 +650,5 @@ export const AuditLogServices = {
   getAuditLogFilterOptionsFromDB,
   getSingleAuditLogFromDB,
   getAuditLogsByEntityFromDB,
+  getSensitiveAuditLogsFromDB,
 };

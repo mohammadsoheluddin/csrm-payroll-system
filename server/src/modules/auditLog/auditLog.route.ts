@@ -37,6 +37,15 @@ router.get(
   AuditLogControllers.getAuditLogFilterOptions,
 );
 
+
+router.get(
+  "/sensitive",
+  auth(),
+  requirePermission(PERMISSIONS.AUDIT_LOG_READ),
+  validateRequest(AuditLogValidations.auditLogSensitiveQueryValidationSchema),
+  AuditLogControllers.getSensitiveAuditLogs,
+);
+
 router.get(
   "/",
   auth(),

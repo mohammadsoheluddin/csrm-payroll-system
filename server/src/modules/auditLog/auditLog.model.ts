@@ -35,6 +35,29 @@ const auditLogSchema = new Schema<TAuditLog>(
       trim: true,
       index: true,
     },
+    riskLevel: {
+      type: String,
+      enum: ["low", "medium", "high", "critical"],
+      default: "low",
+      index: true,
+    },
+    category: {
+      type: String,
+      enum: [
+        "authentication",
+        "authorization",
+        "data_access",
+        "data_mutation",
+        "approval",
+        "lock_control",
+        "export",
+        "payroll_process",
+        "system",
+        "general",
+      ],
+      default: "general",
+      index: true,
+    },
 
     entityId: {
       type: String,
@@ -65,7 +88,6 @@ const auditLogSchema = new Schema<TAuditLog>(
       default: null,
     },
 
-    // Added: Request metadata for audit investigation
     requestId: {
       type: String,
       trim: true,
@@ -92,7 +114,6 @@ const auditLogSchema = new Schema<TAuditLog>(
       default: null,
     },
 
-    // Added: IP and network metadata
     ipAddress: {
       type: String,
       trim: true,
@@ -112,7 +133,6 @@ const auditLogSchema = new Schema<TAuditLog>(
       index: true,
     },
 
-    // Added: Device/browser metadata
     userAgent: {
       type: String,
       trim: true,
@@ -133,7 +153,6 @@ const auditLogSchema = new Schema<TAuditLog>(
       index: true,
     },
 
-    // Added: Optional frontend/client identifiers
     clientName: {
       type: String,
       trim: true,
@@ -161,7 +180,11 @@ const auditLogSchema = new Schema<TAuditLog>(
 
 auditLogSchema.index({ module: 1, createdAt: -1 });
 auditLogSchema.index({ module: 1, action: 1, createdAt: -1 });
+auditLogSchema.index({ module: 1, riskLevel: 1, createdAt: -1 });
+auditLogSchema.index({ module: 1, category: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ riskLevel: 1, createdAt: -1 });
+auditLogSchema.index({ category: 1, createdAt: -1 });
 auditLogSchema.index({ actorId: 1, createdAt: -1 });
 auditLogSchema.index({ actorEmail: 1, createdAt: -1 });
 auditLogSchema.index({ actorRole: 1, createdAt: -1 });
