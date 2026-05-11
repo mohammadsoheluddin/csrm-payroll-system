@@ -5,9 +5,16 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "tsc -p tsconfig.json",
+    "build:clean": "npm run clean && npm run build",
+    "build:diagnostics": "tsc -p tsconfig.json --extendedDiagnostics",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "typecheck:diagnostics": "tsc -p tsconfig.json --noEmit --pretty false --extendedDiagnostics",
     "start": "node dist/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start:prod": "node dist/server.js",
+    "test": "echo \"No automated tests configured yet\" && exit 1",
+    "test:manual": "echo \"Use Postman collections for manual API testing\" && exit 0"
   },
   "keywords": [],
   "author": "",
