@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import {
@@ -349,11 +350,110 @@ const revertEmployeeBulkImportBatch = catchAsync(
   },
 );
 
+
+const getDeletedEmployeeBulkImports = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await EmployeeBulkImportServices.getDeletedEmployeeBulkImportsFromDB(
+      req.query as any,
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Deleted employee bulk import batches retrieved successfully",
+      meta: result.meta,
+      data: result.data,
+    });
+  },
+);
+
+const deleteEmployeeBulkImport = catchAsync(
+  async (req: Request, res: Response) => {
+    const batchId = getParamId(req, "id");
+
+    const previousBatch = await EmployeeBulkImportServices.getSingleEmployeeBulkImportFromDB(
+      batchId,
+    );
+
+    const result = await EmployeeBulkImportServices.deleteEmployeeBulkImportFromDB(
+      batchId,
+      {
+        userId: getRequestUserId(req),
+        deleteReason: req.body?.deleteReason,
+      },
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "soft_delete",
+      entityId: getAuditEntityId(result, batchId),
+      entityName: result?.batchNo,
+      description: "Employee bulk import batch soft deleted",
+      previousData: toAuditData(previousBatch),
+      newData: toAuditData(result),
+      metadata: {
+        deleteReason: req.body?.deleteReason || null,
+        status: result?.status,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bulk import batch deleted successfully",
+      data: result,
+    });
+  },
+);
+
+const restoreEmployeeBulkImport = catchAsync(
+  async (req: Request, res: Response) => {
+    const batchId = getParamId(req, "id");
+
+    const previousBatch =
+      await EmployeeBulkImportServices.getSingleDeletedEmployeeBulkImportFromDB(
+        batchId,
+      );
+
+    const result = await EmployeeBulkImportServices.restoreEmployeeBulkImportFromDB(
+      batchId,
+      {
+        userId: getRequestUserId(req),
+        restoreReason: req.body?.restoreReason,
+      },
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bulk_import",
+      action: "restore",
+      entityId: getAuditEntityId(result, batchId),
+      entityName: result?.batchNo,
+      description: "Employee bulk import batch restored",
+      previousData: toAuditData(previousBatch),
+      newData: toAuditData(result),
+      metadata: {
+        restoreReason: req.body?.restoreReason || null,
+        status: result?.status,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bulk import batch restored successfully",
+      data: result,
+    });
+  },
+);
+
 export const EmployeeBulkImportControllers = {
   previewEmployeeBulkImport,
   commitEmployeeBulkImport,
   getAllEmployeeBulkImports,
+  getDeletedEmployeeBulkImports,
   getSingleEmployeeBulkImport,
+  deleteEmployeeBulkImport,
+  restoreEmployeeBulkImport,
   getEmployeeBulkImportTemplatePreview,
   exportEmployeeBulkImportTemplateCsv,
   exportEmployeeBulkImportTemplateExcel,

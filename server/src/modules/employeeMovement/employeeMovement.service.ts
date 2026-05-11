@@ -1,5 +1,12 @@
 import { Types } from "mongoose";
 
+import {
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+  normalizeSoftDeleteReason,
+} from "../../common/softDelete";
+
 import AppError from "../../errors/AppError";
 
 import AttendanceFinalization from "../attendanceFinalization/attendanceFinalization.model";
@@ -256,7 +263,9 @@ const addMovementAuditLog = ({
     | "approved"
     | "rejected"
     | "applied"
-    | "payroll_impact_checked";
+    | "payroll_impact_checked"
+    | "soft_deleted"
+    | "restored";
 
   fromStatus?: string | null;
 
@@ -842,10 +851,24 @@ const getEmployeeMovementTimelineFromDB = async (employeeId: string) => {
   }));
 };
 
-const getAllEmployeeMovementsFromDB = async () => {
-  return EmployeeMovement.find({
-    isDeleted: false,
-  })
+const getAllEmployeeMovementsFromDB = async (query: Record<string, unknown> = {}) => {
+  const filter: Record<string, unknown> = {
+    isDeleted: { $ne: true },
+  };
+
+  if (query.employee) {
+    filter.employee = query.employee;
+  }
+
+  if (query.movementType) {
+    filter.movementType = query.movementType;
+  }
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  return EmployeeMovement.find(filter)
     .populate("employee")
     .populate("approvedBy")
     .populate("appliedBy")
@@ -870,6 +893,145 @@ const getSingleEmployeeMovementFromDB = async (id: string) => {
   return movement;
 };
 
+
+const getDeletedEmployeeMovementsFromDB = async (
+  query: Record<string, unknown> = {},
+) => {
+  const filter: Record<string, unknown> = buildDeletedFilter();
+
+  if (query.employee) {
+    filter.employee = query.employee;
+  }
+
+  if (query.movementType) {
+    filter.movementType = query.movementType;
+  }
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  return EmployeeMovement.find(filter)
+    .populate("employee")
+    .populate("approvedBy")
+    .populate("appliedBy")
+    .populate("deletedBy", "name email role")
+    .populate("restoredBy", "name email role")
+    .sort({
+      deletedAt: -1,
+      createdAt: -1,
+    });
+};
+
+const getSingleDeletedEmployeeMovementFromDB = async (id: string) => {
+  const movement = await EmployeeMovement.findOne({
+    _id: id,
+    isDeleted: true,
+  })
+    .populate("employee")
+    .populate("approvedBy")
+    .populate("appliedBy")
+    .populate("deletedBy", "name email role")
+    .populate("restoredBy", "name email role");
+
+  if (!movement) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted employee movement not found.");
+  }
+
+  return movement;
+};
+
+const deleteEmployeeMovementFromDB = async (
+  id: string,
+  options: { userId?: string; deleteReason?: string } = {},
+) => {
+  const movement = await EmployeeMovement.findOne({
+    _id: id,
+    isDeleted: { $ne: true },
+  });
+
+  if (!movement) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee movement not found.");
+  }
+
+  if (movement.status === "applied") {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Applied employee movement cannot be deleted. Create a reverse/correction movement instead.",
+    );
+  }
+
+  addMovementAuditLog({
+    movement,
+    action: "soft_deleted",
+    fromStatus: movement.status,
+    toStatus: movement.status,
+    actionBy: options.userId,
+    note: normalizeSoftDeleteReason(options.deleteReason) || "Movement soft deleted.",
+  });
+
+  const softDeleteUpdate = buildSoftDeleteUpdate({
+    userId: options.userId,
+    deleteReason: normalizeSoftDeleteReason(options.deleteReason),
+  });
+
+  movement.set(softDeleteUpdate.$set);
+  await movement.save();
+
+  return movement;
+};
+
+const restoreEmployeeMovementFromDB = async (
+  id: string,
+  options: { userId?: string; restoreReason?: string } = {},
+) => {
+  const movement = await EmployeeMovement.findOne({
+    _id: id,
+    isDeleted: true,
+  });
+
+  if (!movement) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted employee movement not found.");
+  }
+
+  const employee = await Employee.findOne({
+    _id: movement.employee,
+    isDeleted: { $ne: true },
+  });
+
+  if (!employee) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Employee movement cannot be restored because linked employee is not active/found.",
+    );
+  }
+
+  movement.payrollImpact = await buildEmployeeMovementPayrollImpact(movement);
+
+  addMovementAuditLog({
+    movement,
+    action: "restored",
+    fromStatus: movement.status,
+    toStatus: movement.status,
+    actionBy: options.userId,
+    note: normalizeSoftDeleteReason(options.restoreReason) || "Movement restored.",
+  });
+
+  const restoreUpdate = buildRestoreUpdate({
+    userId: options.userId,
+    restoreReason: normalizeSoftDeleteReason(options.restoreReason),
+  });
+
+  movement.set(restoreUpdate.$set);
+  await movement.save();
+
+  return movement.populate([
+    { path: "employee" },
+    { path: "approvedBy" },
+    { path: "appliedBy" },
+  ]);
+};
+
 export const EmployeeMovementService = {
   createEmployeeMovementIntoDB,
 
@@ -883,5 +1045,13 @@ export const EmployeeMovementService = {
 
   getAllEmployeeMovementsFromDB,
 
+  getDeletedEmployeeMovementsFromDB,
+
   getSingleEmployeeMovementFromDB,
+
+  getSingleDeletedEmployeeMovementFromDB,
+
+  deleteEmployeeMovementFromDB,
+
+  restoreEmployeeMovementFromDB,
 };

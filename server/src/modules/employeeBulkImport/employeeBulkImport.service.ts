@@ -1,4 +1,10 @@
 import mongoose, { Types } from "mongoose";
+import {
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+  normalizeSoftDeleteReason,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Attendance from "../attendance/attendance.model";
 import AttendanceFinalization from "../attendanceFinalization/attendanceFinalization.model";
@@ -784,7 +790,7 @@ const getAllEmployeeBulkImportsFromDB = async (
   const skip = (page - 1) * limit;
 
   const query: Record<string, unknown> = {
-    isDeleted: false,
+    isDeleted: { $ne: true },
   };
 
   if (filters.source) {
@@ -862,6 +868,144 @@ const getSingleEmployeeBulkImportFromDB = async (id: string) => {
   return result;
 };
 
+
+const getDeletedEmployeeBulkImportsFromDB = async (
+  filters: TEmployeeBulkImportQueryFilters = {},
+) => {
+  const page = Number(filters.page ?? DEFAULT_PAGE);
+  const limit = Number(filters.limit ?? DEFAULT_LIMIT);
+  const skip = (page - 1) * limit;
+
+  const query: Record<string, unknown> = buildDeletedFilter();
+
+  if (filters.source) {
+    query.source = filters.source;
+  }
+
+  if (filters.status) {
+    query.status = filters.status;
+  }
+
+  if (filters.batchNo) {
+    query.batchNo = filters.batchNo.trim().toUpperCase();
+  }
+
+  if (filters.sourceFileName) {
+    query.sourceFileName = {
+      $regex: filters.sourceFileName.trim(),
+      $options: "i",
+    };
+  }
+
+  const [data, total] = await Promise.all([
+    EmployeeBulkImportBatch.find(query)
+      .sort({ deletedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({ path: "processedBy", select: "name email role" })
+      .populate({ path: "deletedBy", select: "name email role" })
+      .populate({ path: "restoredBy", select: "name email role" }),
+    EmployeeBulkImportBatch.countDocuments(query),
+  ]);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data,
+  };
+};
+
+const getSingleDeletedEmployeeBulkImportFromDB = async (id: string) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid employee bulk import batch ID");
+  }
+
+  const result = await EmployeeBulkImportBatch.findOne({
+    _id: id,
+    isDeleted: true,
+  }).populate([
+    { path: "processedBy", select: "name email role" },
+    { path: "deletedBy", select: "name email role" },
+    { path: "restoredBy", select: "name email role" },
+    { path: "createdEmployees.employee", select: "employeeId name email phone status isDeleted" },
+  ]);
+
+  if (!result) {
+    throw new AppError(404, "Deleted employee bulk import batch not found");
+  }
+
+  return result;
+};
+
+const deleteEmployeeBulkImportFromDB = async (
+  id: string,
+  options: { userId?: string; deleteReason?: string } = {},
+) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid employee bulk import batch ID");
+  }
+
+  const batch = await EmployeeBulkImportBatch.findOne({
+    _id: id,
+    isDeleted: { $ne: true },
+  });
+
+  if (!batch) {
+    throw new AppError(404, "Employee bulk import batch not found");
+  }
+
+  const result = await EmployeeBulkImportBatch.findByIdAndUpdate(
+    id,
+    buildSoftDeleteUpdate({
+      userId: options.userId,
+      deleteReason: normalizeSoftDeleteReason(options.deleteReason),
+    }),
+    { new: true },
+  ).populate([
+    { path: "processedBy", select: "name email role" },
+    { path: "deletedBy", select: "name email role" },
+    { path: "createdEmployees.employee", select: "employeeId name email phone status isDeleted" },
+  ]);
+
+  return result;
+};
+
+const restoreEmployeeBulkImportFromDB = async (
+  id: string,
+  options: { userId?: string; restoreReason?: string } = {},
+) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid employee bulk import batch ID");
+  }
+
+  const batch = await EmployeeBulkImportBatch.findOne({
+    _id: id,
+    isDeleted: true,
+  });
+
+  if (!batch) {
+    throw new AppError(404, "Deleted employee bulk import batch not found");
+  }
+
+  const result = await EmployeeBulkImportBatch.findByIdAndUpdate(
+    id,
+    buildRestoreUpdate({
+      userId: options.userId,
+      restoreReason: normalizeSoftDeleteReason(options.restoreReason),
+    }),
+    { new: true, runValidators: true },
+  ).populate([
+    { path: "processedBy", select: "name email role" },
+    { path: "restoredBy", select: "name email role" },
+    { path: "createdEmployees.employee", select: "employeeId name email phone status isDeleted" },
+  ]);
+
+  return result;
+};
 
 const buildEmployeeBulkImportTemplatePreview = (
   query: TEmployeeBulkImportTemplateQuery = {},
@@ -1222,7 +1366,11 @@ export const EmployeeBulkImportServices = {
   previewEmployeeBulkImportFromPayload,
   commitEmployeeBulkImportIntoDB,
   getAllEmployeeBulkImportsFromDB,
+  getDeletedEmployeeBulkImportsFromDB,
   getSingleEmployeeBulkImportFromDB,
+  getSingleDeletedEmployeeBulkImportFromDB,
+  deleteEmployeeBulkImportFromDB,
+  restoreEmployeeBulkImportFromDB,
   buildEmployeeBulkImportTemplatePreview,
   buildEmployeeBulkImportRejectionReportFromDB,
   exportEmployeeBulkImportTemplateCsv,

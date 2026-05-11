@@ -1,20 +1,18 @@
 import express from "express";
 
 import auth from "../../middleware/auth";
-
+import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
-
-import { USER_ROLE } from "../user/user.constant";
-
+import { PERMISSIONS } from "../user/user.constant";
 import { EmployeeMovementController } from "./employeeMovement.controller";
-
 import { EmployeeMovementValidation } from "./employeeMovement.validation";
 
 const router = express.Router();
 
 router.post(
   "/create",
-  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.hr),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_MANAGE),
   validateRequest(
     EmployeeMovementValidation.createEmployeeMovementValidationSchema,
   ),
@@ -23,70 +21,83 @@ router.post(
 
 router.patch(
   "/approve/:id",
-  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.manager),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_APPROVE),
+  validateRequest(EmployeeMovementValidation.employeeMovementIdParamValidationSchema),
   EmployeeMovementController.approveEmployeeMovement,
 );
 
 router.patch(
   "/apply/:id",
-  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.hr),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_APPLY),
+  validateRequest(EmployeeMovementValidation.employeeMovementIdParamValidationSchema),
   EmployeeMovementController.applyEmployeeMovement,
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_READ),
+  EmployeeMovementController.getDeletedEmployeeMovements,
+);
+
+router.get(
   "/:id/payroll-impact/preview",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.hr,
-    USER_ROLE.accounts,
-    USER_ROLE.manager,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_PAYROLL_IMPACT_READ),
+  validateRequest(EmployeeMovementValidation.employeeMovementIdParamValidationSchema),
   EmployeeMovementController.getEmployeeMovementPayrollImpactPreview,
 );
 
 router.get(
   "/timeline/:employeeId",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.hr,
-    USER_ROLE.manager,
-    USER_ROLE.accounts,
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_READ),
+  validateRequest(
+    EmployeeMovementValidation.employeeMovementTimelineParamValidationSchema,
   ),
   EmployeeMovementController.getEmployeeMovementTimeline,
 );
 
 router.get(
   "/:id/pdf",
-  auth(USER_ROLE.super_admin, USER_ROLE.admin, USER_ROLE.hr, USER_ROLE.manager),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_READ),
+  validateRequest(EmployeeMovementValidation.employeeMovementIdParamValidationSchema),
   EmployeeMovementController.downloadEmployeeMovementPDF,
 );
 
 router.get(
   "/",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.hr,
-    USER_ROLE.accounts,
-    USER_ROLE.manager,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_READ),
   EmployeeMovementController.getAllEmployeeMovements,
 );
 
 router.get(
   "/:id",
-  auth(
-    USER_ROLE.super_admin,
-    USER_ROLE.admin,
-    USER_ROLE.hr,
-    USER_ROLE.accounts,
-    USER_ROLE.manager,
-  ),
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_READ),
+  validateRequest(EmployeeMovementValidation.employeeMovementIdParamValidationSchema),
   EmployeeMovementController.getSingleEmployeeMovement,
 );
 
-export const employeeMovementRoutes = router;
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_MANAGE),
+  validateRequest(EmployeeMovementValidation.restoreEmployeeMovementValidationSchema),
+  EmployeeMovementController.restoreEmployeeMovement,
+);
 
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MOVEMENT_MANAGE),
+  validateRequest(EmployeeMovementValidation.deleteEmployeeMovementValidationSchema),
+  EmployeeMovementController.deleteEmployeeMovement,
+);
+
+export const employeeMovementRoutes = router;
 export default router;

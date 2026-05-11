@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 
 const objectIdSchema = (fieldName: string) =>
   z
@@ -265,6 +266,10 @@ const employeeBulkImportIdParamValidationSchema = z.object({
   }),
 });
 
+const deleteEmployeeBulkImportValidationSchema = createSoftDeleteValidationSchema("id");
+
+const restoreEmployeeBulkImportValidationSchema = createRestoreValidationSchema("id");
+
 export const EmployeeBulkImportValidations = {
   previewEmployeeBulkImportValidationSchema,
   commitEmployeeBulkImportValidationSchema,
@@ -272,4 +277,6 @@ export const EmployeeBulkImportValidations = {
   employeeBulkImportTemplateQueryValidationSchema,
   revertEmployeeBulkImportValidationSchema,
   employeeBulkImportIdParamValidationSchema,
+  deleteEmployeeBulkImportValidationSchema,
+  restoreEmployeeBulkImportValidationSchema,
 };

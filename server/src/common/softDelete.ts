@@ -195,22 +195,26 @@ export const getObjectIdStringOrThrow = (
 };
 
 export const toObjectIdOrNull = (value?: unknown): Types.ObjectId | null => {
-  if (!value || !Types.ObjectId.isValid(String(value))) {
+  const objectIdString = getObjectIdString(value);
+
+  if (!objectIdString || !Types.ObjectId.isValid(objectIdString)) {
     return null;
   }
 
-  return new Types.ObjectId(String(value));
+  return new Types.ObjectId(objectIdString);
 };
 
 export const toObjectIdOrThrow = (
   value: unknown,
   fieldName = "record ID",
 ): Types.ObjectId => {
-  if (!value || !Types.ObjectId.isValid(String(value))) {
+  const objectIdString = getObjectIdString(value);
+
+  if (!objectIdString || !Types.ObjectId.isValid(objectIdString)) {
     throw new AppError(400, `Invalid ${fieldName}`);
   }
 
-  return new Types.ObjectId(String(value));
+  return new Types.ObjectId(objectIdString);
 };
 
 export const buildActiveFilter = <T>(
@@ -261,6 +265,25 @@ export const buildRestoreUpdate = <T>(options?: {
       updatedBy: actorObjectId,
     },
   };
+};
+
+
+export const ensureRecordIsNotDeleted = (
+  record: TSoftDeleteFields | null | undefined,
+  message = "Record not found",
+) => {
+  if (!record || record.isDeleted === true) {
+    throw new AppError(404, message);
+  }
+};
+
+export const ensureRecordIsDeleted = (
+  record: TSoftDeleteFields | null | undefined,
+  message = "Deleted record not found",
+) => {
+  if (!record || record.isDeleted !== true) {
+    throw new AppError(404, message);
+  }
 };
 
 export const SOFT_DELETE_ROUTE_CONVENTION = {

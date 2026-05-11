@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TEmployeeBankInfoStatus = "active" | "inactive";
 
@@ -11,7 +12,7 @@ export type TMobileBankingProvider =
   | "upay"
   | "other";
 
-export interface TEmployeeBankInfo {
+export interface TEmployeeBankInfo extends TSoftDeleteFields {
   employee: Types.ObjectId;
   company: Types.ObjectId;
 
@@ -35,5 +36,4 @@ export interface TEmployeeBankInfo {
 
   isPrimary?: boolean;
   status?: TEmployeeBankInfoStatus;
-  isDeleted?: boolean;
 }

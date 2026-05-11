@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 
 import {
   EmployeeMovementModel,
@@ -19,6 +20,8 @@ const movementAuditLogSchema = new Schema<TEmployeeMovementAuditLog>(
         "rejected",
         "applied",
         "payroll_impact_checked",
+        "soft_deleted",
+        "restored",
       ],
       required: true,
     },
@@ -460,10 +463,7 @@ const employeeMovementSchema = new Schema<
       default: [],
     },
 
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,
@@ -480,6 +480,11 @@ employeeMovementSchema.index({
   employee: 1,
   "payrollImpact.effectivePayrollMonth": 1,
   status: 1,
+  isDeleted: 1,
+});
+
+employeeMovementSchema.index({
+  deletedAt: -1,
   isDeleted: 1,
 });
 

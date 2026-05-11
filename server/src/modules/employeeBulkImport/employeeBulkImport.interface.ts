@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 import type {
   TEmployeeStatus,
   TEmploymentStatus,
@@ -212,7 +213,7 @@ export interface TEmployeeBulkImportPayload {
   remarks?: string;
 }
 
-export interface TEmployeeBulkImportBatch {
+export interface TEmployeeBulkImportBatch extends TSoftDeleteFields {
   batchNo: string;
   source: TEmployeeBulkImportSource;
   sourceFileName?: string;
@@ -241,7 +242,6 @@ export interface TEmployeeBulkImportBatch {
   remarks?: string;
   processedBy?: Types.ObjectId;
   processedAt?: Date;
-  isDeleted?: boolean;
 }
 
 export type TEmployeeBulkImportQueryFilters = {

@@ -1,4 +1,5 @@
 import { Model, Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TEmployeeMovementType =
   | "increment"
@@ -118,7 +119,9 @@ export type TEmployeeMovementAuditLog = {
     | "approved"
     | "rejected"
     | "applied"
-    | "payroll_impact_checked";
+    | "payroll_impact_checked"
+    | "soft_deleted"
+    | "restored";
 
   fromStatus?: TEmployeeMovementStatus | null;
 
@@ -131,7 +134,7 @@ export type TEmployeeMovementAuditLog = {
   note?: string;
 };
 
-export interface TEmployeeMovement {
+export interface TEmployeeMovement extends TSoftDeleteFields {
   employee: Types.ObjectId;
 
   movementType: TEmployeeMovementType;
@@ -160,7 +163,6 @@ export interface TEmployeeMovement {
 
   auditLogs: TEmployeeMovementAuditLog[];
 
-  isDeleted: boolean;
 }
 
 export interface EmployeeMovementModel extends Model<TEmployeeMovement> {}

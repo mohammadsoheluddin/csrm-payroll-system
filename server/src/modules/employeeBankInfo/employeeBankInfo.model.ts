@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import type { TEmployeeBankInfo } from "./employeeBankInfo.interface";
 
 const employeeBankInfoSchema = new Schema<TEmployeeBankInfo>(
@@ -85,10 +86,7 @@ const employeeBankInfoSchema = new Schema<TEmployeeBankInfo>(
       enum: ["active", "inactive"],
       default: "active",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,
@@ -114,6 +112,11 @@ employeeBankInfoSchema.index({
   bankName: 1,
   bankBranchCode: 1,
   accountNo: 1,
+  isDeleted: 1,
+});
+
+employeeBankInfoSchema.index({
+  deletedAt: -1,
   isDeleted: 1,
 });
 

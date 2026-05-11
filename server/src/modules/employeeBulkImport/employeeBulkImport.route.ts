@@ -34,6 +34,14 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ),
+  validateRequest(EmployeeBulkImportValidations.getAllEmployeeBulkImportsValidationSchema),
+  EmployeeBulkImportControllers.getDeletedEmployeeBulkImports,
+);
+
+router.get(
   "/:id/rejections/preview",
   auth(),
   requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ),
@@ -96,6 +104,22 @@ router.get(
   requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ),
   validateRequest(EmployeeBulkImportValidations.getAllEmployeeBulkImportsValidationSchema),
   EmployeeBulkImportControllers.getAllEmployeeBulkImports,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_PROCESS),
+  validateRequest(EmployeeBulkImportValidations.restoreEmployeeBulkImportValidationSchema),
+  EmployeeBulkImportControllers.restoreEmployeeBulkImport,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BULK_IMPORT_PROCESS),
+  validateRequest(EmployeeBulkImportValidations.deleteEmployeeBulkImportValidationSchema),
+  EmployeeBulkImportControllers.deleteEmployeeBulkImport,
 );
 
 router.get(

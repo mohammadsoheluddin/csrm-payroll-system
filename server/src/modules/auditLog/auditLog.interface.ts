@@ -15,6 +15,7 @@ export type TAuditLogModule =
   | "major_department"
   | "designation"
   | "employee_bank_info"
+  | "employee_movement"
   | "bank_sheet"
   | "branch"
   | "department"
@@ -46,6 +47,7 @@ export type TAuditLogModule =
 
 export type TAuditLogAction =
   | "create"
+  | "created"
   | "read"
   | "update"
   | "delete"
@@ -54,17 +56,30 @@ export type TAuditLogAction =
   | "login"
   | "logout"
   | "process"
+  | "processed"
   | "approve"
+  | "approved"
   | "reject"
   | "pay"
+  | "generate"
+  | "generated"
+  | "regenerated"
+  | "finalize"
+  | "finalized"
   | "lock"
+  | "locked"
   | "unlock"
+  | "unlocked"
   | "export"
   | "download"
   | "role_change"
   | "permission_denied"
   | "status_change"
-  | "system_event";
+  | "system_event"
+  | "applied"
+  | "blocked"
+  | "set_opening_balance"
+  | "skip_already_deleted";
 
 export type TAuditDeviceType =
   | "desktop"

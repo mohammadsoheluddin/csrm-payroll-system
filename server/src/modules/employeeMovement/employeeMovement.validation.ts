@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 
 const movementTypes = [
   "increment",
@@ -119,8 +120,36 @@ const updateEmployeeMovementValidationSchema = z.object({
   }),
 });
 
+
+
+const objectIdSchema = (fieldName: string) =>
+  z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{24}$/, `Invalid ${fieldName}`);
+
+const employeeMovementIdParamValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("employee movement id"),
+  }),
+});
+
+const employeeMovementTimelineParamValidationSchema = z.object({
+  params: z.object({
+    employeeId: objectIdSchema("employee id"),
+  }),
+});
+
+const deleteEmployeeMovementValidationSchema = createSoftDeleteValidationSchema("id");
+
+const restoreEmployeeMovementValidationSchema = createRestoreValidationSchema("id");
+
 export const EmployeeMovementValidation = {
   createEmployeeMovementValidationSchema,
 
   updateEmployeeMovementValidationSchema,
+  employeeMovementIdParamValidationSchema,
+  employeeMovementTimelineParamValidationSchema,
+  deleteEmployeeMovementValidationSchema,
+  restoreEmployeeMovementValidationSchema,
 };

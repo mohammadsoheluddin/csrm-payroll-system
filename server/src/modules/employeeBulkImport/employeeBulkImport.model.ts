@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import type { TEmployeeBulkImportBatch } from "./employeeBulkImport.interface";
 
 const rejectedRowSchema = new Schema(
@@ -450,10 +451,7 @@ const employeeBulkImportBatchSchema = new Schema<TEmployeeBulkImportBatch>(
     processedAt: {
       type: Date,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,
@@ -468,6 +466,11 @@ employeeBulkImportBatchSchema.index({
 
 employeeBulkImportBatchSchema.index({
   processedAt: -1,
+  isDeleted: 1,
+});
+
+employeeBulkImportBatchSchema.index({
+  deletedAt: -1,
   isDeleted: 1,
 });
 

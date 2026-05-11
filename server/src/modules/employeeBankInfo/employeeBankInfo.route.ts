@@ -19,6 +19,16 @@ router.post(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BANK_INFO_READ),
+  validateRequest(
+    EmployeeBankInfoValidations.getAllEmployeeBankInfosValidationSchema,
+  ),
+  EmployeeBankInfoControllers.getDeletedEmployeeBankInfos,
+);
+
+router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.EMPLOYEE_BANK_INFO_READ),
@@ -39,6 +49,16 @@ router.get(
 );
 
 router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_BANK_INFO_MANAGE),
+  validateRequest(
+    EmployeeBankInfoValidations.restoreEmployeeBankInfoValidationSchema,
+  ),
+  EmployeeBankInfoControllers.restoreEmployeeBankInfo,
+);
+
+router.patch(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.EMPLOYEE_BANK_INFO_MANAGE),
@@ -53,7 +73,7 @@ router.delete(
   auth(),
   requirePermission(PERMISSIONS.EMPLOYEE_BANK_INFO_MANAGE),
   validateRequest(
-    EmployeeBankInfoValidations.employeeBankInfoIdParamValidationSchema,
+    EmployeeBankInfoValidations.deleteEmployeeBankInfoValidationSchema,
   ),
   EmployeeBankInfoControllers.deleteEmployeeBankInfo,
 );

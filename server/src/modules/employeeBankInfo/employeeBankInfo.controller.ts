@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -53,6 +54,22 @@ const getAllEmployeeBankInfos = catchAsync(
       statusCode: 200,
       success: true,
       message: "Employee bank infos retrieved successfully",
+      data: result,
+    });
+  },
+);
+
+const getDeletedEmployeeBankInfos = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await EmployeeBankInfoServices.getDeletedEmployeeBankInfosFromDB(
+        req.query as unknown as Record<string, string>,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Deleted employee bank infos retrieved successfully",
       data: result,
     });
   },
@@ -132,6 +149,10 @@ const deleteEmployeeBankInfo = catchAsync(
     const result =
       await EmployeeBankInfoServices.deleteEmployeeBankInfoFromDB(
         employeeBankInfoId,
+        {
+          userId: getRequestUserId(req),
+          deleteReason: req.body?.deleteReason,
+        },
       );
 
     await createAuditLogFromRequest(req, {
@@ -146,6 +167,9 @@ const deleteEmployeeBankInfo = catchAsync(
       description: "Employee bank/payment info soft deleted",
       previousData: toAuditData(previousEmployeeBankInfo),
       newData: toAuditData(result),
+      metadata: {
+        deleteReason: req.body?.deleteReason || null,
+      },
     });
 
     sendResponse(res, {
@@ -157,10 +181,56 @@ const deleteEmployeeBankInfo = catchAsync(
   },
 );
 
+const restoreEmployeeBankInfo = catchAsync(
+  async (req: Request, res: Response) => {
+    const employeeBankInfoId = req.params.id as string;
+
+    const previousEmployeeBankInfo =
+      await EmployeeBankInfoServices.getSingleDeletedEmployeeBankInfoFromDB(
+        employeeBankInfoId,
+      );
+
+    const result =
+      await EmployeeBankInfoServices.restoreEmployeeBankInfoFromDB(
+        employeeBankInfoId,
+        {
+          userId: getRequestUserId(req),
+          restoreReason: req.body?.restoreReason,
+        },
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_bank_info",
+      action: "restore",
+      entityId: getAuditEntityId(result, employeeBankInfoId),
+      entityName: getAuditEntityName(result, [
+        "accountName",
+        "accountNo",
+        "paymentMode",
+      ]),
+      description: "Employee bank/payment info restored",
+      previousData: toAuditData(previousEmployeeBankInfo),
+      newData: toAuditData(result),
+      metadata: {
+        restoreReason: req.body?.restoreReason || null,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee bank info restored successfully",
+      data: result,
+    });
+  },
+);
+
 export const EmployeeBankInfoControllers = {
   createEmployeeBankInfo,
   getAllEmployeeBankInfos,
+  getDeletedEmployeeBankInfos,
   getSingleEmployeeBankInfo,
   updateEmployeeBankInfo,
   deleteEmployeeBankInfo,
+  restoreEmployeeBankInfo,
 };
