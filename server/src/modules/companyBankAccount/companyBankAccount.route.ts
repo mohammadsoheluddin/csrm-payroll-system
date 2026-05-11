@@ -24,6 +24,9 @@ router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_READ),
+  validateRequest(
+    CompanyBankAccountValidations.getAllCompanyBankAccountsValidationSchema,
+  ),
   CompanyBankAccountControllers.getAllCompanyBankAccounts,
 );
 
@@ -31,6 +34,9 @@ router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_READ),
+  validateRequest(
+    CompanyBankAccountValidations.companyBankAccountIdValidationSchema,
+  ),
   CompanyBankAccountControllers.getSingleCompanyBankAccount,
 );
 
@@ -48,6 +54,9 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.COMPANY_BANK_ACCOUNT_MANAGE),
+  validateRequest(
+    CompanyBankAccountValidations.companyBankAccountIdValidationSchema,
+  ),
   CompanyBankAccountControllers.deleteCompanyBankAccount,
 );
 

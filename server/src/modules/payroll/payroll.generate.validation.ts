@@ -1,16 +1,26 @@
 import { z } from "zod";
+import {
+  monthNumberSchema,
+  objectIdSchema,
+  optionalObjectIdSchema,
+  optionalTrimmedStringSchema,
+  yearNumberSchema,
+} from "../../common/validation";
 
 const generateMonthlyPayrollValidationSchema = z.object({
-  body: z.object({
-    month: z
-      .number()
-      .min(1, "Month must be at least 1.")
-      .max(12, "Month cannot exceed 12."),
-
-    year: z.number().min(2000, "Year must be at least 2000."),
-
-    company: z.string().min(1, "Company is required."),
-  }),
+  body: z
+    .object({
+      month: monthNumberSchema,
+      year: yearNumberSchema,
+      company: objectIdSchema("company id"),
+      branch: optionalObjectIdSchema("branch id"),
+      majorDepartment: optionalObjectIdSchema("major department id"),
+      department: optionalObjectIdSchema("department id"),
+      employee: optionalObjectIdSchema("employee id"),
+      overwrite: z.boolean().optional(),
+      remarks: optionalTrimmedStringSchema("Remarks", { max: 500 }),
+    })
+    .strict(),
 });
 
 export const PayrollGenerateValidation = {

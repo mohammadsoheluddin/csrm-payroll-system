@@ -2,6 +2,7 @@ import { Request } from "express";
 import { Schema, Types } from "mongoose";
 import { z } from "zod";
 import AppError from "../errors/AppError";
+import { objectIdSchema } from "./validation";
 
 export const SOFT_DELETE_REASON_MAX_LENGTH = 500;
 
@@ -50,12 +51,6 @@ const softDeleteReasonSchema = z
     SOFT_DELETE_REASON_MAX_LENGTH,
     `Reason cannot exceed ${SOFT_DELETE_REASON_MAX_LENGTH} characters`,
   );
-
-const objectIdSchema = (fieldName: string) =>
-  z
-    .string()
-    .trim()
-    .regex(/^[0-9a-fA-F]{24}$/, `Invalid ${fieldName}`);
 
 export const softDeleteBodyValidationSchema = z
   .object({
