@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import type { TLeaveType } from "../leave/leave.constant";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TLeaveBalanceStatus = "generated" | "locked";
 
@@ -9,7 +10,9 @@ export type TLeaveBalanceActionType =
   | "unlock"
   | "set_opening_balance"
   | "adjustment_credit"
-  | "adjustment_debit";
+  | "adjustment_debit"
+  | "soft_delete"
+  | "restore";
 
 export type TLeaveBalanceCarryForwardPolicy = "no_carry_forward";
 
@@ -50,7 +53,7 @@ export interface TLeaveBalanceActionHistory {
   adjustedDaysAfter?: number;
 }
 
-export interface TLeaveBalance {
+export interface TLeaveBalance  extends TSoftDeleteFields {
   employee: Types.ObjectId;
   company: Types.ObjectId;
   majorDepartment: Types.ObjectId;

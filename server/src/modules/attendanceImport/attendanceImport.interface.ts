@@ -1,5 +1,6 @@
 import { Types } from "mongoose";
 import type { TAttendanceStatus } from "../attendance/attendance.interface";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TAttendanceImportSource = "device" | "excel" | "manual_bulk" | "api";
 
@@ -129,7 +130,7 @@ export interface TAttendanceImportPayload {
   remarks?: string;
 }
 
-export interface TAttendanceImportBatch {
+export interface TAttendanceImportBatch  extends TSoftDeleteFields {
   batchNo: string;
   source: TAttendanceImportSource;
   matchBy: TAttendanceImportMatchBy;

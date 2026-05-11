@@ -17,6 +17,14 @@ router.post(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_READ),
+  validateRequest(LeaveValidations.getAllLeaveValidationSchema),
+  LeaveControllers.getDeletedLeave,
+);
+
+router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.LEAVE_READ),
@@ -41,6 +49,14 @@ router.get(
 );
 
 router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_MANAGE),
+  validateRequest(LeaveValidations.restoreLeaveValidationSchema),
+  LeaveControllers.restoreLeave,
+);
+
+router.patch(
   "/:id/approve",
   auth(),
   requirePermission(PERMISSIONS.LEAVE_APPROVE),
@@ -60,7 +76,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.LEAVE_MANAGE),
-  validateRequest(LeaveValidations.leaveIdParamValidationSchema),
+  validateRequest(LeaveValidations.deleteLeaveValidationSchema),
   LeaveControllers.deleteLeave,
 );
 

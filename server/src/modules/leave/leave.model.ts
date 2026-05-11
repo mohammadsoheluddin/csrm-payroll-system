@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import { LEAVE_STATUSES, LEAVE_TYPES } from "./leave.constant";
 import type { TLeave } from "./leave.interface";
 
@@ -63,10 +64,7 @@ const leaveSchema = new Schema<TLeave>(
       type: String,
       trim: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

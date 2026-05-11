@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest, getAuditEntityId, toAuditData } from "../auditLog/auditLog.utils";
@@ -82,6 +83,19 @@ const getAllAttendanceImports = catchAsync(async (req: Request, res: Response) =
     statusCode: 200,
     success: true,
     message: "Attendance import batches retrieved successfully",
+    data: result,
+  });
+});
+
+const getDeletedAttendanceImports = catchAsync(async (req: Request, res: Response) => {
+  const result = await AttendanceImportServices.getDeletedAttendanceImportsFromDB(
+    req.query as any,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted attendance import batches retrieved successfully",
     data: result,
   });
 });
@@ -322,13 +336,77 @@ const exportAttendanceImportRejectionsExcel = catchAsync(
   },
 );
 
+const deleteAttendanceImport = catchAsync(async (req: Request, res: Response) => {
+  const result = await AttendanceImportServices.deleteAttendanceImportFromDB(
+    getParamId(req, "id"),
+    {
+      userId: getRequestUserId(req),
+      deleteReason: req.body?.deleteReason,
+    },
+  );
+
+  await createAuditLogFromRequest(req, {
+    module: "attendance_import",
+    action: "soft_delete",
+    entityId: getAuditEntityId(result),
+    entityName: result.batchNo,
+    description: "Attendance import batch soft deleted",
+    previousData: null,
+    newData: toAuditData(result),
+    metadata: {
+      deleteReason: req.body?.deleteReason || null,
+      policy: "Soft delete hides the batch only; it does not revert attendance records",
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Attendance import batch deleted successfully",
+    data: result,
+  });
+});
+
+const restoreAttendanceImport = catchAsync(async (req: Request, res: Response) => {
+  const result = await AttendanceImportServices.restoreAttendanceImportIntoDB(
+    getParamId(req, "id"),
+    {
+      userId: getRequestUserId(req),
+      restoreReason: req.body?.restoreReason,
+    },
+  );
+
+  await createAuditLogFromRequest(req, {
+    module: "attendance_import",
+    action: "restore",
+    entityId: getAuditEntityId(result),
+    entityName: result.batchNo,
+    description: "Attendance import batch restored",
+    previousData: null,
+    newData: toAuditData(result),
+    metadata: {
+      restoreReason: req.body?.restoreReason || null,
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Attendance import batch restored successfully",
+    data: result,
+  });
+});
+
 export const AttendanceImportControllers = {
   previewAttendanceImport,
   commitAttendanceImport,
   getAllAttendanceImports,
+  getDeletedAttendanceImports,
   getSingleAttendanceImport,
   previewAttendanceImportRollback,
   rollbackAttendanceImportBatch,
+  deleteAttendanceImport,
+  restoreAttendanceImport,
   getAttendanceImportTemplatePreview,
   exportAttendanceImportTemplateCsv,
   exportAttendanceImportTemplateExcel,

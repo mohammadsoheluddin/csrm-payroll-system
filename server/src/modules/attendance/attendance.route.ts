@@ -17,6 +17,14 @@ router.post(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_READ),
+  validateRequest(AttendanceValidations.getAllAttendanceValidationSchema),
+  AttendanceControllers.getDeletedAttendance,
+);
+
+router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.ATTENDANCE_READ),
@@ -33,6 +41,14 @@ router.get(
 );
 
 router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_MANAGE),
+  validateRequest(AttendanceValidations.restoreAttendanceValidationSchema),
+  AttendanceControllers.restoreAttendance,
+);
+
+router.patch(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.ATTENDANCE_MANAGE),
@@ -44,7 +60,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.ATTENDANCE_MANAGE),
-  validateRequest(AttendanceValidations.attendanceIdParamValidationSchema),
+  validateRequest(AttendanceValidations.deleteAttendanceValidationSchema),
   AttendanceControllers.deleteAttendance,
 );
 

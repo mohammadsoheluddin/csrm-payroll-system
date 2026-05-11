@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import {
   TAttendanceFinalization,
   TAttendanceFinalizationAuditLog,
@@ -155,6 +156,8 @@ const attendanceFinalizationAuditLogSchema =
           "approved",
           "locked",
           "unlocked",
+          "soft_deleted",
+          "restored",
         ],
         required: true,
       },
@@ -395,10 +398,7 @@ const attendanceFinalizationSchema = new Schema<TAttendanceFinalization>(
       trim: true,
       default: "",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

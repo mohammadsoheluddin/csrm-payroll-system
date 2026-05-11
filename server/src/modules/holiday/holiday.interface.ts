@@ -1,3 +1,4 @@
+import type { TSoftDeleteFields } from "../../common/softDelete";
 export type THolidayType =
   | "weekly"
   | "public"
@@ -6,7 +7,7 @@ export type THolidayType =
   | "optional"
   | "eid";
 
-export interface THoliday {
+export interface THoliday  extends TSoftDeleteFields {
   holidayName: string;
   holidayDate: string;
   holidayType: THolidayType;

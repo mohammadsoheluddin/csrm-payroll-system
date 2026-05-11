@@ -18,6 +18,14 @@ router.post(
 
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_READ),
+  validateRequest(LeaveBalanceValidations.leaveBalanceQueryValidationSchema),
+  LeaveBalanceControllers.getDeletedLeaveBalances,
+);
+
+router.get(
   "/export/preview",
   auth(),
   requirePermission(PERMISSIONS.LEAVE_BALANCE_EXPORT),
@@ -113,6 +121,22 @@ router.patch(
   LeaveBalanceControllers.bulkUnlockLeaveBalances,
 );
 
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_ADJUST),
+  validateRequest(LeaveBalanceValidations.restoreLeaveBalanceValidationSchema),
+  LeaveBalanceControllers.restoreLeaveBalance,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.LEAVE_BALANCE_ADJUST),
+  validateRequest(LeaveBalanceValidations.deleteLeaveBalanceValidationSchema),
+  LeaveBalanceControllers.deleteLeaveBalance,
+);
 
 router.patch(
   "/:id/opening-balance",

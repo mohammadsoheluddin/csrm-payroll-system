@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TAttendanceStatus =
   | "present"
@@ -11,7 +12,7 @@ export type TAttendanceStatus =
 
 export type TAttendanceSource = "manual" | "device" | "import";
 
-export interface TAttendance {
+export interface TAttendance  extends TSoftDeleteFields {
   employee: Types.ObjectId;
   attendanceDate: string;
   checkInTime?: string;

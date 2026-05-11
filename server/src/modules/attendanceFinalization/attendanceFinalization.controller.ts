@@ -224,6 +224,22 @@ const getAttendanceFinalizationOperationalSummary = catchAsync(
   },
 );
 
+const getDeletedAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await AttendanceFinalizationServices.getDeletedAttendanceFinalizationFromDB(
+        req.query as any,
+      );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Deleted attendance finalization records retrieved successfully",
+      data: result,
+    });
+  },
+);
+
 const getSingleAttendanceFinalization = catchAsync(
   async (req: Request, res: Response) => {
     const finalizationId = req.params.id as string;
@@ -398,9 +414,89 @@ const unlockAttendanceFinalization = catchAsync(
   },
 );
 
+const deleteAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+    const userId = getUserIdFromRequest(req);
+
+    const previousFinalization =
+      await AttendanceFinalizationServices.getSingleAttendanceFinalizationFromDB(
+        finalizationId,
+      );
+
+    const result =
+      await AttendanceFinalizationServices.deleteAttendanceFinalizationFromDB(
+        finalizationId,
+        {
+          userId,
+          deleteReason: req.body?.deleteReason,
+        },
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "soft_delete",
+      entityId: getAuditEntityId(result, finalizationId),
+      entityName: result.payrollMonth,
+      description: "Attendance finalization soft deleted",
+      previousData: toAuditData(previousFinalization),
+      newData: toAuditData(result),
+      metadata: {
+        deleteReason: req.body?.deleteReason || null,
+        policy: "Locked attendance finalization cannot be deleted",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization deleted successfully",
+      data: result,
+    });
+  },
+);
+
+const restoreAttendanceFinalization = catchAsync(
+  async (req: Request, res: Response) => {
+    const finalizationId = req.params.id as string;
+    const userId = getUserIdFromRequest(req);
+
+    const result =
+      await AttendanceFinalizationServices.restoreAttendanceFinalizationIntoDB(
+        finalizationId,
+        {
+          userId,
+          restoreReason: req.body?.restoreReason,
+        },
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "attendance_finalization",
+      action: "restore",
+      entityId: getAuditEntityId(result, finalizationId),
+      entityName: result.payrollMonth,
+      description: "Attendance finalization restored",
+      previousData: null,
+      newData: toAuditData(result),
+      metadata: {
+        restoreReason: req.body?.restoreReason || null,
+        policy: "Blocked if active duplicate exists for employee and payroll month",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Attendance finalization restored successfully",
+      data: result,
+    });
+  },
+);
+
 export const AttendanceFinalizationControllers = {
   generateMonthlyAttendanceFinalization,
   getAllAttendanceFinalization,
+  getDeletedAttendanceFinalization,
   getAttendanceFinalizationOperationalSummary,
   getSingleAttendanceFinalization,
   bulkFinalizeAttendanceFinalizations,
@@ -411,4 +507,6 @@ export const AttendanceFinalizationControllers = {
   approveAttendanceFinalization,
   lockAttendanceFinalization,
   unlockAttendanceFinalization,
+  deleteAttendanceFinalization,
+  restoreAttendanceFinalization,
 };

@@ -1,9 +1,10 @@
 import { Types } from "mongoose";
 import type { TLeaveStatus, TLeaveType } from "./leave.constant";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type { TLeaveStatus, TLeaveType } from "./leave.constant";
 
-export interface TLeave {
+export interface TLeave  extends TSoftDeleteFields {
   employee: Types.ObjectId;
   leaveType: TLeaveType;
   startDate: string;

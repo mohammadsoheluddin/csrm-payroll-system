@@ -1,4 +1,11 @@
 import mongoose from "mongoose";
+import {
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+  type TRestoreRequestBody,
+  type TSoftDeleteRequestBody,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Attendance from "../attendance/attendance.model";
 import Employee from "../employee/employee.model";
@@ -21,13 +28,18 @@ type TUpdateLeavePayload = Partial<Omit<TLeave, "totalDays">> & {
   totalDays?: number;
 };
 
+type TLeaveDeleteRestoreOptions = TSoftDeleteRequestBody &
+  TRestoreRequestBody & {
+    userId?: string;
+  };
+
 type TLeaveDateFilter = {
   $gte?: string;
   $lte?: string;
 };
 
 type TLeaveDBFilter = {
-  isDeleted: boolean;
+  isDeleted: boolean | { $ne: boolean };
   employee?: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId;
   managementConcernBy?: mongoose.Types.ObjectId;
@@ -40,7 +52,7 @@ type TLeaveDBFilter = {
 };
 
 type TLeaveOverlapFilter = {
-  isDeleted: boolean;
+  isDeleted: boolean | { $ne: boolean };
   employee: mongoose.Types.ObjectId;
   status: {
     $in: TLeaveStatus[];
@@ -577,6 +589,87 @@ const getAllLeaveFromDB = async (query: Record<string, unknown>) => {
   return result;
 };
 
+
+const getDeletedLeaveFromDB = async (query: Record<string, unknown>) => {
+  const filter: TLeaveDBFilter = {
+    isDeleted: true,
+  };
+
+  const employee = getStringQueryValue(query, "employee");
+  const approvedBy = getStringQueryValue(query, "approvedBy");
+  const managementConcernBy = getStringQueryValue(query, "managementConcernBy");
+  const leaveType = getStringQueryValue(query, "leaveType");
+  const status = getStringQueryValue(query, "status");
+  const startDate = getStringQueryValue(query, "startDate");
+  const endDate = getStringQueryValue(query, "endDate");
+  const fromDate = getStringQueryValue(query, "fromDate");
+  const toDate = getStringQueryValue(query, "toDate");
+  const replacementForDate = getStringQueryValue(query, "replacementForDate");
+  const managementConcern = getStringQueryValue(query, "managementConcern");
+
+  if (employee) {
+    filter.employee = toObjectId(employee, "employee ID");
+  }
+
+  if (approvedBy) {
+    filter.approvedBy = toObjectId(approvedBy, "approved by user ID");
+  }
+
+  if (managementConcernBy) {
+    filter.managementConcernBy = toObjectId(
+      managementConcernBy,
+      "management concern by user ID",
+    );
+  }
+
+  if (leaveType) {
+    filter.leaveType = leaveType as TLeaveType;
+  }
+
+  if (status) {
+    filter.status = status as TLeaveStatus;
+  }
+
+  if (fromDate || toDate) {
+    filter.startDate = {
+      ...(fromDate ? { $gte: fromDate } : {}),
+      ...(toDate ? { $lte: toDate } : {}),
+    };
+  } else if (startDate) {
+    filter.startDate = startDate;
+  }
+
+  if (endDate) {
+    filter.endDate = endDate;
+  }
+
+  if (replacementForDate) {
+    filter.replacementForDate = replacementForDate;
+  }
+
+  if (managementConcern === "true") {
+    filter.managementConcern = true;
+  }
+
+  if (managementConcern === "false") {
+    filter.managementConcern = false;
+  }
+
+  const result = await Leave.find(filter)
+    .populate({
+      path: "employee",
+      populate: [{ path: "branch" }, { path: "department" }],
+    })
+    .populate("approvedBy")
+    .populate("managementConcernBy")
+    .sort({
+      deletedAt: -1,
+      createdAt: -1,
+    });
+
+  return result;
+};
+
 const getLeaveBalanceFromDB = async (employeeId: string, year: number) => {
   await ensureEmployeeExists(employeeId);
 
@@ -789,9 +882,28 @@ const updateLeaveIntoDB = async (id: string, payload: TUpdateLeavePayload) => {
   return result;
 };
 
-const deleteLeaveFromDB = async (id: string) => {
+const deleteLeaveFromDB = async (
+  id: string,
+  options: TLeaveDeleteRestoreOptions = {},
+) => {
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError(400, "Invalid leave ID");
+  }
+
+  const existingLeave = await Leave.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!existingLeave) {
+    throw new AppError(404, "Leave record not found");
+  }
+
+  if (existingLeave.status === "approved") {
+    throw new AppError(
+      409,
+      "Approved leave should be cancelled/rejected through approval workflow before delete",
+    );
   }
 
   const result = await Leave.findOneAndUpdate(
@@ -799,13 +911,21 @@ const deleteLeaveFromDB = async (id: string) => {
       _id: id,
       isDeleted: false,
     },
-    {
-      isDeleted: true,
-    },
+    buildSoftDeleteUpdate({
+      userId: options.userId,
+      deleteReason: options.deleteReason,
+    }),
     {
       new: true,
+      runValidators: true,
     },
-  );
+  )
+    .populate({
+      path: "employee",
+      populate: [{ path: "branch" }, { path: "department" }],
+    })
+    .populate("approvedBy")
+    .populate("managementConcernBy");
 
   if (!result) {
     throw new AppError(404, "Leave record not found");
@@ -814,11 +934,69 @@ const deleteLeaveFromDB = async (id: string) => {
   return result;
 };
 
+const restoreLeaveIntoDB = async (
+  id: string,
+  options: TLeaveDeleteRestoreOptions = {},
+) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid leave ID");
+  }
+
+  const existingLeave = await Leave.findOne(buildDeletedFilter({ _id: id }));
+
+  if (!existingLeave) {
+    throw new AppError(404, "Deleted leave record not found");
+  }
+
+  await ensureEmployeeExists(existingLeave.employee);
+  await ensureNoOverlappingLeave({
+    employeeId: existingLeave.employee,
+    startDate: existingLeave.startDate,
+    endDate: existingLeave.endDate,
+    excludeLeaveId: id,
+    currentStatus: existingLeave.status || "pending",
+  });
+  await ensureLimitedLeaveBalance({
+    employeeId: existingLeave.employee,
+    leaveType: existingLeave.leaveType,
+    startDate: existingLeave.startDate,
+    endDate: existingLeave.endDate,
+    excludeLeaveId: id,
+    currentStatus: existingLeave.status || "pending",
+  });
+
+  const result = await Leave.findOneAndUpdate(
+    buildDeletedFilter({ _id: id }),
+    buildRestoreUpdate({
+      userId: options.userId,
+      restoreReason: options.restoreReason,
+    }),
+    {
+      new: true,
+      runValidators: true,
+    },
+  )
+    .populate({
+      path: "employee",
+      populate: [{ path: "branch" }, { path: "department" }],
+    })
+    .populate("approvedBy")
+    .populate("managementConcernBy");
+
+  if (!result) {
+    throw new AppError(404, "Deleted leave record not found");
+  }
+
+  return result;
+};
+
 export const LeaveServices = {
   createLeaveIntoDB,
   getAllLeaveFromDB,
+  getDeletedLeaveFromDB,
   getLeaveBalanceFromDB,
   getSingleLeaveFromDB,
   updateLeaveIntoDB,
   deleteLeaveFromDB,
+  restoreLeaveIntoDB,
 };

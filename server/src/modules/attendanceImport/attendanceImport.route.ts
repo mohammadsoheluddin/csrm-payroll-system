@@ -35,6 +35,14 @@ router.get(
 
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_READ),
+  validateRequest(AttendanceImportValidations.getAllAttendanceImportsValidationSchema),
+  AttendanceImportControllers.getDeletedAttendanceImports,
+);
+
+router.get(
   "/:id/revert/preview",
   auth(),
   requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_READ),
@@ -96,6 +104,22 @@ router.get(
   requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_READ),
   validateRequest(AttendanceImportValidations.getAllAttendanceImportsValidationSchema),
   AttendanceImportControllers.getAllAttendanceImports,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_PROCESS),
+  validateRequest(AttendanceImportValidations.restoreAttendanceImportValidationSchema),
+  AttendanceImportControllers.restoreAttendanceImport,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_IMPORT_PROCESS),
+  validateRequest(AttendanceImportValidations.deleteAttendanceImportValidationSchema),
+  AttendanceImportControllers.deleteAttendanceImport,
 );
 
 router.get(

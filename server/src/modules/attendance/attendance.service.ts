@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
+import {
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+  type TRestoreRequestBody,
+  type TSoftDeleteRequestBody,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
+import AttendanceFinalization from "../attendanceFinalization/attendanceFinalization.model";
 import Employee from "../employee/employee.model";
 import type {
   TAttendance,
@@ -14,12 +22,17 @@ type TAttendanceDateFilter = {
 };
 
 type TAttendanceDBFilter = {
-  isDeleted: boolean;
+  isDeleted: boolean | { $ne: boolean };
   employee?: mongoose.Types.ObjectId;
   status?: TAttendanceStatus;
   source?: TAttendanceSource;
   attendanceDate?: string | TAttendanceDateFilter;
 };
+
+type TAttendanceDeleteRestoreOptions = TSoftDeleteRequestBody &
+  TRestoreRequestBody & {
+    userId?: string;
+  };
 
 const getStringQueryValue = (
   query: Record<string, unknown>,
@@ -32,6 +45,30 @@ const getStringQueryValue = (
   }
 
   return undefined;
+};
+
+const getPayrollMonthFromDate = (attendanceDate: string) =>
+  attendanceDate.slice(0, 7);
+
+const populateAttendanceQuery = () => ({
+  path: "employee",
+  populate: [{ path: "branch" }, { path: "department" }],
+});
+
+const ensureAttendanceMonthIsNotLocked = async (attendance: TAttendance) => {
+  const lockedFinalization = await AttendanceFinalization.findOne({
+    employee: attendance.employee,
+    payrollMonth: getPayrollMonthFromDate(attendance.attendanceDate),
+    isDeleted: { $ne: true },
+    $or: [{ isLocked: true }, { status: "locked" }],
+  });
+
+  if (lockedFinalization) {
+    throw new AppError(
+      409,
+      "Attendance cannot be deleted or restored because the payroll month is locked in attendance finalization",
+    );
+  }
 };
 
 const createAttendanceIntoDB = async (payload: TAttendance) => {
@@ -63,17 +100,16 @@ const createAttendanceIntoDB = async (payload: TAttendance) => {
 
   const result = await Attendance.create(payload);
 
-  const populatedResult = await Attendance.findById(result._id).populate({
-    path: "employee",
-    populate: [{ path: "branch" }, { path: "department" }],
-  });
+  const populatedResult = await Attendance.findById(result._id).populate(
+    populateAttendanceQuery(),
+  );
 
   return populatedResult;
 };
 
-const getAllAttendanceFromDB = async (query: Record<string, unknown>) => {
+const buildAttendanceFilter = (query: Record<string, unknown>, deleted = false) => {
   const filter: TAttendanceDBFilter = {
-    isDeleted: false,
+    isDeleted: deleted ? true : false,
   };
 
   const employee = getStringQueryValue(query, "employee");
@@ -108,12 +144,29 @@ const getAllAttendanceFromDB = async (query: Record<string, unknown>) => {
     filter.attendanceDate = attendanceDate;
   }
 
+  return filter;
+};
+
+const getAllAttendanceFromDB = async (query: Record<string, unknown>) => {
+  const filter = buildAttendanceFilter(query, false);
+
   const result = await Attendance.find(filter)
-    .populate({
-      path: "employee",
-      populate: [{ path: "branch" }, { path: "department" }],
-    })
+    .populate(populateAttendanceQuery())
     .sort({
+      attendanceDate: -1,
+      createdAt: -1,
+    });
+
+  return result;
+};
+
+const getDeletedAttendanceFromDB = async (query: Record<string, unknown>) => {
+  const filter = buildAttendanceFilter(query, true);
+
+  const result = await Attendance.find(filter)
+    .populate(populateAttendanceQuery())
+    .sort({
+      deletedAt: -1,
       attendanceDate: -1,
       createdAt: -1,
     });
@@ -129,10 +182,7 @@ const getSingleAttendanceFromDB = async (id: string) => {
   const result = await Attendance.findOne({
     _id: id,
     isDeleted: false,
-  }).populate({
-    path: "employee",
-    populate: [{ path: "branch" }, { path: "department" }],
-  });
+  }).populate(populateAttendanceQuery());
 
   if (!result) {
     throw new AppError(404, "Attendance not found");
@@ -157,6 +207,8 @@ const updateAttendanceIntoDB = async (
   if (!existingAttendance) {
     throw new AppError(404, "Attendance not found");
   }
+
+  await ensureAttendanceMonthIsNotLocked(existingAttendance);
 
   const employeeId = payload.employee || existingAttendance.employee;
   const attendanceDate =
@@ -203,10 +255,7 @@ const updateAttendanceIntoDB = async (
       new: true,
       runValidators: true,
     },
-  ).populate({
-    path: "employee",
-    populate: [{ path: "branch" }, { path: "department" }],
-  });
+  ).populate(populateAttendanceQuery());
 
   if (!result) {
     throw new AppError(404, "Attendance not found");
@@ -215,26 +264,88 @@ const updateAttendanceIntoDB = async (
   return result;
 };
 
-const deleteAttendanceFromDB = async (id: string) => {
+const deleteAttendanceFromDB = async (
+  id: string,
+  options: TAttendanceDeleteRestoreOptions = {},
+) => {
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError(400, "Invalid attendance ID");
   }
+
+  const existingAttendance = await Attendance.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!existingAttendance) {
+    throw new AppError(404, "Attendance not found");
+  }
+
+  await ensureAttendanceMonthIsNotLocked(existingAttendance);
 
   const result = await Attendance.findOneAndUpdate(
     {
       _id: id,
       isDeleted: false,
     },
-    {
-      isDeleted: true,
-    },
+    buildSoftDeleteUpdate({
+      userId: options.userId,
+      deleteReason: options.deleteReason,
+    }),
     {
       new: true,
+      runValidators: true,
     },
-  );
+  ).populate(populateAttendanceQuery());
 
   if (!result) {
     throw new AppError(404, "Attendance not found");
+  }
+
+  return result;
+};
+
+const restoreAttendanceIntoDB = async (
+  id: string,
+  options: TAttendanceDeleteRestoreOptions = {},
+) => {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new AppError(400, "Invalid attendance ID");
+  }
+
+  const existingAttendance = await Attendance.findOne(buildDeletedFilter({ _id: id }));
+
+  if (!existingAttendance) {
+    throw new AppError(404, "Deleted attendance not found");
+  }
+
+  await ensureAttendanceMonthIsNotLocked(existingAttendance);
+
+  const activeDuplicate = await Attendance.findOne({
+    employee: existingAttendance.employee,
+    attendanceDate: existingAttendance.attendanceDate,
+    isDeleted: false,
+    _id: { $ne: id },
+  });
+
+  if (activeDuplicate) {
+    throw new AppError(
+      409,
+      "Cannot restore attendance because another active attendance exists for this employee on this date",
+    );
+  }
+
+  const result = await Attendance.findOneAndUpdate(
+    buildDeletedFilter({ _id: id }),
+    buildRestoreUpdate({
+      userId: options.userId,
+      restoreReason: options.restoreReason,
+    }),
+    { new: true, runValidators: true },
+  ).populate(populateAttendanceQuery());
+
+  if (!result) {
+    throw new AppError(404, "Deleted attendance not found");
   }
 
   return result;
@@ -243,7 +354,9 @@ const deleteAttendanceFromDB = async (id: string) => {
 export const AttendanceServices = {
   createAttendanceIntoDB,
   getAllAttendanceFromDB,
+  getDeletedAttendanceFromDB,
   getSingleAttendanceFromDB,
   updateAttendanceIntoDB,
   deleteAttendanceFromDB,
+  restoreAttendanceIntoDB,
 };

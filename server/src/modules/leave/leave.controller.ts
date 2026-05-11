@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -42,6 +43,19 @@ const getAllLeave = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
     success: true,
     message: "Leave records retrieved successfully",
+    data: result,
+  });
+});
+
+const getDeletedLeave = catchAsync(async (req: Request, res: Response) => {
+  const result = await LeaveServices.getDeletedLeaveFromDB(
+    req.query as unknown as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted leave records retrieved successfully",
     data: result,
   });
 });
@@ -117,7 +131,10 @@ const deleteLeave = catchAsync(async (req: Request, res: Response) => {
 
   const previousLeave = await LeaveServices.getSingleLeaveFromDB(leaveId);
 
-  const result = await LeaveServices.deleteLeaveFromDB(leaveId);
+  const result = await LeaveServices.deleteLeaveFromDB(leaveId, {
+    userId: getRequestUserId(req),
+    deleteReason: req.body?.deleteReason,
+  });
 
   await createAuditLogFromRequest(req, {
     module: "leave",
@@ -126,6 +143,10 @@ const deleteLeave = catchAsync(async (req: Request, res: Response) => {
     description: "Leave soft deleted",
     previousData: toAuditData(previousLeave),
     newData: toAuditData(result),
+    metadata: {
+      deleteReason: req.body?.deleteReason || null,
+      policy: "Approved leave should be cancelled/rejected before delete",
+    },
   });
 
   sendResponse(res, {
@@ -136,11 +157,42 @@ const deleteLeave = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const restoreLeave = catchAsync(async (req: Request, res: Response) => {
+  const leaveId = req.params.id as string;
+
+  const result = await LeaveServices.restoreLeaveIntoDB(leaveId, {
+    userId: getRequestUserId(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  await createAuditLogFromRequest(req, {
+    module: "leave",
+    action: "restore",
+    entityId: getAuditEntityId(result, leaveId),
+    description: "Leave restored",
+    previousData: null,
+    newData: toAuditData(result),
+    metadata: {
+      restoreReason: req.body?.restoreReason || null,
+      policy: "Blocked if overlap or leave balance conflict exists",
+    },
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Leave restored successfully",
+    data: result,
+  });
+});
+
 export const LeaveControllers = {
   createLeave,
   getAllLeave,
+  getDeletedLeave,
   getLeaveBalance,
   getSingleLeave,
   updateLeave,
   deleteLeave,
+  restoreLeave,
 };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { LEAVE_TYPES } from "../leave/leave.constant";
 
 const objectIdSchema = (fieldName: string) =>
@@ -78,6 +79,10 @@ const leaveBalanceIdParamValidationSchema = z.object({
     id: objectIdSchema("leave balance id"),
   }),
 });
+
+const deleteLeaveBalanceValidationSchema = createSoftDeleteValidationSchema("id");
+
+const restoreLeaveBalanceValidationSchema = createRestoreValidationSchema("id");
 
 const leaveBalanceActionValidationSchema = z.object({
   params: z.object({
@@ -160,6 +165,8 @@ export const LeaveBalanceValidations = {
   leaveBalanceSummaryQueryValidationSchema,
   leaveBalanceIdParamValidationSchema,
   leaveBalanceActionValidationSchema,
+  deleteLeaveBalanceValidationSchema,
+  restoreLeaveBalanceValidationSchema,
   leaveBalanceOpeningBalanceValidationSchema,
   leaveBalanceAdjustmentValidationSchema,
   leaveBalanceExportQueryValidationSchema,

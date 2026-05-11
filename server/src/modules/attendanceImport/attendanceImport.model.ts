@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import type { TAttendanceImportBatch } from "./attendanceImport.interface";
 
 const rejectedRowSchema = new Schema(
@@ -71,10 +72,7 @@ const previousAttendanceSnapshotSchema = new Schema(
       trim: true,
       uppercase: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
     createdAt: Date,
     updatedAt: Date,
   },
@@ -382,10 +380,7 @@ const attendanceImportBatchSchema = new Schema<TAttendanceImportBatch>(
       trim: true,
     },
     rollbackSummary: rollbackSummarySchema,
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

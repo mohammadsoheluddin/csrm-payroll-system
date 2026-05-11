@@ -1,6 +1,16 @@
 import { z } from "zod";
+import {
+  createRestoreValidationSchema,
+  createSoftDeleteValidationSchema,
+} from "../../common/softDelete";
 
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const objectIdSchema = (fieldName: string) =>
+  z
+    .string()
+    .trim()
+    .regex(/^[0-9a-fA-F]{24}$/, `Invalid ${fieldName}`);
 
 const createHolidayValidationSchema = z.object({
   body: z.object({
@@ -19,7 +29,7 @@ const createHolidayValidationSchema = z.object({
       })
       .regex(dateRegex, { error: "Holiday date must be in YYYY-MM-DD format" }),
     holidayType: z.enum(
-      ["weekly", "public", "festival", "company", "optional"],
+      ["weekly", "public", "festival", "company", "optional", "eid"],
       {
         error: "Invalid holiday type",
       },
@@ -29,6 +39,9 @@ const createHolidayValidationSchema = z.object({
 });
 
 const updateHolidayValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("holiday id"),
+  }),
   body: z.object({
     holidayName: z.string().optional(),
     holidayDate: z
@@ -36,7 +49,7 @@ const updateHolidayValidationSchema = z.object({
       .regex(dateRegex, { error: "Holiday date must be in YYYY-MM-DD format" })
       .optional(),
     holidayType: z
-      .enum(["weekly", "public", "festival", "company", "optional"], {
+      .enum(["weekly", "public", "festival", "company", "optional", "eid"], {
         error: "Invalid holiday type",
       })
       .optional(),
@@ -44,7 +57,20 @@ const updateHolidayValidationSchema = z.object({
   }),
 });
 
+const holidayIdParamValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("holiday id"),
+  }),
+});
+
+const deleteHolidayValidationSchema = createSoftDeleteValidationSchema("id");
+
+const restoreHolidayValidationSchema = createRestoreValidationSchema("id");
+
 export const HolidayValidations = {
   createHolidayValidationSchema,
   updateHolidayValidationSchema,
+  holidayIdParamValidationSchema,
+  deleteHolidayValidationSchema,
+  restoreHolidayValidationSchema,
 };

@@ -19,6 +19,16 @@ router.post(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_READ),
+  validateRequest(
+    AttendanceFinalizationValidations.getAllAttendanceFinalizationValidationSchema,
+  ),
+  AttendanceFinalizationControllers.getDeletedAttendanceFinalization,
+);
+
+router.get(
   "/",
   auth(),
   requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_READ),
@@ -87,6 +97,26 @@ router.get(
     AttendanceFinalizationValidations.attendanceFinalizationIdParamValidationSchema,
   ),
   AttendanceFinalizationControllers.getSingleAttendanceFinalization,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_PROCESS),
+  validateRequest(
+    AttendanceFinalizationValidations.restoreAttendanceFinalizationValidationSchema,
+  ),
+  AttendanceFinalizationControllers.restoreAttendanceFinalization,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.ATTENDANCE_FINALIZATION_PROCESS),
+  validateRequest(
+    AttendanceFinalizationValidations.deleteAttendanceFinalizationValidationSchema,
+  ),
+  AttendanceFinalizationControllers.deleteAttendanceFinalization,
 );
 
 router.patch(

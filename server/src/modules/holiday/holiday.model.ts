@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import { THoliday } from "./holiday.interface";
 
 const holidaySchema = new Schema<THoliday>(
@@ -22,10 +23,7 @@ const holidaySchema = new Schema<THoliday>(
       type: String,
       trim: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

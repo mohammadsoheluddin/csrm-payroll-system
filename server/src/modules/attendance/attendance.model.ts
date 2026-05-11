@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import { TAttendance } from "./attendance.interface";
 
 const attendanceSchema = new Schema<TAttendance>(
@@ -52,10 +53,7 @@ const attendanceSchema = new Schema<TAttendance>(
       trim: true,
       uppercase: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildDeletedFilter, buildRestoreUpdate, buildSoftDeleteUpdate, type TRestoreRequestBody, type TSoftDeleteRequestBody } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Attendance from "../attendance/attendance.model";
 import Employee from "../employee/employee.model";
@@ -35,6 +36,8 @@ import {
   generateLeaveBalancePdf,
 } from "./leaveBalance.export";
 import LeaveBalance from "./leaveBalance.model";
+
+type TLeaveBalanceDeleteRestoreOptions = TSoftDeleteRequestBody & TRestoreRequestBody & { userId?: string };
 
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
@@ -663,6 +666,22 @@ const getAllLeaveBalancesFromDB = async (query: TLeaveBalanceQuery) => {
   return result;
 };
 
+const getDeletedLeaveBalancesFromDB = async (query: TLeaveBalanceQuery) => {
+  const filter = buildLeaveBalanceFilter(query);
+  filter.isDeleted = true;
+
+  const result = await LeaveBalance.find(filter)
+    .populate("employee")
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("designation")
+    .populate("branch")
+    .sort({ deletedAt: -1, year: -1, "employeeSnapshot.employeeId": 1, leaveType: 1 });
+
+  return result;
+};
+
 const getSingleLeaveBalanceFromDB = async (id: string) => {
   assertObjectId(id, "Leave balance");
 
@@ -1184,6 +1203,118 @@ const normalizeLedgerEntry = ({
   balanceAfter: isLimited ? runningBalance : null,
 });
 
+const deleteLeaveBalanceFromDB = async (
+  id: string,
+  options: TLeaveBalanceDeleteRestoreOptions = {},
+) => {
+  assertObjectId(id, "Leave balance");
+
+  const existingRecord = await getSingleLeaveBalanceFromDB(id);
+
+  if (existingRecord.isLocked || existingRecord.status === "locked") {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Locked leave balance cannot be deleted.",
+    );
+  }
+
+  const actionBy = buildActionBy(options.userId);
+
+  const result = await LeaveBalance.findOneAndUpdate(
+    { _id: id, isDeleted: false },
+    {
+      ...buildSoftDeleteUpdate({
+        userId: options.userId,
+        deleteReason: options.deleteReason,
+      }),
+      $push: {
+        actionHistory: {
+          action: "soft_delete",
+          actionAt: new Date(),
+          actionBy,
+          note: options.deleteReason || "Soft deleted",
+          reason: options.deleteReason,
+        },
+      },
+    },
+    { new: true, runValidators: true },
+  )
+    .populate("employee")
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("designation")
+    .populate("branch");
+
+  if (!result) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Leave balance record not found.");
+  }
+
+  return result;
+};
+
+const restoreLeaveBalanceIntoDB = async (
+  id: string,
+  options: TLeaveBalanceDeleteRestoreOptions = {},
+) => {
+  assertObjectId(id, "Leave balance");
+
+  const existingRecord = await LeaveBalance.findOne(buildDeletedFilter({ _id: id }));
+
+  if (!existingRecord) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted leave balance record not found.");
+  }
+
+  const duplicateRecord = await LeaveBalance.findOne({
+    employee: existingRecord.employee,
+    year: existingRecord.year,
+    leaveType: existingRecord.leaveType,
+    isDeleted: false,
+    _id: { $ne: id },
+  });
+
+  if (duplicateRecord) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Cannot restore leave balance because an active record already exists for this employee, year and leave type.",
+    );
+  }
+
+  const actionBy = buildActionBy(options.userId);
+
+  const result = await LeaveBalance.findOneAndUpdate(
+    buildDeletedFilter({ _id: id }),
+    {
+      ...buildRestoreUpdate({
+        userId: options.userId,
+        restoreReason: options.restoreReason,
+      }),
+      $push: {
+        actionHistory: {
+          action: "restore",
+          actionAt: new Date(),
+          actionBy,
+          note: options.restoreReason || "Restored",
+          reason: options.restoreReason,
+        },
+      },
+    },
+    { new: true, runValidators: true },
+  )
+    .populate("employee")
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("designation")
+    .populate("branch");
+
+  if (!result) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted leave balance record not found.");
+  }
+
+  return result;
+};
+
 const getEmployeeLeaveLedgerFromDB = async (
   query: TLeaveBalanceLedgerQuery,
 ): Promise<TLeaveBalanceLedgerPreview> => {
@@ -1441,6 +1572,7 @@ const exportEmployeeLeaveLedgerPdfFromDB = async (
 export const LeaveBalanceServices = {
   generateLeaveBalancesIntoDB,
   getAllLeaveBalancesFromDB,
+  getDeletedLeaveBalancesFromDB,
   getSingleLeaveBalanceFromDB,
   getLeaveBalanceSummaryFromDB,
   setLeaveBalanceOpeningBalanceIntoDB,
@@ -1451,6 +1583,8 @@ export const LeaveBalanceServices = {
   exportLeaveBalanceCsvFromDB,
   exportLeaveBalanceExcelFromDB,
   exportLeaveBalancePdfFromDB,
+  deleteLeaveBalanceFromDB,
+  restoreLeaveBalanceIntoDB,
   getEmployeeLeaveLedgerFromDB,
   exportEmployeeLeaveLedgerCsvFromDB,
   exportEmployeeLeaveLedgerExcelFromDB,

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { getRequestUserId } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -50,6 +51,19 @@ const getAllLeaveBalances = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
     success: true,
     message: "Leave balance records retrieved successfully",
+    data: result,
+  });
+});
+
+const getDeletedLeaveBalances = catchAsync(async (req: Request, res: Response) => {
+  const result = await LeaveBalanceServices.getDeletedLeaveBalancesFromDB(
+    req.query as any,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted leave balance records retrieved successfully",
     data: result,
   });
 });
@@ -469,15 +483,89 @@ const exportEmployeeLeaveLedgerPdf = catchAsync(
   },
 );
 
+const deleteLeaveBalance = catchAsync(
+  async (req: Request, res: Response) => {
+    const leaveBalanceId = req.params.id as string;
+    const previousRecord = await LeaveBalanceServices.getSingleLeaveBalanceFromDB(
+      leaveBalanceId,
+    );
+
+    const result = await LeaveBalanceServices.deleteLeaveBalanceFromDB(
+      leaveBalanceId,
+      {
+        userId: getRequestUserId(req),
+        deleteReason: req.body?.deleteReason,
+      },
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "leave_balance",
+      action: "soft_delete",
+      entityId: getAuditEntityId(result, leaveBalanceId),
+      description: "Leave balance soft deleted",
+      previousData: toAuditData(previousRecord),
+      newData: toAuditData(result),
+      metadata: {
+        deleteReason: req.body?.deleteReason || null,
+        policy: "Locked leave balance cannot be deleted",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Leave balance deleted successfully",
+      data: result,
+    });
+  },
+);
+
+const restoreLeaveBalance = catchAsync(
+  async (req: Request, res: Response) => {
+    const leaveBalanceId = req.params.id as string;
+
+    const result = await LeaveBalanceServices.restoreLeaveBalanceIntoDB(
+      leaveBalanceId,
+      {
+        userId: getRequestUserId(req),
+        restoreReason: req.body?.restoreReason,
+      },
+    );
+
+    await createAuditLogFromRequest(req, {
+      module: "leave_balance",
+      action: "restore",
+      entityId: getAuditEntityId(result, leaveBalanceId),
+      description: "Leave balance restored",
+      previousData: null,
+      newData: toAuditData(result),
+      metadata: {
+        restoreReason: req.body?.restoreReason || null,
+        policy: "Blocked if active duplicate exists for employee, year and leave type",
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Leave balance restored successfully",
+      data: result,
+    });
+  },
+);
+
 export const LeaveBalanceControllers = {
   generateLeaveBalances,
   getAllLeaveBalances,
+  getDeletedLeaveBalances,
   getLeaveBalanceSummary,
   getSingleLeaveBalance,
   setLeaveBalanceOpeningBalance,
   adjustLeaveBalance,
   lockLeaveBalance,
   unlockLeaveBalance,
+  deleteLeaveBalance,
+  restoreLeaveBalance,
   bulkLockLeaveBalances,
   bulkUnlockLeaveBalances,
   getLeaveBalanceExportPreview,

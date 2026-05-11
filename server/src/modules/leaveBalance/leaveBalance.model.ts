@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import { LEAVE_TYPES } from "../leave/leave.constant";
 import type { TLeaveBalance } from "./leaveBalance.interface";
 
@@ -40,6 +41,8 @@ const leaveBalanceActionHistorySchema = new Schema(
         "set_opening_balance",
         "adjustment_credit",
         "adjustment_debit",
+        "soft_delete",
+        "restore",
       ],
       required: true,
     },
@@ -246,10 +249,7 @@ const leaveBalanceSchema = new Schema<TLeaveBalance>(
       type: String,
       trim: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

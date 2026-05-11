@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildDeletedFilter, buildRestoreUpdate, buildSoftDeleteUpdate, type TRestoreRequestBody, type TSoftDeleteRequestBody } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Attendance from "../attendance/attendance.model";
 import Employee from "../employee/employee.model";
@@ -17,6 +18,8 @@ import type {
   TGenerateAttendanceFinalizationPayload,
 } from "./attendanceFinalization.interface";
 import AttendanceFinalization from "./attendanceFinalization.model";
+
+type TAttendanceFinalizationDeleteRestoreOptions = TSoftDeleteRequestBody & TRestoreRequestBody & { userId?: string };
 
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
@@ -888,6 +891,71 @@ const getAllAttendanceFinalizationFromDB = async (
     .populate("designation")
     .populate("branch")
     .sort({ payrollMonth: -1, "employeeSnapshot.employeeId": 1, createdAt: -1 });
+
+  return result;
+};
+
+const getDeletedAttendanceFinalizationFromDB = async (
+  query: TAttendanceFinalizationQuery,
+) => {
+  const filter: Record<string, unknown> = {
+    isDeleted: true,
+  };
+
+  if (query.payrollMonth) {
+    filter.payrollMonth = query.payrollMonth;
+  }
+
+  if (query.month && query.year && !query.payrollMonth) {
+    const month = Number(query.month);
+    const year = Number(query.year);
+    validateMonthYear(month, year);
+    filter.payrollMonth = buildPayrollMonth(month, year);
+  }
+
+  if (query.company) {
+    filter.company = toObjectId(query.company, "company id");
+  }
+
+  if (query.majorDepartment) {
+    filter.majorDepartment = toObjectId(
+      query.majorDepartment,
+      "major department id",
+    );
+  }
+
+  if (query.department) {
+    filter.department = toObjectId(query.department, "department id");
+  }
+
+  if (query.branch) {
+    filter.branch = toObjectId(query.branch, "branch id");
+  }
+
+  if (query.employee) {
+    filter.employee = toObjectId(query.employee, "employee id");
+  }
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  if (query.isLocked === "true") {
+    filter.isLocked = true;
+  }
+
+  if (query.isLocked === "false") {
+    filter.isLocked = false;
+  }
+
+  const result = await AttendanceFinalization.find(filter)
+    .populate("employee")
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("designation")
+    .populate("branch")
+    .sort({ deletedAt: -1, payrollMonth: -1, "employeeSnapshot.employeeId": 1, createdAt: -1 });
 
   return result;
 };
@@ -1764,6 +1832,123 @@ const getAttendanceFinalizationOperationalSummaryFromDB = async (
   };
 };
 
+const deleteAttendanceFinalizationFromDB = async (
+  id: string,
+  options: TAttendanceFinalizationDeleteRestoreOptions = {},
+) => {
+  const finalizationId = toObjectId(id, "attendance finalization id");
+  const existingFinalization = await getSingleAttendanceFinalizationFromDB(id);
+
+  if (existingFinalization.isLocked || existingFinalization.status === "locked") {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Locked attendance finalization cannot be deleted.",
+    );
+  }
+
+  const actionByObjectId =
+    options.userId && Types.ObjectId.isValid(options.userId)
+      ? toObjectId(options.userId, "user id")
+      : null;
+
+  const result = await AttendanceFinalization.findOneAndUpdate(
+    { _id: finalizationId, isDeleted: false },
+    {
+      ...buildSoftDeleteUpdate({
+        userId: options.userId,
+        deleteReason: options.deleteReason,
+      }),
+      $push: {
+        auditLogs: createAuditEntry({
+          action: "soft_deleted",
+          fromStatus: existingFinalization.status,
+          toStatus: existingFinalization.status,
+          actionBy: actionByObjectId?.toString(),
+          note: options.deleteReason || "Soft deleted",
+        }),
+      },
+    },
+    { new: true, runValidators: true },
+  )
+    .populate("employee")
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("designation")
+    .populate("branch");
+
+  if (!result) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Attendance finalization not found.");
+  }
+
+  return result;
+};
+
+const restoreAttendanceFinalizationIntoDB = async (
+  id: string,
+  options: TAttendanceFinalizationDeleteRestoreOptions = {},
+) => {
+  const finalizationId = toObjectId(id, "attendance finalization id");
+  const existingFinalization = await AttendanceFinalization.findOne(
+    buildDeletedFilter({ _id: finalizationId }),
+  );
+
+  if (!existingFinalization) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted attendance finalization not found.");
+  }
+
+  const duplicateFinalization = await AttendanceFinalization.findOne({
+    employee: existingFinalization.employee,
+    payrollMonth: existingFinalization.payrollMonth,
+    isDeleted: false,
+    _id: { $ne: finalizationId },
+  });
+
+  if (duplicateFinalization) {
+    throw new AppError(
+      HTTP_STATUS.CONFLICT,
+      "Cannot restore attendance finalization because an active record already exists for this employee and payroll month.",
+    );
+  }
+
+  const actionByObjectId =
+    options.userId && Types.ObjectId.isValid(options.userId)
+      ? toObjectId(options.userId, "user id")
+      : null;
+
+  const result = await AttendanceFinalization.findOneAndUpdate(
+    buildDeletedFilter({ _id: finalizationId }),
+    {
+      ...buildRestoreUpdate({
+        userId: options.userId,
+        restoreReason: options.restoreReason,
+      }),
+      $push: {
+        auditLogs: createAuditEntry({
+          action: "restored",
+          fromStatus: existingFinalization.status,
+          toStatus: existingFinalization.status,
+          actionBy: actionByObjectId?.toString(),
+          note: options.restoreReason || "Restored",
+        }),
+      },
+    },
+    { new: true, runValidators: true },
+  )
+    .populate("employee")
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("designation")
+    .populate("branch");
+
+  if (!result) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted attendance finalization not found.");
+  }
+
+  return result;
+};
+
 const bulkFinalizeAttendanceFinalizationsIntoDB = async (
   payload: TAttendanceFinalizationBulkActionPayload,
   actionBy?: string,
@@ -1811,6 +1996,7 @@ const bulkUnlockAttendanceFinalizationsIntoDB = async (
 export const AttendanceFinalizationServices = {
   generateMonthlyAttendanceFinalizationIntoDB,
   getAllAttendanceFinalizationFromDB,
+  getDeletedAttendanceFinalizationFromDB,
   getSingleAttendanceFinalizationFromDB,
   getAttendanceFinalizationOperationalSummaryFromDB,
   finalizeAttendanceFinalizationIntoDB,
@@ -1821,4 +2007,6 @@ export const AttendanceFinalizationServices = {
   bulkApproveAttendanceFinalizationsIntoDB,
   bulkLockAttendanceFinalizationsIntoDB,
   bulkUnlockAttendanceFinalizationsIntoDB,
+  deleteAttendanceFinalizationFromDB,
+  restoreAttendanceFinalizationIntoDB,
 };

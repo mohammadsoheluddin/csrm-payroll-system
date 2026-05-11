@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import type { TSoftDeleteFields } from "../../common/softDelete";
 
 export type TAttendanceFinalizationStatus =
   | "draft"
@@ -12,7 +13,9 @@ export type TAttendanceFinalizationAuditAction =
   | "finalized"
   | "approved"
   | "locked"
-  | "unlocked";
+  | "unlocked"
+  | "soft_deleted"
+  | "restored";
 
 export interface TAttendanceFinalizationEmployeeSnapshot {
   employeeDbId: string;
@@ -65,7 +68,7 @@ export interface TAttendanceFinalizationAuditLog {
   note?: string;
 }
 
-export interface TAttendanceFinalization {
+export interface TAttendanceFinalization  extends TSoftDeleteFields {
   employee: Types.ObjectId;
   company: Types.ObjectId;
   majorDepartment: Types.ObjectId;

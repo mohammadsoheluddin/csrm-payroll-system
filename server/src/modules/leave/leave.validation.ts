@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import {
   LEAVE_APPROVAL_STATUSES,
   LEAVE_STATUSES,
@@ -333,6 +334,10 @@ const leaveIdParamValidationSchema = z.object({
   }),
 });
 
+const deleteLeaveValidationSchema = createSoftDeleteValidationSchema("id");
+
+const restoreLeaveValidationSchema = createRestoreValidationSchema("id");
+
 const leaveBalanceValidationSchema = z.object({
   params: z.object({
     employeeId: objectIdSchema("employee id"),
@@ -355,5 +360,7 @@ export const LeaveValidations = {
   approveLeaveValidationSchema,
   getAllLeaveValidationSchema,
   leaveIdParamValidationSchema,
+  deleteLeaveValidationSchema,
+  restoreLeaveValidationSchema,
   leaveBalanceValidationSchema,
 };

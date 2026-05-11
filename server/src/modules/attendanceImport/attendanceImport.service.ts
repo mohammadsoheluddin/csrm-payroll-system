@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { buildDeletedFilter, buildRestoreUpdate, buildSoftDeleteUpdate, type TRestoreRequestBody, type TSoftDeleteRequestBody } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Attendance from "../attendance/attendance.model";
 import type { TAttendanceSource, TAttendanceStatus } from "../attendance/attendance.interface";
@@ -778,6 +779,79 @@ const getAllAttendanceImportsFromDB = async (query: TAttendanceImportQuery) => {
   };
 };
 
+const getDeletedAttendanceImportsFromDB = async (query: TAttendanceImportQuery) => {
+  const filter: Record<string, unknown> = {
+    isDeleted: true,
+  };
+
+  if (query.source) {
+    filter.source = query.source;
+  }
+
+  if (query.matchBy) {
+    filter.matchBy = query.matchBy;
+  }
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  if (query.company) {
+    filter.company = toObjectId(query.company, "company id");
+  }
+
+  if (query.department) {
+    filter.department = toObjectId(query.department, "department id");
+  }
+
+  if (query.branch) {
+    filter.branch = toObjectId(query.branch, "branch id");
+  }
+
+  if (query.deviceId) {
+    filter.deviceId = query.deviceId.trim();
+  }
+
+  if (query.batchNo) {
+    filter.batchNo = query.batchNo.trim().toUpperCase();
+  }
+
+  if (query.fromDate || query.toDate) {
+    filter.createdAt = {
+      ...(query.fromDate ? { $gte: new Date(`${query.fromDate}T00:00:00.000Z`) } : {}),
+      ...(query.toDate ? { $lte: new Date(`${query.toDate}T23:59:59.999Z`) } : {}),
+    };
+  }
+
+  const page = Math.max(Number(query.page || 1), 1);
+  const limit = Math.min(Math.max(Number(query.limit || 20), 1), 200);
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    AttendanceImportBatch.find(filter)
+      .populate("company")
+      .populate("majorDepartment")
+      .populate("department")
+      .populate("branch")
+      .populate("processedBy", "name email role")
+      .populate("revertedBy", "name email role")
+      .sort({ deletedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    AttendanceImportBatch.countDocuments(filter),
+  ]);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data,
+  };
+};
+
 const getSingleAttendanceImportFromDB = async (id: string) => {
   if (!Types.ObjectId.isValid(id)) {
     throw new AppError(HTTP_STATUS.BAD_REQUEST, "Invalid attendance import batch id.");
@@ -804,6 +878,8 @@ const getSingleAttendanceImportFromDB = async (id: string) => {
 
   return result;
 };
+
+type TAttendanceImportDeleteRestoreOptions = TSoftDeleteRequestBody & TRestoreRequestBody & { userId?: string };
 
 type TAttendanceImportBatchDocumentLike = any;
 
@@ -1212,6 +1288,66 @@ const rollbackAttendanceImportBatchIntoDB = async (
 };
 
 
+const deleteAttendanceImportFromDB = async (
+  id: string,
+  options: TAttendanceImportDeleteRestoreOptions = {},
+) => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Invalid attendance import batch id.");
+  }
+
+  const result = await AttendanceImportBatch.findOneAndUpdate(
+    { _id: id, isDeleted: false },
+    buildSoftDeleteUpdate({
+      userId: options.userId,
+      deleteReason: options.deleteReason,
+    }),
+    { new: true, runValidators: true },
+  )
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("branch")
+    .populate("processedBy", "name email role")
+    .populate("revertedBy", "name email role");
+
+  if (!result) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Attendance import batch not found.");
+  }
+
+  return result;
+};
+
+const restoreAttendanceImportIntoDB = async (
+  id: string,
+  options: TAttendanceImportDeleteRestoreOptions = {},
+) => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Invalid attendance import batch id.");
+  }
+
+  const result = await AttendanceImportBatch.findOneAndUpdate(
+    buildDeletedFilter({ _id: id }),
+    buildRestoreUpdate({
+      userId: options.userId,
+      restoreReason: options.restoreReason,
+    }),
+    { new: true, runValidators: true },
+  )
+    .populate("company")
+    .populate("majorDepartment")
+    .populate("department")
+    .populate("branch")
+    .populate("processedBy", "name email role")
+    .populate("revertedBy", "name email role");
+
+  if (!result) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Deleted attendance import batch not found.");
+  }
+
+  return result;
+};
+
 const TEMPLATE_COLUMNS: TAttendanceImportTemplateColumn[] = [
   {
     header: "Row No",
@@ -1427,10 +1563,13 @@ export const AttendanceImportServices = {
   previewAttendanceImportFromPayload,
   commitAttendanceImportIntoDB,
   getAllAttendanceImportsFromDB,
+  getDeletedAttendanceImportsFromDB,
   getSingleAttendanceImportFromDB,
   previewAttendanceImportRollbackFromDB,
   rollbackAttendanceImportBatchIntoDB,
   buildAttendanceImportTemplatePreview,
+  deleteAttendanceImportFromDB,
+  restoreAttendanceImportIntoDB,
   exportAttendanceImportTemplateCsv,
   exportAttendanceImportTemplateExcel,
   buildAttendanceImportRejectionReportFromDB,

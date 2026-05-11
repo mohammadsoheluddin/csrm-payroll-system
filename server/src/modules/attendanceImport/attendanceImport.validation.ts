@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 
 const objectIdSchema = (fieldName: string) =>
   z
@@ -196,6 +197,10 @@ const revertAttendanceImportValidationSchema = z.object({
     .optional(),
 });
 
+const deleteAttendanceImportValidationSchema = createSoftDeleteValidationSchema("id");
+
+const restoreAttendanceImportValidationSchema = createRestoreValidationSchema("id");
+
 const attendanceImportIdParamValidationSchema = z.object({
   params: z.object({
     id: objectIdSchema("attendance import batch id"),
@@ -207,6 +212,8 @@ export const AttendanceImportValidations = {
   commitAttendanceImportValidationSchema,
   getAllAttendanceImportsValidationSchema,
   attendanceImportIdParamValidationSchema,
+  deleteAttendanceImportValidationSchema,
+  restoreAttendanceImportValidationSchema,
   revertAttendanceImportValidationSchema,
   attendanceImportTemplateQueryValidationSchema,
 };
