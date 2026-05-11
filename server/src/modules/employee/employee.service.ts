@@ -1,13 +1,25 @@
 import mongoose from "mongoose";
+import {
+  buildDeletedFilter,
+  buildRestoreUpdate,
+  buildSoftDeleteUpdate,
+  getObjectIdStringOrThrow,
+  normalizeSoftDeleteReason,
+  TRestoreRequestBody,
+  TSoftDeleteRequestBody,
+  TSoftDeleteRequestUser,
+} from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import Branch from "../branch/branch.model";
 import Company from "../company/company.model";
 import Department from "../department/department.model";
 import Designation from "../designation/designation.model";
 import MajorDepartment from "../majorDepartment/majorDepartment.model";
+import { AuditLogServices } from "../auditLog/auditLog.service";
 import User from "../user/user.model";
 import {
   TEmployee,
+  TEmployeeLifecyclePayload,
   TEmployeeStatus,
   TEmploymentStatus,
   TPayType,
@@ -16,7 +28,7 @@ import {
 import Employee from "./employee.model";
 
 type TEmployeeDBQuery = {
-  isDeleted: boolean;
+  isDeleted: boolean | Record<string, boolean>;
   status?: TEmployeeStatus;
   employmentStatus?: TEmploymentStatus;
   serviceType?: TServiceType;
@@ -50,6 +62,8 @@ type TActiveDuplicateCondition = {
   cardNo?: string;
 };
 
+type TEmployeeActor = TSoftDeleteRequestUser | undefined;
+
 const validateObjectId = (id: unknown, fieldName: string) => {
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError(400, `Invalid ${fieldName}`);
@@ -72,6 +86,34 @@ const validateConfirmationDate = (
   }
 };
 
+const buildEmployeeEntityName = (employee: Partial<TEmployee>) => {
+  const fullName = employee.name
+    ? [employee.name.firstName, employee.name.middleName, employee.name.lastName]
+        .filter(Boolean)
+        .join(" ")
+    : "Employee";
+
+  return `${employee.employeeId || "EMPLOYEE"} - ${fullName}`;
+};
+
+const getActorObjectId = (actor?: TEmployeeActor) => {
+  if (!actor?.userId || !mongoose.isValidObjectId(actor.userId)) {
+    return null;
+  }
+
+  return new mongoose.Types.ObjectId(actor.userId);
+};
+
+const getEmployeeStatusFromEmploymentStatus = (
+  employmentStatus: TEmploymentStatus,
+): TEmployeeStatus => {
+  if (["active", "probation", "confirmed"].includes(employmentStatus)) {
+    return "active";
+  }
+
+  return "inactive";
+};
+
 const validateUserReference = async (user?: unknown) => {
   if (!user) {
     return;
@@ -92,17 +134,20 @@ const validateUserReference = async (user?: unknown) => {
 const validateEmployeeReferences = async (
   references: TEmployeeReferencePayload,
 ) => {
-  validateObjectId(references.company, "company ID");
-  validateObjectId(references.majorDepartment, "major department ID");
-  validateObjectId(references.department, "department ID");
-  validateObjectId(references.designation, "designation ID");
-  validateObjectId(references.branch, "branch ID");
-
-  const companyId = String(references.company);
-  const majorDepartmentId = String(references.majorDepartment);
-  const departmentId = String(references.department);
-  const designationId = String(references.designation);
-  const branchId = String(references.branch);
+  const companyId = getObjectIdStringOrThrow(references.company, "company ID");
+  const majorDepartmentId = getObjectIdStringOrThrow(
+    references.majorDepartment,
+    "major department ID",
+  );
+  const departmentId = getObjectIdStringOrThrow(
+    references.department,
+    "department ID",
+  );
+  const designationId = getObjectIdStringOrThrow(
+    references.designation,
+    "designation ID",
+  );
+  const branchId = getObjectIdStringOrThrow(references.branch, "branch ID");
 
   const isCompanyExists = await Company.findOne({
     _id: companyId,
@@ -306,62 +351,43 @@ const ensureEmployeeUniqueOnUpdate = async (
   throw new AppError(409, "Employee already exists with duplicate information");
 };
 
-const populateEmployeeQuery = () => [
-  {
-    path: "user",
-    select: "name email role",
-  },
-  {
-    path: "company",
-  },
-  {
-    path: "majorDepartment",
-  },
-  {
-    path: "department",
-  },
-  {
-    path: "designation",
-  },
-  {
-    path: "branch",
-  },
-];
+const ensureEmployeeUniqueOnRestore = async (employee: TEmployee & { _id?: unknown }) => {
+  const activeDuplicateConditions: TActiveDuplicateCondition[] = [];
 
-const createEmployeeIntoDB = async (payload: TEmployee) => {
-  await validateUserReference(payload.user);
+  if (employee.officeId) {
+    activeDuplicateConditions.push({ officeId: employee.officeId });
+  }
 
-  await validateEmployeeReferences({
-    company: payload.company,
-    majorDepartment: payload.majorDepartment,
-    department: payload.department,
-    designation: payload.designation,
-    branch: payload.branch,
+  if (employee.cardNo) {
+    activeDuplicateConditions.push({ cardNo: employee.cardNo });
+  }
+
+  if (!activeDuplicateConditions.length) {
+    return;
+  }
+
+  const existingActiveEmployee = await Employee.findOne({
+    _id: {
+      $ne: employee._id,
+    },
+    isDeleted: false,
+    $or: activeDuplicateConditions,
   });
 
-  validateConfirmationDate(payload.joiningDate, payload.confirmationDate);
+  if (!existingActiveEmployee) {
+    return;
+  }
 
-  await ensureEmployeeUniqueOnCreate({
-    employeeId: payload.employeeId,
-    email: payload.email,
-    officeId: payload.officeId,
-    cardNo: payload.cardNo,
-  });
-
-  const result = await Employee.create(payload);
-
-  const populatedResult = await Employee.findById(result._id).populate(
-    populateEmployeeQuery(),
+  throw new AppError(
+    409,
+    "Cannot restore employee because office ID or card no is already used by another active employee",
   );
-
-  return populatedResult;
 };
 
-const getAllEmployeesFromDB = async (filters: TEmployeeQueryFilters = {}) => {
-  const query: TEmployeeDBQuery = {
-    isDeleted: false,
-  };
-
+const appendEmployeeFilters = (
+  query: TEmployeeDBQuery,
+  filters: TEmployeeQueryFilters = {},
+) => {
   if (filters.status) {
     query.status = filters.status as TEmployeeStatus;
   }
@@ -397,8 +423,119 @@ const getAllEmployeesFromDB = async (filters: TEmployeeQueryFilters = {}) => {
   if (filters.branch) {
     query.branch = filters.branch;
   }
+};
+
+const populateEmployeeQuery = () => [
+  {
+    path: "user",
+    select: "name email role",
+  },
+  {
+    path: "company",
+  },
+  {
+    path: "majorDepartment",
+  },
+  {
+    path: "department",
+  },
+  {
+    path: "designation",
+  },
+  {
+    path: "branch",
+  },
+  {
+    path: "deletedBy",
+    select: "name email role",
+  },
+  {
+    path: "restoredBy",
+    select: "name email role",
+  },
+  {
+    path: "lifecycleChangedBy",
+    select: "name email role",
+  },
+];
+
+const writeEmployeeAuditLog = async (options: {
+  action: "create" | "update" | "soft_delete" | "restore" | "status_change";
+  description: string;
+  employee: Partial<TEmployee> & { _id?: unknown };
+  actor?: TEmployeeActor;
+  previousData?: Record<string, unknown> | null;
+  newData?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+}) => {
+  await AuditLogServices.createAuditLogSafely({
+    actorId: options.actor?.userId,
+    actorEmail: options.actor?.email,
+    actorRole: options.actor?.role as any,
+    module: "employee",
+    action: options.action,
+    entityId: options.employee._id ? String(options.employee._id) : undefined,
+    entityName: buildEmployeeEntityName(options.employee),
+    description: options.description,
+    previousData: options.previousData,
+    newData: options.newData,
+    metadata: options.metadata,
+  });
+};
+
+const createEmployeeIntoDB = async (payload: TEmployee) => {
+  await validateUserReference(payload.user);
+
+  await validateEmployeeReferences({
+    company: payload.company,
+    majorDepartment: payload.majorDepartment,
+    department: payload.department,
+    designation: payload.designation,
+    branch: payload.branch,
+  });
+
+  validateConfirmationDate(payload.joiningDate, payload.confirmationDate);
+
+  await ensureEmployeeUniqueOnCreate({
+    employeeId: payload.employeeId,
+    email: payload.email,
+    officeId: payload.officeId,
+    cardNo: payload.cardNo,
+  });
+
+  if (payload.employmentStatus) {
+    payload.status = getEmployeeStatusFromEmploymentStatus(payload.employmentStatus);
+  }
+
+  const result = await Employee.create(payload);
+
+  const populatedResult = await Employee.findById(result._id).populate(
+    populateEmployeeQuery(),
+  );
+
+  return populatedResult;
+};
+
+const getAllEmployeesFromDB = async (filters: TEmployeeQueryFilters = {}) => {
+  const query: TEmployeeDBQuery = {
+    isDeleted: false,
+  };
+
+  appendEmployeeFilters(query, filters);
 
   const result = await Employee.find(query).populate(populateEmployeeQuery());
+
+  return result;
+};
+
+const getDeletedEmployeesFromDB = async (filters: TEmployeeQueryFilters = {}) => {
+  const query = buildDeletedFilter<TEmployee>() as TEmployeeDBQuery;
+
+  appendEmployeeFilters(query, filters);
+
+  const result = await Employee.find(query)
+    .sort({ deletedAt: -1, updatedAt: -1 })
+    .populate(populateEmployeeQuery());
 
   return result;
 };
@@ -477,8 +614,60 @@ const updateEmployeeIntoDB = async (
   return result;
 };
 
-const deleteEmployeeFromDB = async (id: string) => {
+const changeEmployeeLifecycleIntoDB = async (
+  id: string,
+  payload: TEmployeeLifecyclePayload,
+  actor?: TEmployeeActor,
+) => {
   validateObjectId(id, "employee ID");
+
+  const existingEmployee = await Employee.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!existingEmployee) {
+    throw new AppError(404, "Employee not found");
+  }
+
+  if (existingEmployee.employmentStatus === payload.employmentStatus) {
+    throw new AppError(
+      400,
+      "Employee already has the requested employment status",
+    );
+  }
+
+  const previousData = existingEmployee.toObject();
+  const actorObjectId = getActorObjectId(actor);
+  const calculatedStatus = getEmployeeStatusFromEmploymentStatus(
+    payload.employmentStatus,
+  );
+  const normalizedReason = normalizeSoftDeleteReason(payload.reason);
+  const effectiveDate = payload.effectiveDate || new Date().toISOString().slice(0, 10);
+  const isSeparated = [
+    "resigned",
+    "terminated",
+    "retired",
+    "suspended",
+  ].includes(payload.employmentStatus);
+
+  const updatePayload: Partial<TEmployee> = {
+    employmentStatus: payload.employmentStatus,
+    status: calculatedStatus,
+    lifecycleChangedAt: new Date(),
+    lifecycleChangedBy: actorObjectId,
+    lifecycleChangeReason: normalizedReason,
+    lifecycleEffectiveDate: effectiveDate,
+    updatedBy: actorObjectId,
+  };
+
+  if (isSeparated) {
+    updatePayload.separatedAt = effectiveDate;
+    updatePayload.separationReason = normalizedReason;
+  } else {
+    updatePayload.separatedAt = null;
+    updatePayload.separationReason = null;
+  }
 
   const result = await Employee.findOneAndUpdate(
     {
@@ -486,17 +675,176 @@ const deleteEmployeeFromDB = async (id: string) => {
       isDeleted: false,
     },
     {
-      isDeleted: true,
-      status: "inactive",
+      $set: updatePayload,
     },
     {
       new: true,
+      runValidators: true,
     },
-  );
+  ).populate(populateEmployeeQuery());
 
   if (!result) {
     throw new AppError(404, "Employee not found");
   }
+
+  await writeEmployeeAuditLog({
+    action: "status_change",
+    description: "Employee lifecycle updated",
+    employee: result,
+    actor,
+    previousData: previousData as unknown as Record<string, unknown>,
+    newData: result.toObject() as unknown as Record<string, unknown>,
+    metadata: {
+      previousEmploymentStatus: previousData.employmentStatus,
+      newEmploymentStatus: payload.employmentStatus,
+      previousStatus: previousData.status,
+      newStatus: calculatedStatus,
+      effectiveDate,
+      reason: normalizedReason,
+    },
+  });
+
+  return result;
+};
+
+const deleteEmployeeFromDB = async (
+  id: string,
+  payload: TSoftDeleteRequestBody,
+  actor?: TEmployeeActor,
+) => {
+  validateObjectId(id, "employee ID");
+
+  const existingEmployee = await Employee.findOne({
+    _id: id,
+    isDeleted: false,
+  });
+
+  if (!existingEmployee) {
+    throw new AppError(404, "Employee not found");
+  }
+
+  const previousData = existingEmployee.toObject();
+  const softDeleteUpdate = buildSoftDeleteUpdate<TEmployee>({
+    userId: actor?.userId,
+    deleteReason: payload.deleteReason,
+  });
+
+  const result = await Employee.findOneAndUpdate(
+    {
+      _id: id,
+      isDeleted: false,
+    },
+    {
+      ...softDeleteUpdate,
+      $set: {
+        ...softDeleteUpdate.$set,
+        status: "inactive",
+        statusBeforeDelete: existingEmployee.status || "active",
+        employmentStatusBeforeDelete:
+          existingEmployee.employmentStatus || "active",
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate(populateEmployeeQuery());
+
+  if (!result) {
+    throw new AppError(404, "Employee not found");
+  }
+
+  await writeEmployeeAuditLog({
+    action: "soft_delete",
+    description: "Employee soft deleted",
+    employee: result,
+    actor,
+    previousData: previousData as unknown as Record<string, unknown>,
+    newData: result.toObject() as unknown as Record<string, unknown>,
+    metadata: {
+      deleteReason: normalizeSoftDeleteReason(payload.deleteReason),
+      note:
+        "Employee ID remains permanently reserved. Soft delete does not allow employeeId reuse.",
+    },
+  });
+
+  return result;
+};
+
+const restoreEmployeeIntoDB = async (
+  id: string,
+  payload: TRestoreRequestBody,
+  actor?: TEmployeeActor,
+) => {
+  validateObjectId(id, "employee ID");
+
+  const existingEmployee = await Employee.findOne({
+    _id: id,
+    isDeleted: true,
+  });
+
+  if (!existingEmployee) {
+    throw new AppError(404, "Deleted employee not found");
+  }
+
+  await validateEmployeeReferences({
+    company: existingEmployee.company,
+    majorDepartment: existingEmployee.majorDepartment,
+    department: existingEmployee.department,
+    designation: existingEmployee.designation,
+    branch: existingEmployee.branch,
+  });
+
+  await ensureEmployeeUniqueOnRestore(existingEmployee as unknown as TEmployee & { _id?: unknown });
+
+  const previousData = existingEmployee.toObject();
+  const restoredStatus = existingEmployee.statusBeforeDelete || "inactive";
+  const restoredEmploymentStatus =
+    existingEmployee.employmentStatusBeforeDelete ||
+    existingEmployee.employmentStatus ||
+    "active";
+
+  const restoreUpdate = buildRestoreUpdate<TEmployee>({
+    userId: actor?.userId,
+    restoreReason: payload.restoreReason,
+  });
+
+  const result = await Employee.findOneAndUpdate(
+    {
+      _id: id,
+      isDeleted: true,
+    },
+    {
+      ...restoreUpdate,
+      $set: {
+        ...restoreUpdate.$set,
+        status: restoredStatus,
+        employmentStatus: restoredEmploymentStatus,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate(populateEmployeeQuery());
+
+  if (!result) {
+    throw new AppError(404, "Deleted employee not found");
+  }
+
+  await writeEmployeeAuditLog({
+    action: "restore",
+    description: "Employee restored",
+    employee: result,
+    actor,
+    previousData: previousData as unknown as Record<string, unknown>,
+    newData: result.toObject() as unknown as Record<string, unknown>,
+    metadata: {
+      restoreReason: normalizeSoftDeleteReason(payload.restoreReason),
+      restoredStatus,
+      restoredEmploymentStatus,
+    },
+  });
 
   return result;
 };
@@ -504,7 +852,10 @@ const deleteEmployeeFromDB = async (id: string) => {
 export const EmployeeServices = {
   createEmployeeIntoDB,
   getAllEmployeesFromDB,
+  getDeletedEmployeesFromDB,
   getSingleEmployeeFromDB,
   updateEmployeeIntoDB,
+  changeEmployeeLifecycleIntoDB,
+  restoreEmployeeIntoDB,
   deleteEmployeeFromDB,
 };

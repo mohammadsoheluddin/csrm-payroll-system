@@ -155,8 +155,10 @@ const ensureNoDuplicatePaymentInfo = async (
 };
 
 const assignFallbackPrimaryPaymentInfo = async (employeeId: unknown) => {
+  const employeeObjectId = getObjectIdStringOrThrow(employeeId, "employee id");
+
   const anotherActiveInfo = await EmployeeBankInfo.findOne({
-    employee: employeeId,
+    employee: employeeObjectId,
     isDeleted: { $ne: true },
     status: "active",
   }).sort({
@@ -165,7 +167,7 @@ const assignFallbackPrimaryPaymentInfo = async (employeeId: unknown) => {
   });
 
   if (anotherActiveInfo) {
-    await EmployeeBankInfo.findByIdAndUpdate(anotherActiveInfo._id, {
+    await EmployeeBankInfo.findByIdAndUpdate((anotherActiveInfo as any)._id, {
       isPrimary: true,
     });
   }

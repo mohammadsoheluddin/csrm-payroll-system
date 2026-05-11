@@ -48,6 +48,12 @@ const dateStringSchema = (fieldName: string) =>
       message: `${fieldName} must be a valid date`,
     });
 
+const lifecycleReasonSchema = z
+  .string()
+  .trim()
+  .min(1, "Reason is required")
+  .max(500, "Reason cannot exceed 500 characters");
+
 const employeeIdSchema = z
   .string()
   .trim()
@@ -220,11 +226,11 @@ const updateEmployeeValidationSchema = z.object({
       dutyHourPerDay: dutyHourPerDaySchema.optional(),
       leaveDay: leaveDaySchema.optional(),
 
-      employmentStatus: employmentStatusSchema.optional(),
-
+      /**
+       * Lifecycle/status changes must go through PATCH /employees/:id/lifecycle.
+       * They are intentionally not allowed in the generic employee update API.
+       */
       basicSalary: salarySchema.optional(),
-
-      status: employeeStatusSchema.optional(),
     })
     .strict()
     .refine((data) => Object.keys(data).length > 0, {
@@ -256,9 +262,47 @@ const employeeIdParamValidationSchema = z.object({
   }),
 });
 
+const deleteEmployeeValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("employee id"),
+  }),
+  body: z
+    .object({
+      deleteReason: lifecycleReasonSchema,
+    })
+    .strict(),
+});
+
+const restoreEmployeeValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("employee id"),
+  }),
+  body: z
+    .object({
+      restoreReason: lifecycleReasonSchema,
+    })
+    .strict(),
+});
+
+const changeEmployeeLifecycleValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("employee id"),
+  }),
+  body: z
+    .object({
+      employmentStatus: employmentStatusSchema,
+      effectiveDate: dateStringSchema("Effective date").optional(),
+      reason: lifecycleReasonSchema,
+    })
+    .strict(),
+});
+
 export const EmployeeValidations = {
   createEmployeeValidationSchema,
   updateEmployeeValidationSchema,
   getAllEmployeesValidationSchema,
   employeeIdParamValidationSchema,
+  deleteEmployeeValidationSchema,
+  restoreEmployeeValidationSchema,
+  changeEmployeeLifecycleValidationSchema,
 };

@@ -1,4 +1,5 @@
 import { Types } from "mongoose";
+import { TSoftDeleteFields, TSoftDeleteObjectId } from "../../common/softDelete";
 
 export type TGender = "male" | "female" | "other";
 
@@ -29,7 +30,13 @@ export interface TEmployeeName {
   lastName: string;
 }
 
-export interface TEmployee {
+export interface TEmployeeLifecyclePayload {
+  employmentStatus: TEmploymentStatus;
+  effectiveDate?: string;
+  reason: string;
+}
+
+export interface TEmployee extends TSoftDeleteFields {
   /**
    * Official company employee ID.
    * Important: This ID is permanent and should never be reused or changed.
@@ -70,5 +77,26 @@ export interface TEmployee {
   basicSalary?: number;
 
   status?: TEmployeeStatus;
-  isDeleted?: boolean;
+
+  /**
+   * Lifecycle metadata.
+   * These fields allow HR/Admin to understand when and why an employee lifecycle changed.
+   */
+  lifecycleChangedAt?: Date | null;
+  lifecycleChangedBy?: TSoftDeleteObjectId;
+  lifecycleChangeReason?: string | null;
+  lifecycleEffectiveDate?: string | null;
+
+  /**
+   * Separation metadata for resigned/terminated/retired/suspended employees.
+   */
+  separatedAt?: string | null;
+  separationReason?: string | null;
+
+  /**
+   * Restore safety metadata.
+   * When an employee is soft-deleted accidentally, previous lifecycle/status can be restored.
+   */
+  statusBeforeDelete?: TEmployeeStatus | null;
+  employmentStatusBeforeDelete?: TEmploymentStatus | null;
 }

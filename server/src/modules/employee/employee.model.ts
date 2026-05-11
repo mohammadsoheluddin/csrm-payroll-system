@@ -1,4 +1,5 @@
 import { Schema, model } from "mongoose";
+import { softDeleteSchemaFields } from "../../common/softDelete";
 import { TEmployee } from "./employee.interface";
 
 const employeeNameSchema = new Schema(
@@ -148,6 +149,7 @@ const employeeSchema = new Schema<TEmployee>(
         "suspended",
       ],
       default: "active",
+      index: true,
     },
 
     basicSalary: {
@@ -160,11 +162,59 @@ const employeeSchema = new Schema<TEmployee>(
       type: String,
       enum: ["active", "inactive"],
       default: "active",
+      index: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
+
+    lifecycleChangedAt: {
+      type: Date,
+      default: null,
     },
+    lifecycleChangedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    lifecycleChangeReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    lifecycleEffectiveDate: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    separatedAt: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    separationReason: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    statusBeforeDelete: {
+      type: String,
+      enum: ["active", "inactive", null],
+      default: null,
+    },
+    employmentStatusBeforeDelete: {
+      type: String,
+      enum: [
+        "active",
+        "probation",
+        "confirmed",
+        "resigned",
+        "terminated",
+        "retired",
+        "suspended",
+        null,
+      ],
+      default: null,
+    },
+
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,
@@ -247,6 +297,11 @@ employeeSchema.index({
   serviceType: 1,
   payType: 1,
   isDeleted: 1,
+});
+
+employeeSchema.index({
+  isDeleted: 1,
+  deletedAt: -1,
 });
 
 const Employee = model<TEmployee>("Employee", employeeSchema);

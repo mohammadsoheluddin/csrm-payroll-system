@@ -25,11 +25,35 @@ router.get(
 );
 
 router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_READ),
+  validateRequest(EmployeeValidations.getAllEmployeesValidationSchema),
+  EmployeeControllers.getDeletedEmployees,
+);
+
+router.get(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.EMPLOYEE_READ),
   validateRequest(EmployeeValidations.employeeIdParamValidationSchema),
   EmployeeControllers.getSingleEmployee,
+);
+
+router.patch(
+  "/:id/lifecycle",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MANAGE),
+  validateRequest(EmployeeValidations.changeEmployeeLifecycleValidationSchema),
+  EmployeeControllers.changeEmployeeLifecycle,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_MANAGE),
+  validateRequest(EmployeeValidations.restoreEmployeeValidationSchema),
+  EmployeeControllers.restoreEmployee,
 );
 
 router.patch(
@@ -44,7 +68,7 @@ router.delete(
   "/:id",
   auth(),
   requirePermission(PERMISSIONS.EMPLOYEE_MANAGE),
-  validateRequest(EmployeeValidations.employeeIdParamValidationSchema),
+  validateRequest(EmployeeValidations.deleteEmployeeValidationSchema),
   EmployeeControllers.deleteEmployee,
 );
 

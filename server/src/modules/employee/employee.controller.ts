@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getRequestUser } from "../../common/softDelete";
 import AppError from "../../errors/AppError";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
@@ -29,6 +30,17 @@ const getAllEmployees = catchAsync(async (req: Request, res: Response) => {
     statusCode: 200,
     success: true,
     message: "Employees retrieved successfully",
+    data: result,
+  });
+});
+
+const getDeletedEmployees = catchAsync(async (req: Request, res: Response) => {
+  const result = await EmployeeServices.getDeletedEmployeesFromDB(req.query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted employees retrieved successfully",
     data: result,
   });
 });
@@ -67,15 +79,57 @@ const updateEmployee = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const deleteEmployee = catchAsync(async (req: Request, res: Response) => {
-  const result = await EmployeeServices.deleteEmployeeFromDB(
+const changeEmployeeLifecycle = catchAsync(
+  async (req: Request, res: Response) => {
+    if (!req.body || Object.keys(req.body).length === 0) {
+      throw new AppError(400, "Request body is empty");
+    }
+
+    const result = await EmployeeServices.changeEmployeeLifecycleIntoDB(
+      req.params.id as string,
+      req.body,
+      getRequestUser(req),
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: "Employee lifecycle updated successfully",
+      data: result,
+    });
+  },
+);
+
+const restoreEmployee = catchAsync(async (req: Request, res: Response) => {
+  const result = await EmployeeServices.restoreEmployeeIntoDB(
     req.params.id as string,
+    {
+      restoreReason: req.body?.restoreReason,
+    },
+    getRequestUser(req),
   );
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
-    message: "Employee deleted successfully",
+    message: "Employee restored successfully",
+    data: result,
+  });
+});
+
+const deleteEmployee = catchAsync(async (req: Request, res: Response) => {
+  const result = await EmployeeServices.deleteEmployeeFromDB(
+    req.params.id as string,
+    {
+      deleteReason: req.body?.deleteReason,
+    },
+    getRequestUser(req),
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Employee soft deleted successfully",
     data: result,
   });
 });
@@ -83,7 +137,10 @@ const deleteEmployee = catchAsync(async (req: Request, res: Response) => {
 export const EmployeeControllers = {
   createEmployee,
   getAllEmployees,
+  getDeletedEmployees,
   getSingleEmployee,
   updateEmployee,
+  changeEmployeeLifecycle,
+  restoreEmployee,
   deleteEmployee,
 };
