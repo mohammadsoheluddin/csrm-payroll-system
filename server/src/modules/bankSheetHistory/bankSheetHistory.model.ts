@@ -4,6 +4,7 @@ import {
   TBankSheetHistory,
 } from "./bankSheetHistory.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const bankSheetHistorySchema = new Schema<
   TBankSheetHistory,
   BankSheetHistoryModel
@@ -121,11 +122,7 @@ const bankSheetHistorySchema = new Schema<
       trim: true,
     },
 
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      index: true,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

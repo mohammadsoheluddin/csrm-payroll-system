@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { TimeBillServices } from "./timeBill.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -433,6 +445,48 @@ const exportTimeBillPdf = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+
+const getDeletedTimeBills = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeBillServices.getDeletedTimeBillsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Time Bill records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteTimeBill = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeBillServices.softDeleteTimeBillFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Time Bill deleted successfully",
+    data: result,
+  });
+});
+
+const restoreTimeBill = catchAsync(async (req: Request, res: Response) => {
+  const result = await TimeBillServices.restoreTimeBillIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Time Bill restored successfully",
+    data: result,
+  });
+});
+
 export const TimeBillControllers = {
   generateMonthlyTimeBill,
   getAllTimeBills,
@@ -450,4 +504,8 @@ export const TimeBillControllers = {
   exportTimeBillCsv,
   exportTimeBillExcel,
   exportTimeBillPdf,
+
+  getDeletedTimeBills,
+  deleteTimeBill,
+  restoreTimeBill,
 };

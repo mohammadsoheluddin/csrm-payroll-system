@@ -1,6 +1,7 @@
 import { Schema, model } from "mongoose";
 import { TSalaryStructure } from "./salaryStructure.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const salaryStructureSchema = new Schema<TSalaryStructure>(
   {
     employee: {
@@ -81,10 +82,7 @@ const salaryStructureSchema = new Schema<TSalaryStructure>(
       type: Boolean,
       default: true,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

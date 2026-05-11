@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { OtStatementServices } from "./otStatement.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -445,6 +457,48 @@ const exportOtStatementPdf = catchAsync(async (req: Request, res: Response) => {
 });
 
 
+
+const getDeletedOtStatements = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtStatementServices.getDeletedOtStatementsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted OT Statement records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteOtStatement = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtStatementServices.softDeleteOtStatementFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "OT Statement deleted successfully",
+    data: result,
+  });
+});
+
+const restoreOtStatement = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtStatementServices.restoreOtStatementIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "OT Statement restored successfully",
+    data: result,
+  });
+});
+
 export const OtStatementControllers = {
   generateMonthlyOtStatement,
   getAllOtStatements,
@@ -462,4 +516,8 @@ export const OtStatementControllers = {
   exportOtStatementCsv,
   exportOtStatementExcel,
   exportOtStatementPdf,
+
+  getDeletedOtStatements,
+  deleteOtStatement,
+  restoreOtStatement,
 };

@@ -1,3 +1,4 @@
+import type { TSoftDeleteFields } from "../../common/softDelete";
 import { Model, Types } from "mongoose";
 
 export type TPayrollStatus = "draft" | "processed" | "approved" | "paid";
@@ -151,7 +152,7 @@ export type TPayrollSnapshot = {
   payment?: TPayrollPaymentSnapshot | null;
 };
 
-export interface TPayroll {
+export interface TPayroll extends TSoftDeleteFields {
   employee: Types.ObjectId;
 
   payrollMonth: string;

@@ -6,6 +6,42 @@ import sendResponse from "../../utils/sendResponse";
 
 import { PayrollServices } from "./payroll.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
+
+const getAllPayroll = catchAsync(async (req: Request, res: Response) => {
+  const result = await PayrollServices.getAllPayrollFromDB();
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payroll records retrieved successfully",
+    data: result,
+  });
+});
+
+const getSinglePayroll = catchAsync(async (req: Request, res: Response) => {
+  const result = await PayrollServices.getSinglePayrollFromDB(
+    req.params.id as string,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payroll record retrieved successfully",
+    data: result,
+  });
+});
 const processPayrollById = catchAsync(async (req: Request, res: Response) => {
   const payrollId = req.params.id as string;
 
@@ -180,6 +216,48 @@ const getPayrollAuditTimeline = catchAsync(
   },
 );
 
+
+const getDeletedPayroll = catchAsync(async (req: Request, res: Response) => {
+  const result = await PayrollServices.getDeletedPayrollFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Payroll records retrieved successfully",
+    data: result,
+  });
+});
+
+const deletePayroll = catchAsync(async (req: Request, res: Response) => {
+  const result = await PayrollServices.softDeletePayrollFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payroll deleted successfully",
+    data: result,
+  });
+});
+
+const restorePayroll = catchAsync(async (req: Request, res: Response) => {
+  const result = await PayrollServices.restorePayrollIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Payroll restored successfully",
+    data: result,
+  });
+});
+
 export const PayrollController = {
   processPayrollById,
 
@@ -198,4 +276,10 @@ export const PayrollController = {
   updatePayrollById,
 
   getPayrollAuditTimeline,
+
+  getAllPayroll,
+  getSinglePayroll,
+  getDeletedPayroll,
+  deletePayroll,
+  restorePayroll,
 };

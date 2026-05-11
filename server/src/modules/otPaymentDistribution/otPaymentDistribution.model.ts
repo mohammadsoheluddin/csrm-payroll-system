@@ -10,6 +10,7 @@ import {
   TOtPaymentDistributionSnapshot,
 } from "./otPaymentDistribution.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const otPaymentDistributionEmployeeSnapshotSchema =
   new Schema<TOtPaymentDistributionEmployeeSnapshot>(
     {
@@ -335,10 +336,7 @@ const otPaymentDistributionSchema =
         trim: true,
         default: "",
       },
-      isDeleted: {
-        type: Boolean,
-        default: false,
-      },
+      ...softDeleteSchemaFields,
     },
     {
       timestamps: true,

@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { BonusStatementServices } from "./bonusStatement.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -351,6 +363,48 @@ const unlockBonusStatement = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const getDeletedBonusStatements = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusStatementServices.getDeletedBonusStatementsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Bonus Statement records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteBonusStatement = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusStatementServices.softDeleteBonusStatementFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bonus Statement deleted successfully",
+    data: result,
+  });
+});
+
+const restoreBonusStatement = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusStatementServices.restoreBonusStatementIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bonus Statement restored successfully",
+    data: result,
+  });
+});
+
 export const BonusStatementControllers = {
   generateMonthlyBonusStatement,
   getAllBonusStatements,
@@ -364,4 +418,8 @@ export const BonusStatementControllers = {
   approveBonusStatement,
   lockBonusStatement,
   unlockBonusStatement,
+
+  getDeletedBonusStatements,
+  deleteBonusStatement,
+  restoreBonusStatement,
 };

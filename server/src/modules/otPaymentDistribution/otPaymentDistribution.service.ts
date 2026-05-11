@@ -21,6 +21,7 @@ import {
 } from "./otPaymentDistribution.export";
 import OtPaymentDistribution from "./otPaymentDistribution.model";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1548,6 +1549,18 @@ const exportOtPaymentDistributionPdfFromDB = async (
   return generateOtPaymentDistributionPDF(preview);
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedOtPaymentDistributionsFromDB,
+  softDeleteRecordFromDB: softDeleteOtPaymentDistributionFromDB,
+  restoreRecordIntoDB: restoreOtPaymentDistributionIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: OtPaymentDistribution,
+  recordName: "OT Payment Distribution",
+  queryFields: ['employee', 'company', 'payrollMonth', 'paymentMode', 'status'],
+  restoreUniqueFields: ['employee', 'payrollMonth', 'paymentMode'],
+});
+
 export const OtPaymentDistributionServices = {
   generateMonthlyOtPaymentDistributionIntoDB,
   getAllOtPaymentDistributionsFromDB,
@@ -1565,4 +1578,8 @@ export const OtPaymentDistributionServices = {
   exportOtPaymentDistributionCsvFromDB,
   exportOtPaymentDistributionExcelFromDB,
   exportOtPaymentDistributionPdfFromDB,
+
+  getDeletedOtPaymentDistributionsFromDB,
+  softDeleteOtPaymentDistributionFromDB,
+  restoreOtPaymentDistributionIntoDB,
 };

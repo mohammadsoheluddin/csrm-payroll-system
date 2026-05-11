@@ -12,6 +12,7 @@ import { Payroll } from "./payroll.model";
 
 import { TPayrollAuditAction, TPayrollStatus } from "./payroll.interface";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const calculateOTAmount = ({
   otHours,
   otRate,
@@ -469,6 +470,18 @@ const getPayrollAuditTimelineFromDB = async (id: string) => {
   };
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedPayrollFromDB,
+  softDeleteRecordFromDB: softDeletePayrollFromDB,
+  restoreRecordIntoDB: restorePayrollIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: Payroll,
+  recordName: "Payroll",
+  queryFields: ['employee', 'payrollMonth', 'status'],
+  restoreUniqueFields: ['employee', 'payrollMonth'],
+});
+
 export const PayrollServices = {
   /*
     CREATE
@@ -525,4 +538,8 @@ export const PayrollServices = {
   getSinglePayrollFromDB,
 
   getPayrollAuditTimelineFromDB,
+
+  getDeletedPayrollFromDB,
+  softDeletePayrollFromDB,
+  restorePayrollIntoDB,
 };

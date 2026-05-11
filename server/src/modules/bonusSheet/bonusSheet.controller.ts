@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { BonusSheetServices } from "./bonusSheet.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -349,6 +361,48 @@ const unlockBonusSheet = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const getDeletedBonusSheets = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusSheetServices.getDeletedBonusSheetsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Bonus Sheet records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteBonusSheet = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusSheetServices.softDeleteBonusSheetFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bonus Sheet deleted successfully",
+    data: result,
+  });
+});
+
+const restoreBonusSheet = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusSheetServices.restoreBonusSheetIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bonus Sheet restored successfully",
+    data: result,
+  });
+});
+
 export const BonusSheetControllers = {
   generateMonthlyBonusSheet,
   getAllBonusSheets,
@@ -362,4 +416,8 @@ export const BonusSheetControllers = {
   approveBonusSheet,
   lockBonusSheet,
   unlockBonusSheet,
+
+  getDeletedBonusSheets,
+  deleteBonusSheet,
+  restoreBonusSheet,
 };

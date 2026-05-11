@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { OtStatementControllers } from "./otStatement.controller";
 import { OtStatementValidations } from "./otStatement.validation";
@@ -92,6 +93,30 @@ router.patch(
   requirePermission(PERMISSIONS.OT_STATEMENT_UNLOCK),
   validateRequest(OtStatementValidations.otStatementBulkActionValidationSchema),
   OtStatementControllers.bulkUnlockOtStatements,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_READ),
+  OtStatementControllers.getDeletedOtStatements,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  OtStatementControllers.restoreOtStatement,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.OT_STATEMENT_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  OtStatementControllers.deleteOtStatement,
 );
 
 router.get(

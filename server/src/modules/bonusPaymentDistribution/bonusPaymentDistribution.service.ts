@@ -23,6 +23,7 @@ import {
 } from "./bonusPaymentDistribution.interface";
 import BonusPaymentDistribution from "./bonusPaymentDistribution.model";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1410,6 +1411,18 @@ const exportBonusPaymentDistributionPdfFromDB = async (
   return generateBonusPaymentDistributionPDF(preview);
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedBonusPaymentDistributionsFromDB,
+  softDeleteRecordFromDB: softDeleteBonusPaymentDistributionFromDB,
+  restoreRecordIntoDB: restoreBonusPaymentDistributionIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: BonusPaymentDistribution,
+  recordName: "Bonus Payment Distribution",
+  queryFields: ['employee', 'company', 'bonusMonth', 'bonusName', 'bonusType', 'paymentMode', 'status'],
+  restoreUniqueFields: ['employee', 'bonusMonth', 'bonusName', 'paymentMode'],
+});
+
 export const BonusPaymentDistributionServices = {
   generateMonthlyBonusPaymentDistributionIntoDB,
   getAllBonusPaymentDistributionsFromDB,
@@ -1427,4 +1440,8 @@ export const BonusPaymentDistributionServices = {
   exportBonusPaymentDistributionCsvFromDB,
   exportBonusPaymentDistributionExcelFromDB,
   exportBonusPaymentDistributionPdfFromDB,
+
+  getDeletedBonusPaymentDistributionsFromDB,
+  softDeleteBonusPaymentDistributionFromDB,
+  restoreBonusPaymentDistributionIntoDB,
 };

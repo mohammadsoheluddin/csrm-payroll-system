@@ -15,6 +15,7 @@ import {
 } from "./bonusStatement.interface";
 import BonusStatement from "./bonusStatement.model";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -972,6 +973,18 @@ const bulkUnlockBonusStatementsIntoDB = async (
   return bulkChangeBonusStatementStatusIntoDB({ action: "unlock", payload, actionBy });
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedBonusStatementsFromDB,
+  softDeleteRecordFromDB: softDeleteBonusStatementFromDB,
+  restoreRecordIntoDB: restoreBonusStatementIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: BonusStatement,
+  recordName: "Bonus Statement",
+  queryFields: ['employee', 'company', 'bonusMonth', 'bonusName', 'bonusType', 'status'],
+  restoreUniqueFields: ['employee', 'bonusMonth', 'bonusName'],
+});
+
 export const BonusStatementServices = {
   generateMonthlyBonusStatementIntoDB,
   getAllBonusStatementsFromDB,
@@ -985,4 +998,8 @@ export const BonusStatementServices = {
   bulkApproveBonusStatementsIntoDB,
   bulkLockBonusStatementsIntoDB,
   bulkUnlockBonusStatementsIntoDB,
+
+  getDeletedBonusStatementsFromDB,
+  softDeleteBonusStatementFromDB,
+  restoreBonusStatementIntoDB,
 };

@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { BonusSheetControllers } from "./bonusSheet.controller";
 import { BonusSheetValidations } from "./bonusSheet.validation";
@@ -61,6 +62,30 @@ router.patch(
   requirePermission(PERMISSIONS.BONUS_SHEET_UNLOCK),
   validateRequest(BonusSheetValidations.bonusSheetBulkActionValidationSchema),
   BonusSheetControllers.bulkUnlockBonusSheets,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_SHEET_READ),
+  BonusSheetControllers.getDeletedBonusSheets,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_SHEET_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  BonusSheetControllers.restoreBonusSheet,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_SHEET_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  BonusSheetControllers.deleteBonusSheet,
 );
 
 router.get(

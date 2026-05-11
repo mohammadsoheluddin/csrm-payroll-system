@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { BonusPaymentDistributionServices } from "./bonusPaymentDistribution.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -500,6 +512,48 @@ const exportBonusPaymentDistributionPdf = catchAsync(
   },
 );
 
+
+const getDeletedBonusPaymentDistributions = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusPaymentDistributionServices.getDeletedBonusPaymentDistributionsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Bonus Payment Distribution records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteBonusPaymentDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusPaymentDistributionServices.softDeleteBonusPaymentDistributionFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bonus Payment Distribution deleted successfully",
+    data: result,
+  });
+});
+
+const restoreBonusPaymentDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await BonusPaymentDistributionServices.restoreBonusPaymentDistributionIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Bonus Payment Distribution restored successfully",
+    data: result,
+  });
+});
+
 export const BonusPaymentDistributionControllers = {
   generateMonthlyBonusPaymentDistribution,
   getAllBonusPaymentDistributions,
@@ -517,4 +571,8 @@ export const BonusPaymentDistributionControllers = {
   exportBonusPaymentDistributionCsv,
   exportBonusPaymentDistributionExcel,
   exportBonusPaymentDistributionPdf,
+
+  getDeletedBonusPaymentDistributions,
+  deleteBonusPaymentDistribution,
+  restoreBonusPaymentDistribution,
 };

@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { SalaryStatementServices } from "./salaryStatement.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -368,6 +380,48 @@ const unlockSalaryStatement = catchAsync(
   },
 );
 
+
+const getDeletedSalaryStatements = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryStatementServices.getDeletedSalaryStatementsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Salary Statement records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteSalaryStatement = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryStatementServices.softDeleteSalaryStatementFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Statement deleted successfully",
+    data: result,
+  });
+});
+
+const restoreSalaryStatement = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryStatementServices.restoreSalaryStatementIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Statement restored successfully",
+    data: result,
+  });
+});
+
 export const SalaryStatementControllers = {
   generateMonthlySalaryStatement,
   getAllSalaryStatements,
@@ -381,4 +435,8 @@ export const SalaryStatementControllers = {
   approveSalaryStatement,
   lockSalaryStatement,
   unlockSalaryStatement,
+
+  getDeletedSalaryStatements,
+  deleteSalaryStatement,
+  restoreSalaryStatement,
 };

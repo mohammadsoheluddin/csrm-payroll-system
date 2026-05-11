@@ -8,6 +8,7 @@ import {
   TBonusStatementSnapshot,
 } from "./bonusStatement.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const bonusStatementBonusSheetSnapshotSchema =
   new Schema<TBonusStatementBonusSheetSnapshot>(
     {
@@ -162,7 +163,7 @@ const bonusStatementSchema = new Schema<TBonusStatement, BonusStatementModel>(
     snapshot: { type: bonusStatementSnapshotSchema, default: null },
     auditLogs: { type: [bonusStatementAuditLogSchema], default: [] },
     remarks: { type: String, default: "" },
-    isDeleted: { type: Boolean, default: false },
+    ...softDeleteSchemaFields,
   },
   { timestamps: true },
 );

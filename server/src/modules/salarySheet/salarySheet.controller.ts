@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { SalarySheetServices } from "./salarySheet.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -352,6 +364,48 @@ const unlockSalarySheet = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const getDeletedSalarySheets = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalarySheetServices.getDeletedSalarySheetsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Salary Sheet records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteSalarySheet = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalarySheetServices.softDeleteSalarySheetFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Sheet deleted successfully",
+    data: result,
+  });
+});
+
+const restoreSalarySheet = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalarySheetServices.restoreSalarySheetIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Sheet restored successfully",
+    data: result,
+  });
+});
+
 export const SalarySheetControllers = {
   generateMonthlySalarySheet,
   getAllSalarySheets,
@@ -365,4 +419,8 @@ export const SalarySheetControllers = {
   approveSalarySheet,
   lockSalarySheet,
   unlockSalarySheet,
+
+  getDeletedSalarySheets,
+  deleteSalarySheet,
+  restoreSalarySheet,
 };

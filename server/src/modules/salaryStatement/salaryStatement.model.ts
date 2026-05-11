@@ -9,6 +9,7 @@ import {
   TSalaryStatementSnapshot,
 } from "./salaryStatement.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const salaryStatementEmployeeSnapshotSchema =
   new Schema<TSalaryStatementEmployeeSnapshot>(
     {
@@ -204,7 +205,7 @@ const salaryStatementSchema = new Schema<TSalaryStatement, SalaryStatementModel>
     snapshot: { type: salaryStatementSnapshotSchema, default: null },
     auditLogs: { type: [salaryStatementAuditLogSchema], default: [] },
     remarks: { type: String, trim: true, default: "" },
-    isDeleted: { type: Boolean, default: false },
+    ...softDeleteSchemaFields,
   },
   { timestamps: true },
 );

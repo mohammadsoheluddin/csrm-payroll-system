@@ -9,6 +9,7 @@ import {
   TOtStatementTimeBillSnapshot,
 } from "./otStatement.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const otStatementEmployeeSnapshotSchema =
   new Schema<TOtStatementEmployeeSnapshot>(
     {
@@ -463,10 +464,7 @@ const otStatementSchema = new Schema<TOtStatement, OtStatementModel>(
       trim: true,
       default: "",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

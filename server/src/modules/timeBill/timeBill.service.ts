@@ -23,6 +23,7 @@ import {
   TTimeBillSummaryQuery,
 } from "./timeBill.interface";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1662,6 +1663,18 @@ const exportTimeBillPdfFromDB = async (query: TTimeBillExportQuery) => {
 };
 
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedTimeBillsFromDB,
+  softDeleteRecordFromDB: softDeleteTimeBillFromDB,
+  restoreRecordIntoDB: restoreTimeBillIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: TimeBill,
+  recordName: "Time Bill",
+  queryFields: ['employee', 'company', 'payrollMonth', 'status'],
+  restoreUniqueFields: ['employee', 'payrollMonth'],
+});
+
 export const TimeBillServices = {
   generateMonthlyTimeBillIntoDB,
   getAllTimeBillsFromDB,
@@ -1679,4 +1692,8 @@ export const TimeBillServices = {
   exportTimeBillCsvFromDB,
   exportTimeBillExcelFromDB,
   exportTimeBillPdfFromDB,
+
+  getDeletedTimeBillsFromDB,
+  softDeleteTimeBillFromDB,
+  restoreTimeBillIntoDB,
 };

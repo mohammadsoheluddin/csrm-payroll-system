@@ -3,6 +3,7 @@ import express from "express";
 import auth from "../../middleware/auth";
 
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 
 import { USER_ROLE } from "../user/user.constant";
 
@@ -50,6 +51,43 @@ router.get(
   SalaryStructureControllers.getAllSalaryStructure,
 );
 
+
+router.get(
+  "/deleted",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+    USER_ROLE.manager,
+  ),
+  SalaryStructureControllers.getDeletedSalaryStructures,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+  ),
+  validateRequest(createRestoreValidationSchema("id")),
+  SalaryStructureControllers.restoreSalaryStructure,
+);
+
+router.delete(
+  "/:id",
+  auth(
+    USER_ROLE.super_admin,
+    USER_ROLE.admin,
+    USER_ROLE.hr,
+    USER_ROLE.accounts,
+  ),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  SalaryStructureControllers.deleteSalaryStructure,
+);
+
 router.get(
   "/:id",
   auth(
@@ -74,12 +112,6 @@ router.patch(
     SalaryStructureValidations.updateSalaryStructureValidationSchema,
   ),
   SalaryStructureControllers.updateSalaryStructure,
-);
-
-router.delete(
-  "/:id",
-  auth(USER_ROLE.super_admin, USER_ROLE.admin),
-  SalaryStructureControllers.deleteSalaryStructure,
 );
 
 export const SalaryStructureRoutes = router;

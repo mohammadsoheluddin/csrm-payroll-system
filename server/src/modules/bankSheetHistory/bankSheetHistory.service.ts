@@ -1,5 +1,6 @@
 import BankSheetHistory from "./bankSheetHistory.model";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const getAllBankSheetHistoryFromDB = async (query: Record<string, unknown>) => {
   const filter: Record<string, unknown> = {
     isDeleted: false,
@@ -29,6 +30,22 @@ const getAllBankSheetHistoryFromDB = async (query: Record<string, unknown>) => {
   };
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedBankSheetHistoryFromDB,
+  softDeleteRecordFromDB: softDeleteBankSheetHistoryFromDB,
+  restoreRecordIntoDB: restoreBankSheetHistoryIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: BankSheetHistory,
+  recordName: "Bank Sheet History",
+  queryFields: ['company', 'payrollMonth', 'exportType'],
+  restoreUniqueFields: ['company', 'payrollMonth', 'exportType', 'fileName'],
+});
+
 export const BankSheetHistoryServices = {
   getAllBankSheetHistoryFromDB,
+
+  getDeletedBankSheetHistoryFromDB,
+  softDeleteBankSheetHistoryFromDB,
+  restoreBankSheetHistoryIntoDB,
 };

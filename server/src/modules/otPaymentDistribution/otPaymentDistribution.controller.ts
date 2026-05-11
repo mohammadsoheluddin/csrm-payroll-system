@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { OtPaymentDistributionServices } from "./otPaymentDistribution.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -506,6 +518,48 @@ const exportOtPaymentDistributionPdf = catchAsync(
   },
 );
 
+
+const getDeletedOtPaymentDistributions = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtPaymentDistributionServices.getDeletedOtPaymentDistributionsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted OT Payment Distribution records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteOtPaymentDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtPaymentDistributionServices.softDeleteOtPaymentDistributionFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "OT Payment Distribution deleted successfully",
+    data: result,
+  });
+});
+
+const restoreOtPaymentDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await OtPaymentDistributionServices.restoreOtPaymentDistributionIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "OT Payment Distribution restored successfully",
+    data: result,
+  });
+});
+
 export const OtPaymentDistributionControllers = {
   generateMonthlyOtPaymentDistribution,
   getAllOtPaymentDistributions,
@@ -523,4 +577,8 @@ export const OtPaymentDistributionControllers = {
   exportOtPaymentDistributionCsv,
   exportOtPaymentDistributionExcel,
   exportOtPaymentDistributionPdf,
+
+  getDeletedOtPaymentDistributions,
+  deleteOtPaymentDistribution,
+  restoreOtPaymentDistribution,
 };

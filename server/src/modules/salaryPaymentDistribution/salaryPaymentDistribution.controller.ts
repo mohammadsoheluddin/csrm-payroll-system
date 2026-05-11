@@ -4,6 +4,18 @@ import sendResponse from "../../utils/sendResponse";
 import { createAuditLogFromRequest } from "../auditLog/auditLog.utils";
 import { SalaryPaymentDistributionServices } from "./salaryPaymentDistribution.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const getParamId = (req: Request, paramName: string) => {
   const value = req.params[paramName];
 
@@ -507,6 +519,48 @@ const exportSalaryPaymentDistributionPdf = catchAsync(
   },
 );
 
+
+const getDeletedSalaryPaymentDistributions = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryPaymentDistributionServices.getDeletedSalaryPaymentDistributionsFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Salary Payment Distribution records retrieved successfully",
+    data: result,
+  });
+});
+
+const deleteSalaryPaymentDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryPaymentDistributionServices.softDeleteSalaryPaymentDistributionFromDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    deleteReason: req.body?.deleteReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Payment Distribution deleted successfully",
+    data: result,
+  });
+});
+
+const restoreSalaryPaymentDistribution = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryPaymentDistributionServices.restoreSalaryPaymentDistributionIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Payment Distribution restored successfully",
+    data: result,
+  });
+});
+
 export const SalaryPaymentDistributionControllers = {
   generateMonthlySalaryPaymentDistribution,
   getAllSalaryPaymentDistributions,
@@ -524,4 +578,8 @@ export const SalaryPaymentDistributionControllers = {
   exportSalaryPaymentDistributionCsv,
   exportSalaryPaymentDistributionExcel,
   exportSalaryPaymentDistributionPdf,
+
+  getDeletedSalaryPaymentDistributions,
+  deleteSalaryPaymentDistribution,
+  restoreSalaryPaymentDistribution,
 };

@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { BonusPaymentDistributionControllers } from "./bonusPaymentDistribution.controller";
 import { BonusPaymentDistributionValidations } from "./bonusPaymentDistribution.validation";
@@ -113,6 +114,30 @@ router.get(
     BonusPaymentDistributionValidations.bonusPaymentDistributionExportQueryValidationSchema,
   ),
   BonusPaymentDistributionControllers.exportBonusPaymentDistributionPdf,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_READ),
+  BonusPaymentDistributionControllers.getDeletedBonusPaymentDistributions,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  BonusPaymentDistributionControllers.restoreBonusPaymentDistribution,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_PAYMENT_DISTRIBUTION_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  BonusPaymentDistributionControllers.deleteBonusPaymentDistribution,
 );
 
 router.get(

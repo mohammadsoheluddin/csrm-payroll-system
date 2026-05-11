@@ -8,6 +8,7 @@ import {
   TBonusPaymentDistributionSnapshot,
 } from "./bonusPaymentDistribution.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const paymentInfoSnapshotSchema =
   new Schema<TBonusPaymentDistributionPaymentInfoSnapshot>(
     {
@@ -211,7 +212,7 @@ const bonusPaymentDistributionSchema = new Schema<
     snapshot: { type: bonusPaymentDistributionSnapshotSchema, default: null },
     auditLogs: { type: [bonusPaymentDistributionAuditLogSchema], default: [] },
     remarks: { type: String, default: "" },
-    isDeleted: { type: Boolean, default: false },
+    ...softDeleteSchemaFields,
   },
   { timestamps: true },
 );

@@ -10,6 +10,7 @@ import {
   TTimeBillSnapshot,
 } from "./timeBill.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const timeBillEmployeeSnapshotSchema = new Schema<TTimeBillEmployeeSnapshot>(
   {
     employeeDbId: {
@@ -465,10 +466,7 @@ const timeBillSchema = new Schema<TTimeBill, TimeBillModel>(
       trim: true,
       default: "",
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

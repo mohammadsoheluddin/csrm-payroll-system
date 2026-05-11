@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { BonusStatementControllers } from "./bonusStatement.controller";
 import { BonusStatementValidations } from "./bonusStatement.validation";
@@ -61,6 +62,30 @@ router.patch(
   requirePermission(PERMISSIONS.BONUS_STATEMENT_UNLOCK),
   validateRequest(BonusStatementValidations.bonusStatementBulkActionValidationSchema),
   BonusStatementControllers.bulkUnlockBonusStatements,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_STATEMENT_READ),
+  BonusStatementControllers.getDeletedBonusStatements,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_STATEMENT_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  BonusStatementControllers.restoreBonusStatement,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.BONUS_STATEMENT_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  BonusStatementControllers.deleteBonusStatement,
 );
 
 router.get(

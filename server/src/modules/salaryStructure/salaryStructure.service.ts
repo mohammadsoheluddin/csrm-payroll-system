@@ -8,6 +8,7 @@ import { TSalaryStructure } from "./salaryStructure.interface";
 
 import Employee from "../employee/employee.model";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const calculateSalaryFields = (payload: Partial<TSalaryStructure>) => {
   const basicSalary = payload.basicSalary || 0;
 
@@ -336,6 +337,18 @@ const deleteSalaryStructureFromDB = async (id: string) => {
   return result;
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedSalaryStructuresFromDB,
+  softDeleteRecordFromDB: softDeleteSalaryStructureFromDB,
+  restoreRecordIntoDB: restoreSalaryStructureIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: SalaryStructure,
+  recordName: "Salary Structure",
+  queryFields: ['employee', 'isActive', 'effectiveFrom'],
+  restoreUniqueFields: ['employee', 'effectiveFrom'],
+});
+
 export const SalaryStructureServices = {
   createSalaryStructureIntoDB,
 
@@ -347,5 +360,9 @@ export const SalaryStructureServices = {
 
   updateSalaryStructureIntoDB,
 
-  deleteSalaryStructureFromDB,
+  getDeletedSalaryStructuresFromDB,
+
+  deleteSalaryStructureFromDB: softDeleteSalaryStructureFromDB,
+
+  restoreSalaryStructureIntoDB,
 };

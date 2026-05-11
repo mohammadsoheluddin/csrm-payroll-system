@@ -1,3 +1,4 @@
+import type { TSoftDeleteFields } from "../../common/softDelete";
 import { Model, Types } from "mongoose";
 
 export type TBankSheetHistory = {

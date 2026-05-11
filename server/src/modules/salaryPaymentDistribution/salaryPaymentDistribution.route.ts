@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { SalaryPaymentDistributionControllers } from "./salaryPaymentDistribution.controller";
 import { SalaryPaymentDistributionValidations } from "./salaryPaymentDistribution.validation";
@@ -114,6 +115,30 @@ router.get(
     SalaryPaymentDistributionValidations.salaryPaymentDistributionExportQueryValidationSchema,
   ),
   SalaryPaymentDistributionControllers.exportSalaryPaymentDistributionPdf,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_READ),
+  SalaryPaymentDistributionControllers.getDeletedSalaryPaymentDistributions,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  SalaryPaymentDistributionControllers.restoreSalaryPaymentDistribution,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  SalaryPaymentDistributionControllers.deleteSalaryPaymentDistribution,
 );
 
 router.get(

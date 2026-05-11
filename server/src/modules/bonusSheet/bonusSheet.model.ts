@@ -11,6 +11,7 @@ import {
   TBonusSheetSnapshot,
 } from "./bonusSheet.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const bonusSheetEmployeeSnapshotSchema = new Schema<TBonusSheetEmployeeSnapshot>(
   {
     employeeDbId: { type: String, default: "" },
@@ -240,7 +241,7 @@ const bonusSheetSchema = new Schema<TBonusSheet, BonusSheetModel>(
     snapshot: { type: bonusSheetSnapshotSchema, default: null },
     auditLogs: { type: [bonusSheetAuditLogSchema], default: [] },
     remarks: { type: String, default: "" },
-    isDeleted: { type: Boolean, default: false },
+    ...softDeleteSchemaFields,
   },
   { timestamps: true },
 );

@@ -10,6 +10,7 @@ import {
   TSalaryPaymentDistributionSnapshot,
 } from "./salaryPaymentDistribution.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const salaryPaymentDistributionEmployeeSnapshotSchema =
   new Schema<TSalaryPaymentDistributionEmployeeSnapshot>(
     {
@@ -292,7 +293,7 @@ const salaryPaymentDistributionSchema = new Schema<
     snapshot: { type: salaryPaymentDistributionSnapshotSchema, default: null },
     auditLogs: { type: [salaryPaymentDistributionAuditLogSchema], default: [] },
     remarks: { type: String, trim: true, default: "" },
-    isDeleted: { type: Boolean, default: false },
+    ...softDeleteSchemaFields,
   },
   { timestamps: true },
 );

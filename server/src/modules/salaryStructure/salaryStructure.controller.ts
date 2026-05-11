@@ -14,6 +14,18 @@ import {
 
 import { SalaryStructureServices } from "./salaryStructure.service";
 
+const getSoftDeleteUserIdFromRequest = (req: Request) => {
+  const requestUser = (req as Request & {
+    user?: {
+      userId?: string;
+      _id?: string;
+      id?: string;
+    };
+  }).user;
+
+  return requestUser?.userId || requestUser?._id || requestUser?.id || "";
+};
+
 const createSalaryStructure = catchAsync(
   async (req: Request, res: Response) => {
     if (!req.body || Object.keys(req.body).length === 0) {
@@ -168,6 +180,10 @@ const deleteSalaryStructure = catchAsync(
     const result =
       await SalaryStructureServices.deleteSalaryStructureFromDB(
         salaryStructureId,
+        {
+          userId: getSoftDeleteUserIdFromRequest(req),
+          deleteReason: req.body?.deleteReason,
+        },
       );
 
     await createAuditLogFromRequest(req, {
@@ -196,6 +212,34 @@ const deleteSalaryStructure = catchAsync(
   },
 );
 
+
+const getDeletedSalaryStructures = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryStructureServices.getDeletedSalaryStructuresFromDB(
+    req.query as Record<string, unknown>,
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Deleted Salary Structure records retrieved successfully",
+    data: result,
+  });
+});
+
+const restoreSalaryStructure = catchAsync(async (req: Request, res: Response) => {
+  const result = await SalaryStructureServices.restoreSalaryStructureIntoDB(req.params.id as string, {
+    userId: getSoftDeleteUserIdFromRequest(req),
+    restoreReason: req.body?.restoreReason,
+  });
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Salary Structure restored successfully",
+    data: result,
+  });
+});
+
 export const SalaryStructureControllers = {
   createSalaryStructure,
 
@@ -208,4 +252,7 @@ export const SalaryStructureControllers = {
   updateSalaryStructure,
 
   deleteSalaryStructure,
+
+  getDeletedSalaryStructures,
+  restoreSalaryStructure,
 };

@@ -2,6 +2,7 @@ import { Schema, model } from "mongoose";
 
 import { PayrollModel, TPayroll, TPayrollAuditLog } from "./payroll.interface";
 
+import { softDeleteSchemaFields } from "../../common/softDelete";
 const payrollAuditLogSchema = new Schema<TPayrollAuditLog>(
   {
     action: {
@@ -608,11 +609,7 @@ const payrollSchema = new Schema<TPayroll, PayrollModel>(
       default: null,
     },
 
-    isDeleted: {
-      type: Boolean,
-
-      default: false,
-    },
+    ...softDeleteSchemaFields,
   },
   {
     timestamps: true,

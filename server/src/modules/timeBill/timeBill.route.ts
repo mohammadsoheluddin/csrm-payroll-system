@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { TimeBillControllers } from "./timeBill.controller";
 import { TimeBillValidations } from "./timeBill.validation";
@@ -93,6 +94,30 @@ router.patch(
   requirePermission(PERMISSIONS.TIME_BILL_UNLOCK),
   validateRequest(TimeBillValidations.timeBillBulkActionValidationSchema),
   TimeBillControllers.bulkUnlockTimeBills,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_READ),
+  TimeBillControllers.getDeletedTimeBills,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  TimeBillControllers.restoreTimeBill,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.TIME_BILL_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  TimeBillControllers.deleteTimeBill,
 );
 
 router.get(

@@ -18,6 +18,7 @@ import {
   TGenerateBonusSheetPayload,
 } from "./bonusSheet.interface";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1429,6 +1430,18 @@ const bulkUnlockBonusSheetsIntoDB = async (
   return bulkChangeBonusSheetStatusIntoDB({ action: "unlock", payload, actionBy });
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedBonusSheetsFromDB,
+  softDeleteRecordFromDB: softDeleteBonusSheetFromDB,
+  restoreRecordIntoDB: restoreBonusSheetIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: BonusSheet,
+  recordName: "Bonus Sheet",
+  queryFields: ['employee', 'company', 'bonusMonth', 'bonusName', 'bonusType', 'status'],
+  restoreUniqueFields: ['employee', 'bonusMonth', 'bonusName'],
+});
+
 export const BonusSheetServices = {
   generateMonthlyBonusSheetIntoDB,
   getAllBonusSheetsFromDB,
@@ -1442,4 +1455,8 @@ export const BonusSheetServices = {
   bulkApproveBonusSheetsIntoDB,
   bulkLockBonusSheetsIntoDB,
   bulkUnlockBonusSheetsIntoDB,
+
+  getDeletedBonusSheetsFromDB,
+  softDeleteBonusSheetFromDB,
+  restoreBonusSheetIntoDB,
 };

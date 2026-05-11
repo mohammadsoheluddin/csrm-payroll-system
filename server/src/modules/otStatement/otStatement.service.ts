@@ -20,6 +20,7 @@ import {
   TOtStatementSummaryQuery,
 } from "./otStatement.interface";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1341,6 +1342,18 @@ const exportOtStatementPdfFromDB = async (query: TOtStatementExportQuery) => {
 };
 
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedOtStatementsFromDB,
+  softDeleteRecordFromDB: softDeleteOtStatementFromDB,
+  restoreRecordIntoDB: restoreOtStatementIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: OtStatement,
+  recordName: "OT Statement",
+  queryFields: ['employee', 'company', 'payrollMonth', 'status'],
+  restoreUniqueFields: ['employee', 'payrollMonth'],
+});
+
 export const OtStatementServices = {
   generateMonthlyOtStatementIntoDB,
   getAllOtStatementsFromDB,
@@ -1358,4 +1371,8 @@ export const OtStatementServices = {
   exportOtStatementCsvFromDB,
   exportOtStatementExcelFromDB,
   exportOtStatementPdfFromDB,
+
+  getDeletedOtStatementsFromDB,
+  softDeleteOtStatementFromDB,
+  restoreOtStatementIntoDB,
 };

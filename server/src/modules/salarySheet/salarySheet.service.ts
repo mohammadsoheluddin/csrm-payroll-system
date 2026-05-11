@@ -17,6 +17,7 @@ import {
   TSalarySheetSummaryQuery,
 } from "./salarySheet.interface";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1500,6 +1501,18 @@ const bulkUnlockSalarySheetsIntoDB = async (
   });
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedSalarySheetsFromDB,
+  softDeleteRecordFromDB: softDeleteSalarySheetFromDB,
+  restoreRecordIntoDB: restoreSalarySheetIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: SalarySheet,
+  recordName: "Salary Sheet",
+  queryFields: ['employee', 'company', 'payrollMonth', 'status'],
+  restoreUniqueFields: ['employee', 'payrollMonth'],
+});
+
 export const SalarySheetServices = {
   generateMonthlySalarySheetIntoDB,
   getAllSalarySheetsFromDB,
@@ -1513,4 +1526,8 @@ export const SalarySheetServices = {
   bulkApproveSalarySheetsIntoDB,
   bulkLockSalarySheetsIntoDB,
   bulkUnlockSalarySheetsIntoDB,
+
+  getDeletedSalarySheetsFromDB,
+  softDeleteSalarySheetFromDB,
+  restoreSalarySheetIntoDB,
 };

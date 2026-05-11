@@ -2,6 +2,7 @@ import { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
+import { createRestoreValidationSchema, createSoftDeleteValidationSchema } from "../../common/softDelete";
 import { PERMISSIONS } from "../user/user.constant";
 import { SalarySheetControllers } from "./salarySheet.controller";
 import { SalarySheetValidations } from "./salarySheet.validation";
@@ -62,6 +63,30 @@ router.patch(
   requirePermission(PERMISSIONS.SALARY_SHEET_UNLOCK),
   validateRequest(SalarySheetValidations.salarySheetBulkActionValidationSchema),
   SalarySheetControllers.bulkUnlockSalarySheets,
+);
+
+
+router.get(
+  "/deleted",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_READ),
+  SalarySheetControllers.getDeletedSalarySheets,
+);
+
+router.patch(
+  "/:id/restore",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_PROCESS),
+  validateRequest(createRestoreValidationSchema("id")),
+  SalarySheetControllers.restoreSalarySheet,
+);
+
+router.delete(
+  "/:id",
+  auth(),
+  requirePermission(PERMISSIONS.SALARY_SHEET_PROCESS),
+  validateRequest(createSoftDeleteValidationSchema("id")),
+  SalarySheetControllers.deleteSalarySheet,
 );
 
 router.get(

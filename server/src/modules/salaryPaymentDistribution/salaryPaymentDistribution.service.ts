@@ -22,6 +22,7 @@ import {
 } from "./salaryPaymentDistribution.interface";
 import SalaryPaymentDistribution from "./salaryPaymentDistribution.model";
 
+import { createFinancialRecordSoftDeleteHandlers } from "../../common/financialRecordSoftDelete";
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
   NOT_FOUND: 404,
@@ -1603,6 +1604,18 @@ const exportSalaryPaymentDistributionPdfFromDB = async (
   return generateSalaryPaymentDistributionPDF(preview);
 };
 
+
+const {
+  getDeletedRecordsFromDB: getDeletedSalaryPaymentDistributionsFromDB,
+  softDeleteRecordFromDB: softDeleteSalaryPaymentDistributionFromDB,
+  restoreRecordIntoDB: restoreSalaryPaymentDistributionIntoDB,
+} = createFinancialRecordSoftDeleteHandlers({
+  model: SalaryPaymentDistribution,
+  recordName: "Salary Payment Distribution",
+  queryFields: ['employee', 'company', 'payrollMonth', 'paymentMode', 'status'],
+  restoreUniqueFields: ['employee', 'payrollMonth', 'paymentMode'],
+});
+
 export const SalaryPaymentDistributionServices = {
   generateMonthlySalaryPaymentDistributionIntoDB,
   getAllSalaryPaymentDistributionsFromDB,
@@ -1620,4 +1633,8 @@ export const SalaryPaymentDistributionServices = {
   exportSalaryPaymentDistributionCsvFromDB,
   exportSalaryPaymentDistributionExcelFromDB,
   exportSalaryPaymentDistributionPdfFromDB,
+
+  getDeletedSalaryPaymentDistributionsFromDB,
+  softDeleteSalaryPaymentDistributionFromDB,
+  restoreSalaryPaymentDistributionIntoDB,
 };

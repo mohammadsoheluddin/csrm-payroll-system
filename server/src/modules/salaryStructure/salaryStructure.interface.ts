@@ -1,6 +1,7 @@
+import type { TSoftDeleteFields } from "../../common/softDelete";
 import { Types } from "mongoose";
 
-export interface TSalaryStructure {
+export interface TSalaryStructure extends TSoftDeleteFields {
   employee: Types.ObjectId;
   basicSalary: number;
   houseRent: number;

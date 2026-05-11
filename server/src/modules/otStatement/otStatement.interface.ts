@@ -1,3 +1,4 @@
+import type { TSoftDeleteFields } from "../../common/softDelete";
 import { Model, Types } from "mongoose";
 import type { TPayrollImmutableSeal } from "../../utils/payrollImmutableSeal";
 
@@ -79,7 +80,7 @@ export interface TOtStatementSnapshot {
   timeBill?: TOtStatementTimeBillSnapshot | null;
 }
 
-export interface TOtStatement {
+export interface TOtStatement extends TSoftDeleteFields {
   employee: Types.ObjectId;
   company: Types.ObjectId;
   majorDepartment: Types.ObjectId;
