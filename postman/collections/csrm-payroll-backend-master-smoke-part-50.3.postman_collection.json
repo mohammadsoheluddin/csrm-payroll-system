@@ -1,0 +1,2222 @@
+{
+  "info": {
+    "_postman_id": "d6c4d387-e752-4887-af98-8bb5c0f32123",
+    "name": "CSRM Payroll Backend Master Smoke Collection - Part 50.3",
+    "description": "Clean Postman master collection for CSRM Payroll System backend smoke testing. Created in Part-50.3. Use the matching local environment and set tokens/IDs before running destructive tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Auth - Login and Token Setup",
+      "item": [
+        {
+          "name": "Admin Login - save adminToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Update email/password before sending. The test script tries to save the access token automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Login response received\", function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "const token =",
+                  "  jsonData?.data?.accessToken ||",
+                  "  jsonData?.data?.token ||",
+                  "  jsonData?.accessToken ||",
+                  "  jsonData?.token ||",
+                  "  jsonData?.data?.access_token ||",
+                  "  jsonData?.access_token;",
+                  "",
+                  "if (token) {",
+                  "  pm.environment.set(\"adminToken\", token);",
+                  "  console.log(\"Saved adminToken\");",
+                  "} else {",
+                  "  console.warn(\"Token not found automatically. Please copy token manually into environment variable: adminToken\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "HR Login - save hrToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Update email/password before sending. The test script tries to save the access token automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Login response received\", function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "const token =",
+                  "  jsonData?.data?.accessToken ||",
+                  "  jsonData?.data?.token ||",
+                  "  jsonData?.accessToken ||",
+                  "  jsonData?.token ||",
+                  "  jsonData?.data?.access_token ||",
+                  "  jsonData?.access_token;",
+                  "",
+                  "if (token) {",
+                  "  pm.environment.set(\"hrToken\", token);",
+                  "  console.log(\"Saved hrToken\");",
+                  "} else {",
+                  "  console.warn(\"Token not found automatically. Please copy token manually into environment variable: hrToken\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accounts Login - save accountsToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Update email/password before sending. The test script tries to save the access token automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Login response received\", function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "const token =",
+                  "  jsonData?.data?.accessToken ||",
+                  "  jsonData?.data?.token ||",
+                  "  jsonData?.accessToken ||",
+                  "  jsonData?.token ||",
+                  "  jsonData?.data?.access_token ||",
+                  "  jsonData?.access_token;",
+                  "",
+                  "if (token) {",
+                  "  pm.environment.set(\"accountsToken\", token);",
+                  "  console.log(\"Saved accountsToken\");",
+                  "} else {",
+                  "  console.warn(\"Token not found automatically. Please copy token manually into environment variable: accountsToken\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Manager Login - save managerToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Update email/password before sending. The test script tries to save the access token automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Login response received\", function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "const token =",
+                  "  jsonData?.data?.accessToken ||",
+                  "  jsonData?.data?.token ||",
+                  "  jsonData?.accessToken ||",
+                  "  jsonData?.token ||",
+                  "  jsonData?.data?.access_token ||",
+                  "  jsonData?.access_token;",
+                  "",
+                  "if (token) {",
+                  "  pm.environment.set(\"managerToken\", token);",
+                  "  console.log(\"Saved managerToken\");",
+                  "} else {",
+                  "  console.warn(\"Token not found automatically. Please copy token manually into environment variable: managerToken\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee Login - save employeeToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Update email/password before sending. The test script tries to save the access token automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Login response received\", function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch (e) {}",
+                  "",
+                  "const token =",
+                  "  jsonData?.data?.accessToken ||",
+                  "  jsonData?.data?.token ||",
+                  "  jsonData?.accessToken ||",
+                  "  jsonData?.token ||",
+                  "  jsonData?.data?.access_token ||",
+                  "  jsonData?.access_token;",
+                  "",
+                  "if (token) {",
+                  "  pm.environment.set(\"employeeToken\", token);",
+                  "  console.log(\"Saved employeeToken\");",
+                  "} else {",
+                  "  console.warn(\"Token not found automatically. Please copy token manually into environment variable: employeeToken\");",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Admin Smoke - Master Data",
+      "item": [
+        {
+          "name": "Companies - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/companies",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Branches - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/branches",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Major Departments - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/major-departments",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Departments - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/departments",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Designations - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/designations",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Company Bank Accounts - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/company-bank-accounts",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Companies - deleted list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/companies/deleted",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Branches - deleted list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/branches/deleted",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Major Departments - deleted list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/major-departments/deleted",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Departments - deleted list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/departments/deleted",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Designations - deleted list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/designations/deleted",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 HR Smoke - Employee Attendance Leave",
+      "item": [
+        {
+          "name": "Employees - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employees",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee Bank Infos - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employee-bank-infos",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee Movements - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employee-movements",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee Bulk Imports - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/employee-bulk-imports",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendance - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/attendance",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendance Imports - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/attendance-imports",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Attendance Finalizations - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/attendance-finalizations",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leave - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/leave",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Leave Balances - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/leave-balances",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Holiday - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/holiday",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{hrToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Accounts Payroll Smoke",
+      "item": [
+        {
+          "name": "Salary Structure - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/salary-structure",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payroll - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/payroll",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payroll Reports - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/payroll-reports",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Salary Sheets - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/salary-sheets",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Salary Statements - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/salary-statements",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Salary Payment Distributions - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/salary-payment-distributions",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Time Bills - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/time-bills",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OT Statements - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ot-statements",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OT Payment Distributions - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ot-payment-distributions",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bonus Sheets - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/bonus-sheets",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bonus Statements - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/bonus-statements",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bonus Payment Distributions - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/bonus-payment-distributions",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bank Sheets - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/bank-sheets",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bank Sheet History - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/bank-sheet-history",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payroll Generate - expected 200/201 or 409 if attendance finalization missing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/payroll/generate",
+            "description": "If attendance finalization is not locked, 409 Conflict is expected and confirms business-rule layer is reached.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accountsToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"month\": 5,\n  \"year\": 2026,\n  \"company\": \"{{companyId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Payroll generate reached validation/business-rule layer\", function () {",
+                  "  pm.expect([200, 201, 400, 409]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Not an RBAC forbidden response for admin/accounts token\", function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 RBAC Forbidden Tests",
+      "item": [
+        {
+          "name": "Employee token cannot access payroll list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/payroll",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Forbidden or unauthorized for restricted route\", function () {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee token cannot access audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Forbidden or unauthorized for restricted route\", function () {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Employee token cannot access users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{employeeToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Forbidden or unauthorized for restricted route\", function () {",
+                  "  pm.expect([401, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Audit Log Tests",
+      "item": [
+        {
+          "name": "Audit Logs - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit Logs - sensitive",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs/sensitive",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit Logs - permission_denied",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs?action=permission_denied",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit Logs - high risk",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs?riskLevel=high",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Audit Logs - authorization category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit-logs?category=authorization",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Soft Delete Restore Templates - Use Test Records Only",
+      "description": "Use only temporary ZZ test records. Do not run against real master data.",
+      "item": [
+        {
+          "name": "Company - soft delete by companyId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/companies/{{companyId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deleteReason\": \"Master smoke soft delete test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Status is successful or expected business response\", function () {",
+                  "  pm.expect([200, 201, 204, 400, 403, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Company - deleted list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/companies/deleted",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Company - restore by companyId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/companies/{{companyId}}/restore",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restoreReason\": \"Master smoke restore test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Status is successful or expected business response\", function () {",
+                  "  pm.expect([200, 201, 204, 400, 403, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Branch - soft delete by branchId",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/branches/{{branchId}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deleteReason\": \"Master smoke soft delete test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Status is successful or expected business response\", function () {",
+                  "  pm.expect([200, 201, 204, 400, 403, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Branch - restore by branchId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/branches/{{branchId}}/restore",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restoreReason\": \"Master smoke restore test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"Status is successful or expected business response\", function () {",
+                  "  pm.expect([200, 201, 204, 400, 403, 404, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 Report and System Smoke",
+      "item": [
+        {
+          "name": "Report Center - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/report-center",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Report Layout Standards - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/report-layout-standards",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Month End Process Control - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/month-end-process-control",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RBAC Audit - list",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/rbac-audit",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "",
+                  "pm.test(\"List endpoint responded\", function () {",
+                  "  pm.expect([200, 400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1"
+    }
+  ]
+}
