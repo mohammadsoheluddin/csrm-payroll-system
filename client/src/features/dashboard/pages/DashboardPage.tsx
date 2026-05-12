@@ -31,9 +31,9 @@ const setupCards = [
 ]
 
 const nextSteps = [
-  'Part-F3 will connect JWT auth, /users/me, refresh token behavior, and protected route redirects.',
-  'Part-F4 will add centralized Axios API client and backend error handling for 400/401/403/409/500.',
-  'Part-F5 will enforce role-wise sidebar and permission-wise button visibility.',
+  'Part-F4 will harden API error handling patterns, query keys, retry policy, and backend status-code UI messages.',
+  'Part-F5 will enforce role-wise sidebar filtering and permission-wise action button visibility.',
+  'Part-F6 will add dashboard widget configuration and role-based dashboard cards.',
 ]
 
 export const DashboardPage = () => {
@@ -44,18 +44,16 @@ export const DashboardPage = () => {
           <div className="absolute right-6 top-6 hidden rounded-full bg-primary/10 p-4 text-primary sm:block">
             <LayoutDashboard className="h-8 w-8" />
           </div>
-          <Badge variant="success">Part-F2</Badge>
+          <Badge variant="success">Part-F3</Badge>
           <h2 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight text-foreground">
-            Layout + Routing + Theme Foundation
+            Auth + Token + Protected Routes Foundation
           </h2>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground">
-            The CSRM Payroll frontend now has a stable ERP layout shell, route map, sidebar
-            groups, breadcrumb system, mobile navigation, and multi-theme foundation. Business
-            CRUD/report screens are still intentionally pending.
+            The CSRM Payroll frontend now connects with backend JWT auth routes, refresh-token cookie behavior, /users/me profile loading, protected routes, and permission-aware route blocking. Business CRUD/report screens are still intentionally pending.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Button disabled>
-              Foundation accepted
+              Auth foundation accepted
               <Sparkles className="h-4 w-4" />
             </Button>
             <Link to={routePaths.themeSettings}>

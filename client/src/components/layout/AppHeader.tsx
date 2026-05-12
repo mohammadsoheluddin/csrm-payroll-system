@@ -1,11 +1,24 @@
-import { Bell, Menu, Monitor, Moon, Search, Sun } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import {
+  Bell,
+  LogOut,
+  Menu,
+  Monitor,
+  Moon,
+  Search,
+  Sun,
+  UserCircle,
+} from 'lucide-react'
+import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { AppBreadcrumbs } from '@/components/navigation/AppBreadcrumbs'
 import { Button } from '@/components/ui/Button'
 import { routePaths } from '@/config/routePaths'
+import { logoutUser } from '@/features/auth/api/auth.api'
 import { getCurrentRouteMeta, getDashboardRouteMeta } from '@/lib/router/routeLookup'
 import { cn } from '@/lib/utils/cn'
+import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 import { themeModes, useThemeStore } from '@/stores/theme.store'
 import type { ThemeMode } from '@/stores/theme.store'
@@ -17,12 +30,31 @@ const themeIconMap: Record<ThemeMode, typeof Sun> = {
 }
 
 export const AppHeader = () => {
+  const navigate = useNavigate()
   const location = useLocation()
   const openMobileSidebar = useLayoutStore((state) => state.openMobileSidebar)
+  const user = useAuthStore((state) => state.user)
+  const clearAuth = useAuthStore((state) => state.clearAuth)
   const theme = useThemeStore((state) => state.theme)
   const setTheme = useThemeStore((state) => state.setTheme)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const routeMeta = getCurrentRouteMeta(location.pathname) ?? getDashboardRouteMeta()
   const ActiveThemeIcon = themeIconMap[theme]
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+
+    try {
+      await logoutUser()
+      toast.success('Logged out successfully')
+    } catch {
+      toast.warning('Local session cleared. Please login again if needed.')
+    } finally {
+      clearAuth()
+      setIsLoggingOut(false)
+      navigate(routePaths.login, { replace: true })
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
@@ -46,7 +78,7 @@ export const AppHeader = () => {
               </h1>
               {location.pathname === routePaths.dashboard && (
                 <span className="hidden rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary sm:inline-flex">
-                  Frontend Foundation
+                  Auth Foundation
                 </span>
               )}
             </div>
@@ -98,6 +130,28 @@ export const AppHeader = () => {
 
           <Button variant="outline" size="icon" aria-label="Notifications placeholder">
             <Bell className="h-5 w-5" />
+          </Button>
+
+          <div className="hidden max-w-[220px] items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 shadow-sm lg:flex">
+            <UserCircle className="h-5 w-5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0">
+              <p className="truncate text-xs font-semibold text-foreground">
+                {user?.name ?? 'Logged in user'}
+              </p>
+              <p className="truncate text-[11px] capitalize text-muted-foreground">
+                {user?.role?.replaceAll('_', ' ') ?? 'role'}
+              </p>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            aria-label="Logout"
+          >
+            <LogOut className="h-5 w-5" />
           </Button>
         </div>
       </div>

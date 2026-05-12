@@ -13,7 +13,7 @@ export const ForbiddenPage = () => {
           Forbidden access
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          You do not have permission to access this screen.
+          You are logged in, but your current role does not have the required permission for this screen.
         </p>
         <Link
           to={routePaths.dashboard}

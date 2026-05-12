@@ -13,7 +13,7 @@ export const SessionExpiredPage = () => {
           Session expired
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Please login again to continue using the payroll system.
+          Your access token could not be refreshed. Please login again to continue using the payroll system.
         </p>
         <Link
           to={routePaths.login}

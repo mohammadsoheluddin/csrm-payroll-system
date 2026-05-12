@@ -11,6 +11,7 @@ import { NotFoundPage } from '@/features/system/pages/NotFoundPage'
 import { SessionExpiredPage } from '@/features/system/pages/SessionExpiredPage'
 
 import { ProtectedRoute } from './ProtectedRoute'
+import { PublicOnlyRoute } from './PublicOnlyRoute'
 import { appRouteConfig } from './routeConfig'
 
 const appRoutes = appRouteConfig.map((route) => {
@@ -53,7 +54,11 @@ export const router = createBrowserRouter([
   },
   {
     path: routePaths.login,
-    element: <LoginPage />,
+    element: (
+      <PublicOnlyRoute>
+        <LoginPage />
+      </PublicOnlyRoute>
+    ),
   },
   {
     path: routePaths.sessionExpired,
