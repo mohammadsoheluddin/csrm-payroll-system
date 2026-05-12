@@ -31,12 +31,24 @@ export const routePaths = {
   payroll: '/payroll',
   salaryStructures: '/salary/structures',
   salarySheets: '/salary/sheets',
+  salaryStatements: '/salary/statements',
+  salaryPaymentDistributions: '/salary/payment-distributions',
+
   timeBills: '/time-bill',
+  otStatements: '/time-bill/ot-statements',
+  otPaymentDistributions: '/time-bill/ot-payment-distributions',
+
   bonus: '/bonus',
+  bonusStatements: '/bonus/statements',
+  bonusPaymentDistributions: '/bonus/payment-distributions',
+
   bankSheets: '/bank-sheets',
 
   reportCenter: '/reports/center',
+  reportLayoutStandards: '/reports/layout-standards',
   monthEndControl: '/reports/month-end-control',
   auditLogs: '/audit/logs',
   rbacAudit: '/rbac/audit',
 } as const
+
+export type RoutePath = (typeof routePaths)[keyof typeof routePaths]

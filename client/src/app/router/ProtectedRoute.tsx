@@ -1,11 +1,15 @@
 import type { PropsWithChildren } from 'react'
 
+import type { Permission } from '@/config/permissions'
+
 export type ProtectedRouteProps = PropsWithChildren<{
-  requiredPermissions?: string[]
+  requiredPermissions?: Permission[]
 }>
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  // Part-F3 will connect this component with auth store, /users/me,
-  // refresh-token handling, and permission-based redirects.
+export const ProtectedRoute = ({ children, requiredPermissions }: ProtectedRouteProps) => {
+  // Part-F3 will connect this with auth store, /users/me, refresh-token flow,
+  // role permission checks, and 401/403 redirects.
+  void requiredPermissions
+
   return <>{children}</>
 }
