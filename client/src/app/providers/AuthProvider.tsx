@@ -1,36 +1,39 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import type { PropsWithChildren } from 'react'
 
 import { getMyProfile, refreshAccessToken } from '@/features/auth/api/auth.api'
 import { useAuthStore } from '@/stores/auth.store'
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const hasBootstrapped = useRef(false)
+  const setChecking = useAuthStore((state) => state.setChecking)
   const setAccessToken = useAuthStore((state) => state.setAccessToken)
   const setAuthenticated = useAuthStore((state) => state.setAuthenticated)
   const setUnauthenticated = useAuthStore((state) => state.setUnauthenticated)
 
   useEffect(() => {
-    if (hasBootstrapped.current) {
-      return
-    }
-
-    hasBootstrapped.current = true
-    let isActive = true
+    let isMounted = true
 
     const bootstrapAuth = async () => {
+      setChecking()
+
       try {
         const accessToken = await refreshAccessToken()
+
+        if (!isMounted) {
+          return
+        }
+
         setAccessToken(accessToken)
+
         const user = await getMyProfile()
 
-        if (!isActive) {
+        if (!isMounted) {
           return
         }
 
         setAuthenticated({ accessToken, user })
       } catch {
-        if (!isActive) {
+        if (!isMounted) {
           return
         }
 
@@ -41,9 +44,9 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     void bootstrapAuth()
 
     return () => {
-      isActive = false
+      isMounted = false
     }
-  }, [setAccessToken, setAuthenticated, setUnauthenticated])
+  }, [setChecking, setAccessToken, setAuthenticated, setUnauthenticated])
 
   return <>{children}</>
 }
