@@ -106,11 +106,11 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     path: routePaths.employees,
     title: 'Employee Directory',
     shortTitle: 'Employees',
-    description: 'Search, view, create, update, soft-delete, and restore employee records.',
+    description: 'Search, filter, create, update, soft-delete, restore, and review employee profile foundation records.',
     section: 'Employee Lifecycle',
     breadcrumbs: ['Employees', 'Directory'],
     requiredPermissions: [PERMISSIONS.EMPLOYEE_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.employeeBulkImport,

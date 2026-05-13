@@ -8,6 +8,14 @@ export const apiRoutes = {
     me: '/users/me',
     root: '/users',
   },
+  employees: {
+    root: '/employees',
+    create: '/employees/create-employee',
+    deleted: '/employees/deleted',
+    detail: (id: string) => `/employees/${id}`,
+    lifecycle: (id: string) => `/employees/${id}/lifecycle`,
+    restore: (id: string) => `/employees/${id}/restore`,
+  },
   masterData: {
     companies: '/companies',
     branches: '/branches',

@@ -5,6 +5,7 @@ import { routePaths } from '@/config/routePaths'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { getMasterDataModuleByPath } from '@/features/master-data/config/masterData.config'
+import { EmployeeDirectoryPage } from '@/features/employees/pages/EmployeeDirectoryPage'
 import { MasterDataFoundationPage } from '@/features/master-data/pages/MasterDataFoundationPage'
 import { ThemeSettingsPage } from '@/features/settings/ThemeSettingsPage'
 import { ForbiddenPage } from '@/features/system/pages/ForbiddenPage'
@@ -34,6 +35,18 @@ const appRoutes = appRouteConfig.map((route) => {
       element: (
         <ProtectedRoute requiredPermissions={route.requiredPermissions}>
           <ThemeSettingsPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+
+  if (route.path === routePaths.employees) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <EmployeeDirectoryPage />
         </ProtectedRoute>
       ),
     }

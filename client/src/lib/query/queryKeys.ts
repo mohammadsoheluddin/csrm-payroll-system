@@ -19,8 +19,9 @@ export const queryKeys = {
   },
   employees: {
     root: ['employees'] as const,
-    list: (params?: Record<string, unknown>) => ['employees', 'list', params ?? {}] as const,
+    list: (mode: string, params?: Record<string, unknown>) => ['employees', 'list', mode, params ?? {}] as const,
     detail: (id: string) => ['employees', 'detail', id] as const,
+    lookups: ['employees', 'lookups'] as const,
   },
   reports: {
     catalog: ['reports', 'catalog'] as const,
