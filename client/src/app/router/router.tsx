@@ -4,6 +4,8 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { routePaths } from '@/config/routePaths'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
+import { getMasterDataModuleByPath } from '@/features/master-data/config/masterData.config'
+import { MasterDataFoundationPage } from '@/features/master-data/pages/MasterDataFoundationPage'
 import { ThemeSettingsPage } from '@/features/settings/ThemeSettingsPage'
 import { ForbiddenPage } from '@/features/system/pages/ForbiddenPage'
 import { ModulePlaceholderPage } from '@/features/system/pages/ModulePlaceholderPage'
@@ -32,6 +34,19 @@ const appRoutes = appRouteConfig.map((route) => {
       element: (
         <ProtectedRoute requiredPermissions={route.requiredPermissions}>
           <ThemeSettingsPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  const masterDataModule = getMasterDataModuleByPath(route.path)
+
+  if (masterDataModule) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <MasterDataFoundationPage module={masterDataModule} />
         </ProtectedRoute>
       ),
     }

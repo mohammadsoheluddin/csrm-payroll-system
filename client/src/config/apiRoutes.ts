@@ -8,6 +8,14 @@ export const apiRoutes = {
     me: '/users/me',
     root: '/users',
   },
+  masterData: {
+    companies: '/companies',
+    branches: '/branches',
+    majorDepartments: '/major-departments',
+    departments: '/departments',
+    designations: '/designations',
+    companyBankAccounts: '/company-bank-accounts',
+  },
   reports: {
     reportCenterCatalog: '/report-center/catalog',
     reportCenterDashboard: '/report-center/dashboard',

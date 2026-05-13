@@ -50,7 +50,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Master Data',
     breadcrumbs: ['Master Data', 'Companies'],
     requiredPermissions: [PERMISSIONS.COMPANY_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.branches,
@@ -60,7 +60,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Master Data',
     breadcrumbs: ['Master Data', 'Branches'],
     requiredPermissions: [PERMISSIONS.BRANCH_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.majorDepartments,
@@ -70,7 +70,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Master Data',
     breadcrumbs: ['Master Data', 'Major Departments'],
     requiredPermissions: [PERMISSIONS.MAJOR_DEPARTMENT_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.departments,
@@ -80,7 +80,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Master Data',
     breadcrumbs: ['Master Data', 'Departments'],
     requiredPermissions: [PERMISSIONS.DEPARTMENT_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.designations,
@@ -90,7 +90,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Master Data',
     breadcrumbs: ['Master Data', 'Designations'],
     requiredPermissions: [PERMISSIONS.DESIGNATION_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.companyBankAccounts,
@@ -100,7 +100,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Master Data',
     breadcrumbs: ['Master Data', 'Company Bank Accounts'],
     requiredPermissions: [PERMISSIONS.COMPANY_BANK_ACCOUNT_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.employees,

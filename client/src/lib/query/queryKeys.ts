@@ -10,8 +10,12 @@ export const queryKeys = {
   masterData: {
     companies: (params?: Record<string, unknown>) => ['master-data', 'companies', params ?? {}] as const,
     branches: (params?: Record<string, unknown>) => ['master-data', 'branches', params ?? {}] as const,
+    majorDepartments: (params?: Record<string, unknown>) => ['master-data', 'majorDepartments', params ?? {}] as const,
     departments: (params?: Record<string, unknown>) => ['master-data', 'departments', params ?? {}] as const,
     designations: (params?: Record<string, unknown>) => ['master-data', 'designations', params ?? {}] as const,
+    companyBankAccounts: (params?: Record<string, unknown>) => ['master-data', 'companyBankAccounts', params ?? {}] as const,
+    module: (key: string, mode: string, params?: Record<string, unknown>) =>
+      ['master-data', key, mode, params ?? {}] as const,
   },
   employees: {
     root: ['employees'] as const,
