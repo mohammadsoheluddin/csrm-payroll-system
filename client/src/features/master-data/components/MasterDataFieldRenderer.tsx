@@ -8,6 +8,7 @@ export type MasterDataFieldRendererProps = {
   value: unknown
   error?: string
   options: MasterDataOption[]
+  disabled?: boolean
   onChange: (name: string, value: string | number | boolean) => void
 }
 
@@ -25,6 +26,7 @@ export const MasterDataFieldRenderer = ({
   value,
   error,
   options,
+  disabled = false,
   onChange,
 }: MasterDataFieldRendererProps) => {
   const wrapperClassName = fieldWidthClasses[field.width ?? 'half']
@@ -50,13 +52,15 @@ export const MasterDataFieldRenderer = ({
       <label className={cn('flex min-h-10 items-start gap-3 rounded-xl border border-border bg-background p-3', wrapperClassName)}>
         <input
           type="checkbox"
-          className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary"
+          className="mt-1 h-4 w-4 rounded border-input text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
           checked={value === true}
+          disabled={disabled}
           onChange={handleChange}
         />
         <span>
           <span className="block text-sm font-semibold text-foreground">{field.label}</span>
           {field.helperText && <span className="mt-1 block text-xs leading-5 text-muted-foreground">{field.helperText}</span>}
+          {error && <span className="mt-1 block text-xs font-medium text-destructive">{error}</span>}
         </span>
       </label>
     )
@@ -70,7 +74,7 @@ export const MasterDataFieldRenderer = ({
       </span>
 
       {field.type === 'select' ? (
-        <select value={String(value ?? '')} onChange={handleChange} className={baseInputClasses}>
+        <select value={String(value ?? '')} disabled={disabled} onChange={handleChange} className={baseInputClasses}>
           <option value="">{field.placeholder ?? `Select ${field.label}`}</option>
           {options.map((option) => (
             <option key={option.value} value={option.value}>
@@ -81,6 +85,7 @@ export const MasterDataFieldRenderer = ({
       ) : field.type === 'textarea' ? (
         <textarea
           value={String(value ?? '')}
+          disabled={disabled}
           onChange={handleChange}
           placeholder={field.placeholder}
           className={cn(baseInputClasses, 'h-24 resize-none py-2')}
@@ -89,6 +94,7 @@ export const MasterDataFieldRenderer = ({
         <input
           type={field.type}
           value={String(value ?? '')}
+          disabled={disabled}
           onChange={handleChange}
           placeholder={field.placeholder}
           className={baseInputClasses}
@@ -96,6 +102,9 @@ export const MasterDataFieldRenderer = ({
       )}
 
       {field.helperText && <span className="block text-xs leading-5 text-muted-foreground">{field.helperText}</span>}
+      {disabled && field.optionSource === 'majorDepartments' && (
+        <span className="block text-xs leading-5 text-muted-foreground">Select a company first to load matching major departments.</span>
+      )}
       {error && <span className="block text-xs font-medium text-destructive">{error}</span>}
     </label>
   )

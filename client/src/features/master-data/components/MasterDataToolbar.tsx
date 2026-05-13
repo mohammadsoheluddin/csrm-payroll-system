@@ -1,11 +1,11 @@
 import { Filter, Plus, RefreshCw, Search } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
+import { useMasterDataOptions } from '@/features/master-data/hooks/useMasterDataOptions'
 import type {
   MasterDataModuleConfig,
   MasterDataQueryParams,
 } from '@/features/master-data/types/masterData.types'
-import { useMasterDataOptions } from '@/features/master-data/hooks/useMasterDataOptions'
 
 export type MasterDataToolbarProps = {
   module: MasterDataModuleConfig
@@ -17,6 +17,18 @@ export type MasterDataToolbarProps = {
   onRefresh: () => void
   canManage: boolean
   isRefreshing?: boolean
+}
+
+const removeEmptyQueryParams = (params: MasterDataQueryParams): MasterDataQueryParams => {
+  const nextParams: MasterDataQueryParams = {}
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      ;(nextParams as Record<string, string | boolean>)[key] = value as string | boolean
+    }
+  })
+
+  return nextParams
 }
 
 export const MasterDataToolbar = ({
@@ -33,10 +45,16 @@ export const MasterDataToolbar = ({
   const { getFieldOptions } = useMasterDataOptions()
 
   const updateParam = (name: string, value: string) => {
-    onQueryParamsChange({
+    const nextParams = removeEmptyQueryParams({
       ...queryParams,
       [name]: value,
     })
+
+    if (name === 'company') {
+      delete nextParams.majorDepartment
+    }
+
+    onQueryParamsChange(nextParams)
   }
 
   return (
@@ -59,10 +77,11 @@ export const MasterDataToolbar = ({
               <select
                 value={String(queryParams[field.name as keyof MasterDataQueryParams] ?? '')}
                 onChange={(event) => updateParam(field.name, event.target.value)}
-                className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                disabled={field.name === 'majorDepartment' && !queryParams.company}
+                className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <option value="">All {field.label}</option>
-                {getFieldOptions(field).map((option) => (
+                {getFieldOptions(field, queryParams).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

@@ -51,6 +51,27 @@ const matchesSearch = (record: MasterDataRecord, fields: string[], searchText: s
   })
 }
 
+
+const toServerFieldErrors = (error: unknown) => {
+  const normalized = normalizeApiError(error)
+
+  const fieldErrors = normalized.errorSources.reduce<Record<string, string>>((accumulator, source) => {
+    const normalizedPath = source.path.replace(/^body\./, '').replace(/^query\./, '')
+    const fieldName = normalizedPath.split('.')[0]
+
+    if (fieldName) {
+      accumulator[fieldName] = source.message
+    }
+
+    return accumulator
+  }, {})
+
+  return {
+    message: normalized.message,
+    fieldErrors,
+  }
+}
+
 export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPageProps) => {
   const queryClient = useQueryClient()
   const canAccess = useAuthStore((state) => state.canAccess)
@@ -59,6 +80,8 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
   const [queryParams, setQueryParams] = useState<MasterDataQueryParams>({})
   const [formMode, setFormMode] = useState<'closed' | 'create' | 'edit'>('closed')
   const [selectedRecord, setSelectedRecord] = useState<MasterDataRecord | null>(null)
+  const [serverFormError, setServerFormError] = useState<string | null>(null)
+  const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({})
 
   const canManage = canAccess(module.managePermission ? [module.managePermission] : [])
   const queryKey = queryKeys.masterData.module(module.key, mode, queryParams)
@@ -76,16 +99,25 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
     await queryClient.invalidateQueries({ queryKey: ['master-data', module.key] })
   }
 
+  const clearFormErrors = () => {
+    setServerFormError(null)
+    setServerFieldErrors({})
+  }
+
   const createMutation = useMutation({
     mutationFn: (payload: MasterDataMutationPayload) => createMasterDataRecord({ module, payload }),
     onSuccess: async () => {
       toast.success(`${module.entityLabel} created successfully`)
       setFormMode('closed')
       setSelectedRecord(null)
+      clearFormErrors()
       await invalidateCurrentModule()
     },
     onError: (error) => {
       const normalized = normalizeApiError(error)
+      const formError = toServerFieldErrors(error)
+      setServerFormError(formError.message)
+      setServerFieldErrors(formError.fieldErrors)
       toast.error(normalized.message, { description: normalized.title })
     },
   })
@@ -97,10 +129,14 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
       toast.success(`${module.entityLabel} updated successfully`)
       setFormMode('closed')
       setSelectedRecord(null)
+      clearFormErrors()
       await invalidateCurrentModule()
     },
     onError: (error) => {
       const normalized = normalizeApiError(error)
+      const formError = toServerFieldErrors(error)
+      setServerFormError(formError.message)
+      setServerFieldErrors(formError.fieldErrors)
       toast.error(normalized.message, { description: normalized.title })
     },
   })
@@ -142,6 +178,7 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
   const isSubmitting = createMutation.isPending || updateMutation.isPending
 
   const handleSubmit = (payload: MasterDataMutationPayload) => {
+    clearFormErrors()
     if (formMode === 'edit' && selectedRecord) {
       updateMutation.mutate({ id: getRecordId(selectedRecord), payload })
       return
@@ -152,12 +189,21 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
 
   const openCreateForm = () => {
     setSelectedRecord(null)
+    clearFormErrors()
     setFormMode('create')
   }
 
   const openEditForm = (record: MasterDataRecord) => {
     setSelectedRecord(record)
+    clearFormErrors()
     setFormMode('edit')
+  }
+
+  const changeMode = (nextMode: MasterDataListMode) => {
+    setMode(nextMode)
+    setFormMode('closed')
+    setSelectedRecord(null)
+    clearFormErrors()
   }
 
   return (
@@ -167,7 +213,7 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="success">Part-F7 master data foundation</Badge>
+                <Badge variant="success">Part-F7.1 integration fixed</Badge>
                 <Badge variant="muted">{module.sectionLabel}</Badge>
                 <Badge variant="default">API: {module.apiPath}</Badge>
               </div>
@@ -194,11 +240,11 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
       <MasterDataStatCards records={records} canManage={canManage} supportsRestore={module.supportsRestore} />
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant={mode === 'active' ? 'primary' : 'outline'} size="sm" onClick={() => setMode('active')}>
+        <Button type="button" variant={mode === 'active' ? 'primary' : 'outline'} size="sm" onClick={() => changeMode('active')}>
           Active records
         </Button>
         {module.supportsDeletedView && (
-          <Button type="button" variant={mode === 'deleted' ? 'primary' : 'outline'} size="sm" onClick={() => setMode('deleted')}>
+          <Button type="button" variant={mode === 'deleted' ? 'primary' : 'outline'} size="sm" onClick={() => changeMode('deleted')}>
             <Archive className="h-4 w-4" />
             Deleted records
           </Button>
@@ -230,10 +276,13 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
           module={module}
           record={selectedRecord}
           isSubmitting={isSubmitting}
+          serverError={serverFormError}
+          serverFieldErrors={serverFieldErrors}
           onSubmit={handleSubmit}
           onCancel={() => {
             setFormMode('closed')
             setSelectedRecord(null)
+            clearFormErrors()
           }}
         />
       )}
@@ -294,15 +343,15 @@ export const MasterDataFoundationPage = ({ module }: MasterDataFoundationPagePro
 
       <Card>
         <CardHeader>
-          <CardTitle>Part-F7 implementation note</CardTitle>
+          <CardTitle>Part-F7.1 integration note</CardTitle>
           <CardDescription>
-            These screens are real backend-connected foundations. Future parts can improve advanced validations, import/export, audit drawers, and row-level detail panels.
+            These screens now include the first backend integration fix pass for dependent lookups, server validation display, and safer form/mode behavior.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm leading-6 text-muted-foreground md:grid-cols-3">
           <div className="rounded-2xl border border-border bg-background p-4">
             <p className="font-semibold text-foreground">CRUD foundation</p>
-            <p className="mt-1">Create, edit, soft-delete, restore, and list behavior is wired where backend supports it.</p>
+            <p className="mt-1">Create, edit, soft-delete, restore, and list behavior is wired where backend supports it, with safer validation feedback.</p>
           </div>
           <div className="rounded-2xl border border-border bg-background p-4">
             <p className="font-semibold text-foreground">Permission guard</p>

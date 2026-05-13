@@ -215,7 +215,7 @@ export const masterDataModuleConfigs: Record<MasterDataModuleKey, MasterDataModu
     },
     fields: [
       companyField,
-      { name: 'majorDepartment', label: 'Major Department', type: 'select', required: true, optionSource: 'majorDepartments', placeholder: 'Select major department', width: 'half' },
+      { name: 'majorDepartment', label: 'Major Department', type: 'select', required: true, optionSource: 'majorDepartments', dependsOn: 'company', placeholder: 'Select major department', width: 'half' },
       { name: 'name', label: 'Name', type: 'text', required: true, placeholder: 'HR & Admin / Store / Scrap Yard', width: 'half' },
       { name: 'code', label: 'Code', type: 'text', required: true, placeholder: 'HR_ADMIN', width: 'half' },
       { name: 'shortName', label: 'Short Name', type: 'text', placeholder: 'HR-Admin', width: 'half' },
@@ -231,7 +231,7 @@ export const masterDataModuleConfigs: Record<MasterDataModuleKey, MasterDataModu
       { key: 'status', label: 'Status', type: 'status' },
     ],
     searchableFields: ['name', 'code', 'shortName', 'company.name', 'majorDepartment.name'],
-    quickFilters: [companyField, { name: 'majorDepartment', label: 'Major Department', type: 'select', optionSource: 'majorDepartments' }, { name: 'status', label: 'Status', type: 'select', options: statusOptions }],
+    quickFilters: [companyField, { name: 'majorDepartment', label: 'Major Department', type: 'select', optionSource: 'majorDepartments', dependsOn: 'company' }, { name: 'status', label: 'Status', type: 'select', options: statusOptions }],
   },
   designations: {
     key: 'designations',

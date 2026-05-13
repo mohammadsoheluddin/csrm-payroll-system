@@ -1,21 +1,23 @@
-import { Save, X } from 'lucide-react'
+import { AlertCircle, Save, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { MasterDataFieldRenderer } from '@/features/master-data/components/MasterDataFieldRenderer'
+import { useMasterDataOptions } from '@/features/master-data/hooks/useMasterDataOptions'
 import type {
   MasterDataModuleConfig,
   MasterDataMutationPayload,
   MasterDataRecord,
 } from '@/features/master-data/types/masterData.types'
 import { getReferenceId, getRecordDisplayName } from '@/lib/format/record.utils'
-import { useMasterDataOptions } from '@/features/master-data/hooks/useMasterDataOptions'
 
 export type MasterDataFormPanelProps = {
   module: MasterDataModuleConfig
   record?: MasterDataRecord | null
   isSubmitting?: boolean
+  serverError?: string | null
+  serverFieldErrors?: Record<string, string>
   onSubmit: (payload: MasterDataMutationPayload) => void
   onCancel: () => void
 }
@@ -57,10 +59,20 @@ const validateForm = (module: MasterDataModuleConfig, values: MasterDataMutation
   }, {})
 }
 
+const isFieldDisabled = (fieldName: string, values: MasterDataMutationPayload) => {
+  if (fieldName !== 'majorDepartment') {
+    return false
+  }
+
+  return !values.company
+}
+
 export const MasterDataFormPanel = ({
   module,
   record,
   isSubmitting = false,
+  serverError = null,
+  serverFieldErrors = {},
   onSubmit,
   onCancel,
 }: MasterDataFormPanelProps) => {
@@ -70,20 +82,33 @@ export const MasterDataFormPanel = ({
 
   const isEditMode = Boolean(record)
 
-
   const heading = useMemo(() => {
     return isEditMode ? `Edit ${getRecordDisplayName(record ?? {})}` : `Create ${module.entityLabel}`
   }, [isEditMode, module.entityLabel, record])
 
   const handleValueChange = (name: string, value: string | number | boolean) => {
-    setValues((current) => ({ ...current, [name]: value }))
+    setValues((current) => {
+      const next = { ...current, [name]: value }
+
+      if (name === 'company' && current.majorDepartment) {
+        next.majorDepartment = ''
+      }
+
+      return next
+    })
+
     setErrors((current) => {
-      if (!current[name]) {
+      if (!current[name] && !(name === 'company' && current.majorDepartment)) {
         return current
       }
 
       const next = { ...current }
       delete next[name]
+
+      if (name === 'company') {
+        delete next.majorDepartment
+      }
+
       return next
     })
   }
@@ -106,7 +131,7 @@ export const MasterDataFormPanel = ({
           <div>
             <CardTitle>{heading}</CardTitle>
             <CardDescription>
-              Required fields are marked with *. This is connected to the backend master-data API.
+              Required fields are marked with *. This form is aligned with backend validation and master-data route behavior.
             </CardDescription>
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={onCancel} aria-label="Close form">
@@ -116,14 +141,25 @@ export const MasterDataFormPanel = ({
       </CardHeader>
 
       <CardContent className="p-5">
+        {serverError && (
+          <div className="mb-4 flex gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">Backend validation failed</p>
+              <p className="mt-1 leading-5">{serverError}</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
           {module.fields.map((field) => (
             <MasterDataFieldRenderer
               key={field.name}
               field={field}
               value={values[field.name]}
-              error={errors[field.name]}
-              options={getFieldOptions(field)}
+              error={errors[field.name] ?? serverFieldErrors[field.name]}
+              options={getFieldOptions(field, values)}
+              disabled={isFieldDisabled(field.name, values)}
               onChange={handleValueChange}
             />
           ))}
