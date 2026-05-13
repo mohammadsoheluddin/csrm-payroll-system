@@ -5,11 +5,12 @@ import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
+import { FormErrorSummary } from '@/components/feedback/FormErrorSummary'
 import { Button } from '@/components/ui/Button'
 import { routePaths } from '@/config/routePaths'
 import { loginUser, getMyProfile } from '@/features/auth/api/auth.api'
 import { loginSchema, type LoginFormValues } from '@/features/auth/schemas/login.schema'
-import { normalizeApiError } from '@/lib/api/apiError'
+import { applyApiFieldErrors, normalizeApiError } from '@/lib/api/apiError'
 import { cn } from '@/lib/utils/cn'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -25,6 +26,7 @@ export const LoginPage = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
+    setError,
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -45,6 +47,7 @@ export const LoginPage = () => {
       navigate(from ?? routePaths.dashboard, { replace: true })
     } catch (error) {
       const normalizedError = normalizeApiError(error)
+      applyApiFieldErrors<LoginFormValues>(error, setError)
       setServerError(normalizedError.message)
       toast.error(normalizedError.message)
     }
@@ -109,11 +112,9 @@ export const LoginPage = () => {
               </p>
             </div>
 
-            {serverError && (
-              <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-                {serverError}
-              </div>
-            )}
+            <div className="mt-6">
+              <FormErrorSummary<LoginFormValues> errors={errors} serverError={serverError} />
+            </div>
 
             <form className="mt-7 space-y-5" onSubmit={handleSubmit(onSubmit)}>
               <div>

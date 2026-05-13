@@ -1,4 +1,6 @@
+import { apiRoutes } from '@/config/apiRoutes'
 import { apiClient, requestNewAccessToken } from '@/lib/api/httpClient'
+import { unwrapApiData } from '@/lib/api/apiResponse'
 import type { ApiSuccessResponse } from '@/types/api.types'
 import type {
   AuthUser,
@@ -8,27 +10,27 @@ import type {
 
 export const loginUser = async (payload: LoginRequest) => {
   const response = await apiClient.post<ApiSuccessResponse<LoginResponseData>>(
-    '/auth/login',
+    apiRoutes.auth.login,
     payload,
     {
       skipAuthRefresh: true,
     },
   )
 
-  return response.data.data
+  return unwrapApiData(response)
 }
 
 export const getMyProfile = async () => {
-  const response = await apiClient.get<ApiSuccessResponse<AuthUser>>('/users/me')
+  const response = await apiClient.get<ApiSuccessResponse<AuthUser>>(apiRoutes.users.me)
 
-  return response.data.data
+  return unwrapApiData(response)
 }
 
 export const refreshAccessToken = requestNewAccessToken
 
 export const logoutUser = async () => {
   await apiClient.post<ApiSuccessResponse<null>>(
-    '/auth/logout',
+    apiRoutes.auth.logout,
     undefined,
     {
       skipAuthRefresh: true,

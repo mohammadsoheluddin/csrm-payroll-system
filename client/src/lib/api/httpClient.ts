@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
 
+import { apiRoutes } from '@/config/apiRoutes'
 import { env } from '@/config/env'
 import { routePaths } from '@/config/routePaths'
 import { useAuthStore } from '@/stores/auth.store'
@@ -19,7 +20,7 @@ declare module 'axios' {
   }
 }
 
-const authPathPrefixes = ['/auth/login', '/auth/register', '/auth/refresh-token']
+const authPathPrefixes = [apiRoutes.auth.login, apiRoutes.auth.refreshToken]
 
 export const apiClient = axios.create({
   baseURL: env.apiBaseUrl,
@@ -40,7 +41,7 @@ const refreshClient = axios.create({
 export const requestNewAccessToken = async () => {
   const response = await refreshClient.post<
     ApiSuccessResponse<RefreshTokenResponseData>
-  >('/auth/refresh-token')
+  >(apiRoutes.auth.refreshToken)
 
   return response.data.data.accessToken
 }
