@@ -78,7 +78,7 @@ export const AppHeader = () => {
               </h1>
               {location.pathname === routePaths.dashboard && (
                 <span className="hidden rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary sm:inline-flex">
-                  Auth Foundation
+                  Dashboard Foundation
                 </span>
               )}
             </div>
