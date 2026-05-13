@@ -323,6 +323,16 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     status: 'planned',
   },
   {
+    path: routePaths.salarySummary,
+    title: 'Salary Summary',
+    shortTitle: 'Salary Summary',
+    description: 'Preview and export dedicated backend-calculated salary summary report by company, month, year, and group.',
+    section: 'Reports & Control',
+    breadcrumbs: ['Reports', 'Salary Summary'],
+    requiredPermissions: [PERMISSIONS.SALARY_SUMMARY_READ],
+    status: 'planned',
+  },
+  {
     path: routePaths.reportLayoutStandards,
     title: 'Report Layout Standards',
     shortTitle: 'Layout Standards',

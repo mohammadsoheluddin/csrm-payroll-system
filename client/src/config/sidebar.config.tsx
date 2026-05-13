@@ -24,6 +24,7 @@ export type SidebarChildItem = {
   label: string
   href: string
   requiredPermissions?: Permission[]
+  badge?: string
 }
 
 export type SidebarItem = {
@@ -32,6 +33,7 @@ export type SidebarItem = {
   icon: LucideIcon
   requiredPermissions?: Permission[]
   children?: SidebarChildItem[]
+  badge?: string
 }
 
 export type SidebarGroup = {
@@ -270,6 +272,12 @@ export const sidebarGroups: SidebarGroup[] = [
             requiredPermissions: [PERMISSIONS.REPORT_CENTER_READ],
           },
           {
+            label: 'Salary Summary',
+            href: routePaths.salarySummary,
+            requiredPermissions: [PERMISSIONS.SALARY_SUMMARY_READ],
+            badge: 'B51',
+          },
+          {
             label: 'Layout Standards',
             href: routePaths.reportLayoutStandards,
             requiredPermissions: [PERMISSIONS.REPORT_LAYOUT_STANDARD_READ],
@@ -319,18 +327,23 @@ export const sidebarGroups: SidebarGroup[] = [
 
 export const sidebarExpandIcon = ChevronRight
 
-export const getVisibleSidebarGroups = (role?: UserRole): SidebarGroup[] => {
-  if (!role) {
-    return sidebarGroups
-  }
+const canShowWithoutRole = (permissions?: Permission[]) => !permissions?.length
 
+export const getVisibleSidebarGroups = (role?: UserRole | string): SidebarGroup[] => {
   return sidebarGroups
     .map((group) => {
       const visibleItems = group.items.reduce<SidebarItem[]>((accumulator, item) => {
-        const visibleChildren = item.children?.filter((child) =>
-          hasPermission(role, child.requiredPermissions),
-        )
-        const isItemVisible = hasPermission(role, item.requiredPermissions)
+        const visibleChildren = item.children?.filter((child) => {
+          if (!role) {
+            return canShowWithoutRole(child.requiredPermissions)
+          }
+
+          return hasPermission(role, child.requiredPermissions)
+        })
+
+        const isItemVisible = role
+          ? hasPermission(role, item.requiredPermissions)
+          : canShowWithoutRole(item.requiredPermissions)
 
         if (!isItemVisible && !visibleChildren?.length) {
           return accumulator
@@ -350,4 +363,10 @@ export const getVisibleSidebarGroups = (role?: UserRole): SidebarGroup[] => {
       }
     })
     .filter((group) => group.items.length > 0)
+}
+
+export const countVisibleSidebarItems = (role?: UserRole | string) => {
+  return getVisibleSidebarGroups(role).reduce((total, group) => {
+    return total + group.items.reduce((itemTotal, item) => itemTotal + 1 + (item.children?.length ?? 0), 0)
+  }, 0)
 }

@@ -1,80 +1,76 @@
-import { ArrowRight, DatabaseZap, Download, Route, ShieldCheck, Sparkles, TriangleAlert } from 'lucide-react'
+import { ArrowRight, EyeOff, LockKeyhole, Route, ShieldCheck, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { appRouteConfig } from '@/app/router/routeConfig'
-import { ApiErrorState } from '@/components/feedback/ApiErrorState'
-import { ExportActionButton } from '@/components/reports/ExportActionButton'
+import { PermissionDeniedInline } from '@/components/feedback/PermissionDeniedInline'
+import { Can } from '@/components/guards/Can'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
-import { apiRoutes } from '@/config/apiRoutes'
+import { PERMISSIONS } from '@/config/permissions'
 import { routePaths } from '@/config/routePaths'
-
-const setupCards = [
-  {
-    label: 'HTTP client',
-    value: 'Centralized',
-    description: 'Axios base URL, credentials, access-token header, and refresh retry are standardized.',
-  },
-  {
-    label: 'Error normalization',
-    value: '400–500 Ready',
-    description: 'Backend validation, conflict, auth, forbidden, network, and server errors use one shape.',
-  },
-  {
-    label: 'Query policy',
-    value: 'TanStack Ready',
-    description: 'Retry, stale-time, and query error toast behavior are configured globally.',
-  },
-  {
-    label: 'Export pattern',
-    value: 'PDF/Excel/CSV',
-    description: 'Blob download helper and export button are ready for report screens.',
-  },
-]
+import { countVisibleSidebarItems, getVisibleSidebarGroups } from '@/config/sidebar.config'
+import { useAuthStore } from '@/stores/auth.store'
 
 const nextSteps = [
-  'Part-F5 will enforce role-wise sidebar filtering and permission-wise action button visibility.',
   'Part-F6 will add dashboard widget configuration and role-based dashboard cards.',
-  'Part-F7 will start master data screens using this API/error foundation.',
+  'Part-F7 will start master data screens using this permission-aware layout foundation.',
+  'Salary Summary full preview/export UI will be built in a dedicated report UI part after the sidebar/route guard is accepted.',
 ]
 
-const sampleForbiddenError = {
-  response: {
-    status: 403,
-    data: {
-      success: false,
-      message: 'You do not have permission to perform this action.',
-    },
-  },
-  isAxiosError: true,
-}
-
 export const DashboardPage = () => {
+  const user = useAuthStore((state) => state.user)
+  const permissions = useAuthStore((state) => state.getPermissions())
+  const visibleSidebarGroups = getVisibleSidebarGroups(user?.role)
+  const visibleSidebarItems = countVisibleSidebarItems(user?.role)
+  const guardedRoutes = appRouteConfig.filter((route) => route.requiredPermissions?.length)
+
+  const setupCards = [
+    {
+      label: 'Current role',
+      value: user?.role ?? 'Unknown',
+      description: 'Sidebar, route access, and action visibility are filtered from this role.',
+    },
+    {
+      label: 'Role permissions',
+      value: permissions.length.toString(),
+      description: 'Frontend permission map is synced with backend RBAC constants including Salary Summary.',
+    },
+    {
+      label: 'Visible menu items',
+      value: visibleSidebarItems.toString(),
+      description: 'Sidebar groups and child links are now role-wise filtered.',
+    },
+    {
+      label: 'Guarded routes',
+      value: guardedRoutes.length.toString(),
+      description: 'ProtectedRoute blocks direct URL access when permission is missing.',
+    },
+  ]
+
   return (
     <section className="space-y-6">
       <Card className="overflow-hidden">
         <div className="relative border-b border-border bg-muted/40 px-6 py-8">
           <div className="absolute right-6 top-6 hidden rounded-full bg-primary/10 p-4 text-primary sm:block">
-            <DatabaseZap className="h-8 w-8" />
+            <ShieldCheck className="h-8 w-8" />
           </div>
-          <Badge variant="success">Part-F4</Badge>
+          <Badge variant="success">Part-F5</Badge>
           <h2 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight text-foreground">
-            API Client + Error Handling Foundation
+            Sidebar Permission Filtering + Permission-Wise UI Guard
           </h2>
           <p className="mt-3 max-w-4xl text-sm leading-6 text-muted-foreground">
-            The CSRM Payroll frontend now has a centralized API client strategy, normalized backend
-            error handling, TanStack Query defaults, mutation helper, and export/download UI pattern.
-            Business CRUD/report screens are still intentionally pending.
+            The CSRM Payroll frontend now filters sidebar links by role, blocks protected routes by permission,
+            and provides reusable guards for future buttons, exports, approvals, locks, soft delete/restore, and audit actions.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Button disabled>
-              API foundation accepted
+              Permission foundation accepted
               <Sparkles className="h-4 w-4" />
             </Button>
-            <Link to={routePaths.themeSettings}>
+            <Link to={routePaths.salarySummary}>
               <Button variant="outline">
-                Open theme settings
+                Open Salary Summary placeholder
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
@@ -85,54 +81,68 @@ export const DashboardPage = () => {
           {setupCards.map((item) => (
             <div key={item.label} className="rounded-2xl border border-border bg-background p-5">
               <p className="text-sm font-medium text-muted-foreground">{item.label}</p>
-              <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{item.value}</p>
+              <p className="mt-2 break-words text-2xl font-bold capitalize tracking-tight text-foreground">{item.value}</p>
               <p className="mt-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <TriangleAlert className="h-5 w-5 text-primary" />
-              Standard error UI
+              <EyeOff className="h-5 w-5 text-primary" />
+              Visible sidebar groups
             </CardTitle>
             <CardDescription>
-              Future CRUD forms and report pages should show backend errors through this pattern.
+              The left navigation now renders only groups and links allowed for the authenticated user role.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ApiErrorState error={sampleForbiddenError} />
+          <CardContent className="space-y-3">
+            {visibleSidebarGroups.map((group) => (
+              <div key={group.label} className="rounded-2xl border border-border bg-background p-4">
+                <p className="font-semibold text-foreground">{group.label}</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {group.items.length} top-level item(s),{' '}
+                  {group.items.reduce((total, item) => total + (item.children?.length ?? 0), 0)} child link(s)
+                </p>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5 text-primary" />
-              Export button pattern
+              <LockKeyhole className="h-5 w-5 text-primary" />
+              Action guard sample
             </CardTitle>
             <CardDescription>
-              Report screens will use the shared file download helper for PDF, Excel, and CSV.
+              Future buttons will use the same Can/PermissionGuard pattern instead of manual if/else code.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-2xl border border-border bg-background p-4 text-sm leading-6 text-muted-foreground">
-              Sample route pattern: <span className="font-semibold text-foreground">{apiRoutes.reports.monthlyPayrollReport}</span>
-            </div>
-            <ExportActionButton
-              endpoint={apiRoutes.reports.monthlyPayrollReport}
-              params={{ month: 5, year: 2026 }}
-              fileName="monthly-payroll-report.pdf"
-              label="Download sample report"
-              variant="outline"
-              disabled
-            />
-            <p className="text-xs leading-5 text-muted-foreground">
-              Disabled on dashboard intentionally. Real export buttons will be enabled inside report screens.
-            </p>
+          <CardContent className="space-y-4">
+            <Can
+              permissions={[PERMISSIONS.SALARY_SUMMARY_EXPORT]}
+              fallback={
+                <PermissionDeniedInline
+                  title="Salary Summary export hidden"
+                  message="This role can only see this action when salary_summary:export is allowed. Manager gets read-only access; HR/accounts/admin can export."
+                />
+              }
+            >
+              <div className="rounded-2xl border border-border bg-background p-4">
+                <p className="font-semibold text-foreground">Salary Summary export action visible</p>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Export controls will be displayed for roles with salary_summary:export.
+                </p>
+                <Button className="mt-4" disabled>
+                  Future Excel/PDF export
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </Can>
           </CardContent>
         </Card>
       </div>
@@ -142,10 +152,10 @@ export const DashboardPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Route className="h-5 w-5 text-primary" />
-              Route sections
+              Route guard sections
             </CardTitle>
             <CardDescription>
-              Route placeholders continue to prove navigation and metadata before real feature screens start.
+              Route metadata is used by ProtectedRoute and by placeholders until real screens are built.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -167,7 +177,7 @@ export const DashboardPage = () => {
               Next integration order
             </CardTitle>
             <CardDescription>
-              API foundation is ready. Permission-aware UI should come before CRUD screens.
+              Permission-aware UI is ready. Business screens should now be built one module at a time.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">

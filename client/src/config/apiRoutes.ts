@@ -18,6 +18,12 @@ export const apiRoutes = {
     monthlyPayrollReport: '/payroll-reports/monthly-report',
     salaryBankSheetPreview: '/bank-sheets/salary/preview',
   },
+  salarySummary: {
+    preview: '/salary-summary/preview',
+    exportCsv: '/salary-summary/export/csv',
+    exportExcel: '/salary-summary/export/excel',
+    exportPdf: '/salary-summary/export/pdf',
+  },
 } as const
 
 export type ApiRouteMap = typeof apiRoutes

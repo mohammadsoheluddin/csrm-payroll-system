@@ -94,6 +94,9 @@ export const PERMISSIONS = {
   SALARY_PAYMENT_DISTRIBUTION_UNLOCK: 'salary_payment_distribution:unlock',
   SALARY_PAYMENT_DISTRIBUTION_EXPORT: 'salary_payment_distribution:export',
 
+  SALARY_SUMMARY_READ: 'salary_summary:read',
+  SALARY_SUMMARY_EXPORT: 'salary_summary:export',
+
   PAYROLL_READ: 'payroll:read',
   PAYROLL_UPDATE: 'payroll:update',
   PAYROLL_PROCESS: 'payroll:process',
@@ -239,6 +242,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_LOCK,
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_UNLOCK,
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_EXPORT,
+    PERMISSIONS.SALARY_SUMMARY_READ,
+    PERMISSIONS.SALARY_SUMMARY_EXPORT,
     PERMISSIONS.PAYROLL_READ,
     PERMISSIONS.PAYROLL_UPDATE,
     PERMISSIONS.PAYROLL_PROCESS,
@@ -326,6 +331,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_APPROVE,
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_LOCK,
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_EXPORT,
+    PERMISSIONS.SALARY_SUMMARY_READ,
+    PERMISSIONS.SALARY_SUMMARY_EXPORT,
     PERMISSIONS.PAYROLL_READ,
     PERMISSIONS.PAYROLL_UPDATE,
     PERMISSIONS.PAYROLL_PROCESS,
@@ -404,6 +411,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_READ,
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_APPROVE,
     PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_LOCK,
+    PERMISSIONS.SALARY_SUMMARY_READ,
     PERMISSIONS.PAYROLL_READ,
     PERMISSIONS.PAYROLL_APPROVE,
     PERMISSIONS.PAYROLL_LOCK,
@@ -448,7 +456,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 }
 
-export const hasPermission = (
+
+
+export const getRolePermissions = (role: UserRole | string | undefined): Permission[] => {
+  if (!role) {
+    return []
+  }
+
+  return ROLE_PERMISSIONS[role as UserRole] ?? []
+}
+
+export const hasAllPermissions = (
   role: UserRole | string | undefined,
   requiredPermissions: Permission[] = [],
 ) => {
@@ -456,15 +474,24 @@ export const hasPermission = (
     return true
   }
 
-  if (!role) {
-    return false
-  }
-
-  const permissions = ROLE_PERMISSIONS[role as UserRole]
-
-  if (!permissions) {
-    return false
-  }
-
+  const permissions = getRolePermissions(role)
   return requiredPermissions.every((permission) => permissions.includes(permission))
 }
+
+export const hasAnyPermission = (
+  role: UserRole | string | undefined,
+  requiredPermissions: Permission[] = [],
+) => {
+  if (!requiredPermissions.length) {
+    return true
+  }
+
+  const permissions = getRolePermissions(role)
+  return requiredPermissions.some((permission) => permissions.includes(permission))
+}
+
+
+export const hasPermission = (
+  role: UserRole | string | undefined,
+  requiredPermissions: Permission[] = [],
+) => hasAllPermissions(role, requiredPermissions)

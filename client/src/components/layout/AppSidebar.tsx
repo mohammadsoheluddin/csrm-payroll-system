@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { getVisibleSidebarGroups, sidebarExpandIcon } from '@/config/sidebar.config'
 import type { SidebarItem } from '@/config/sidebar.config'
 import { cn } from '@/lib/utils/cn'
+import { useAuthStore } from '@/stores/auth.store'
 import { useLayoutStore } from '@/stores/layout.store'
 
 const ExpandIcon = sidebarExpandIcon
@@ -77,13 +78,18 @@ const SidebarNavItem = ({ item, isCollapsed, onNavigate }: SidebarNavItemProps) 
               onClick={onNavigate}
               className={({ isActive: isChildActive }) =>
                 cn(
-                  'flex rounded-lg px-3 py-2 text-xs font-medium transition',
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition',
                   'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                   isChildActive && 'bg-sidebar-accent text-sidebar-accent-foreground',
                 )
               }
             >
-              {child.label}
+              <span className="min-w-0 flex-1 truncate">{child.label}</span>
+              {child.badge && (
+                <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                  {child.badge}
+                </span>
+              )}
             </NavLink>
           ))}
         </div>
@@ -98,7 +104,8 @@ type SidebarContentProps = {
 
 export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
   const isSidebarCollapsed = useLayoutStore((state) => state.isSidebarCollapsed)
-  const groups = getVisibleSidebarGroups()
+  const userRole = useAuthStore((state) => state.user?.role)
+  const groups = getVisibleSidebarGroups(userRole)
 
   return (
     <div className="flex h-full flex-col">

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
-import { hasPermission, type Permission } from '@/config/permissions'
+import type { Permission } from '@/config/permissions'
+import { canUserAccess, getUserPermissions, type PermissionMode } from '@/lib/auth/permission.utils'
 import type { AuthStatus, AuthUser } from '@/types/auth.types'
 
 export type AuthState = {
@@ -12,7 +13,10 @@ export type AuthState = {
   setAuthenticated: (payload: { accessToken: string; user: AuthUser }) => void
   setUnauthenticated: () => void
   clearAuth: () => void
-  canAccess: (requiredPermissions?: Permission[]) => boolean
+  getPermissions: () => Permission[]
+  canAccess: (requiredPermissions?: Permission[], mode?: PermissionMode) => boolean
+  canAccessAny: (requiredPermissions?: Permission[]) => boolean
+  canAccessAll: (requiredPermissions?: Permission[]) => boolean
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -45,8 +49,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       status: 'unauthenticated',
     }),
 
-  canAccess: (requiredPermissions = []) => {
-    const user = get().user
-    return hasPermission(user?.role, requiredPermissions)
+  getPermissions: () => getUserPermissions(get().user),
+
+  canAccess: (requiredPermissions = [], mode = 'all') => {
+    return canUserAccess(get().user, requiredPermissions, mode)
+  },
+
+  canAccessAny: (requiredPermissions = []) => {
+    return canUserAccess(get().user, requiredPermissions, 'any')
+  },
+
+  canAccessAll: (requiredPermissions = []) => {
+    return canUserAccess(get().user, requiredPermissions, 'all')
   },
 }))

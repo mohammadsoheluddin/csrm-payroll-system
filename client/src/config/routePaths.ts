@@ -45,6 +45,7 @@ export const routePaths = {
   bankSheets: '/bank-sheets',
 
   reportCenter: '/reports/center',
+  salarySummary: '/reports/salary-summary',
   reportLayoutStandards: '/reports/layout-standards',
   monthEndControl: '/reports/month-end-control',
   auditLogs: '/audit/logs',
