@@ -52,17 +52,20 @@ export const AttendanceRegisterPage = () => {
   const [serverFormError, setServerFormError] = useState<string | null>(null)
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({})
 
+  const canReadAttendance = canAccess([PERMISSIONS.ATTENDANCE_READ])
   const canManageAttendance = canAccess([PERMISSIONS.ATTENDANCE_MANAGE])
   const queryKey = queryKeys.attendance.list(mode, filters)
 
   const attendanceQuery = useQuery({
     queryKey,
     queryFn: () => getAttendanceRecords({ mode, params: filters }),
+    enabled: canReadAttendance,
   })
 
   const employeeOptionsQuery = useQuery({
     queryKey: queryKeys.employees.list('active', { attendanceSelect: true }),
     queryFn: () => getEmployees({ mode: 'active', params: { status: 'active' } }),
+    enabled: canReadAttendance,
   })
 
   const employeeOptions = useMemo(
@@ -164,7 +167,7 @@ export const AttendanceRegisterPage = () => {
     restoreMutation.mutate({ id: getRecordId(record), restoreReason: 'Restored from frontend attendance register.' })
   }
 
-  if (!canAccess([PERMISSIONS.ATTENDANCE_READ])) {
+  if (!canReadAttendance) {
     return <PermissionDeniedInline message="You need attendance:read permission to open the attendance register." />
   }
 

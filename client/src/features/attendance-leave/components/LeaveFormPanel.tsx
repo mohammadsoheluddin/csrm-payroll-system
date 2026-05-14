@@ -74,6 +74,10 @@ const validateLeaveForm = (value: LeavePayload) => {
     if (value.startDate && value.endDate && value.startDate !== value.endDate) {
       errors.endDate = 'Replacement leave must be one day only.'
     }
+
+    if (value.startDate && value.replacementForDate && value.startDate <= value.replacementForDate) {
+      errors.startDate = 'Replacement leave date must be after the worked holiday date.'
+    }
   }
 
   return errors
@@ -158,7 +162,7 @@ export const LeaveFormPanel = ({
       </div>
 
       <div className="mt-5 space-y-5">
-        <FormErrorSummary errors={{}} serverError={serverError ?? Object.values(clientErrors).find(Boolean)} />
+        <FormErrorSummary errors={{}} serverError={serverError ?? Object.values(mergedErrors).find(Boolean)} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <EmployeeSelect

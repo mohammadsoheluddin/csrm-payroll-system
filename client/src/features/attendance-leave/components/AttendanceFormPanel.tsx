@@ -106,7 +106,7 @@ export const AttendanceFormPanel = ({
       </div>
 
       <div className="mt-5 space-y-5">
-        <FormErrorSummary errors={{}} serverError={serverError ?? Object.values(clientErrors).find(Boolean)} />
+        <FormErrorSummary errors={{}} serverError={serverError ?? Object.values(mergedErrors).find(Boolean)} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <EmployeeSelect

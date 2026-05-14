@@ -57,6 +57,7 @@ export const LeaveApplicationsPage = () => {
   const [serverFormError, setServerFormError] = useState<string | null>(null)
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({})
 
+  const canReadLeave = canAccess([PERMISSIONS.LEAVE_READ])
   const canManageLeave = canAccess([PERMISSIONS.LEAVE_MANAGE])
   const canApproveLeave = canAccess([PERMISSIONS.LEAVE_APPROVE])
   const currentYear = new Date().getFullYear()
@@ -65,11 +66,13 @@ export const LeaveApplicationsPage = () => {
   const leaveQuery = useQuery({
     queryKey,
     queryFn: () => getLeaveRecords({ mode, params: filters }),
+    enabled: canReadLeave,
   })
 
   const employeeOptionsQuery = useQuery({
     queryKey: queryKeys.employees.list('active', { leaveSelect: true }),
     queryFn: () => getEmployees({ mode: 'active', params: { status: 'active' } }),
+    enabled: canReadLeave,
   })
 
   const employeeOptions = useMemo(
@@ -189,7 +192,7 @@ export const LeaveApplicationsPage = () => {
     restoreMutation.mutate({ id: getRecordId(record), restoreReason: 'Restored from frontend leave applications.' })
   }
 
-  if (!canAccess([PERMISSIONS.LEAVE_READ])) {
+  if (!canReadLeave) {
     return <PermissionDeniedInline message="You need leave:read permission to open the leave applications screen." />
   }
 

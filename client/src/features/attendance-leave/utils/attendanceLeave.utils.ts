@@ -20,6 +20,30 @@ import {
 
 export const getRecordId = (record: { _id?: string; id?: string }) => record._id ?? record.id ?? ''
 
+export const toDateInputValue = (value?: string | null) => {
+  if (!value) {
+    return ''
+  }
+
+  return String(value).slice(0, 10)
+}
+
+const addCleanString = (payload: Record<string, unknown>, key: string, value: unknown) => {
+  if (typeof value === 'string') {
+    const trimmedValue = value.trim()
+
+    if (trimmedValue) {
+      payload[key] = trimmedValue
+    }
+
+    return
+  }
+
+  if (value !== undefined && value !== null && value !== '') {
+    payload[key] = value
+  }
+}
+
 export const normalizeListData = <TRecord>(value: unknown): TRecord[] => {
   if (Array.isArray(value)) {
     return value as TRecord[]
@@ -90,23 +114,40 @@ export const employeesToSelectOptions = (employees: EmployeeRecord[]): EmployeeS
 }
 
 export const toAttendancePayload = (formValue: AttendancePayload) => {
-  return Object.entries(formValue).reduce<Record<string, unknown>>((payload, [key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      payload[key] = value
-    }
+  const payload: Record<string, unknown> = {}
 
-    return payload
-  }, {})
+  addCleanString(payload, 'employee', formValue.employee)
+  addCleanString(payload, 'attendanceDate', toDateInputValue(formValue.attendanceDate))
+  addCleanString(payload, 'checkInTime', formValue.checkInTime)
+  addCleanString(payload, 'checkOutTime', formValue.checkOutTime)
+  addCleanString(payload, 'status', formValue.status)
+  addCleanString(payload, 'source', formValue.source)
+  addCleanString(payload, 'remarks', formValue.remarks)
+  addCleanString(payload, 'deviceId', formValue.deviceId)
+
+  return payload
 }
 
 export const toLeavePayload = (formValue: LeavePayload) => {
-  return Object.entries(formValue).reduce<Record<string, unknown>>((payload, [key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      payload[key] = value
-    }
+  const payload: Record<string, unknown> = {}
+  const leaveType = formValue.leaveType
 
-    return payload
-  }, {})
+  addCleanString(payload, 'employee', formValue.employee)
+  addCleanString(payload, 'leaveType', leaveType)
+  addCleanString(payload, 'startDate', toDateInputValue(formValue.startDate))
+  addCleanString(payload, 'endDate', toDateInputValue(formValue.endDate))
+  addCleanString(payload, 'reason', formValue.reason)
+
+  if (isManagementControlledLeaveType(leaveType)) {
+    payload.managementConcern = formValue.managementConcern === true
+    addCleanString(payload, 'managementConcernNote', formValue.managementConcernNote)
+  }
+
+  if (leaveType === 'replacement') {
+    addCleanString(payload, 'replacementForDate', toDateInputValue(formValue.replacementForDate))
+  }
+
+  return payload
 }
 
 export const attendanceRecordToFormValue = (record?: AttendanceRecord | null): AttendancePayload => {
@@ -118,7 +159,7 @@ export const attendanceRecordToFormValue = (record?: AttendanceRecord | null): A
 
   return {
     employee: employee ? getEmployeeId(employee) : String(record.employee ?? ''),
-    attendanceDate: record.attendanceDate ?? '',
+    attendanceDate: toDateInputValue(record.attendanceDate),
     checkInTime: record.checkInTime ?? '',
     checkOutTime: record.checkOutTime ?? '',
     status: record.status ?? 'present',
@@ -138,12 +179,12 @@ export const leaveRecordToFormValue = (record?: LeaveRecord | null): LeavePayloa
   return {
     employee: employee ? getEmployeeId(employee) : String(record.employee ?? ''),
     leaveType: record.leaveType ?? 'casual',
-    startDate: record.startDate ?? '',
-    endDate: record.endDate ?? '',
+    startDate: toDateInputValue(record.startDate),
+    endDate: toDateInputValue(record.endDate),
     reason: record.reason ?? '',
     managementConcern: record.managementConcern ?? false,
     managementConcernNote: record.managementConcernNote ?? '',
-    replacementForDate: record.replacementForDate ?? '',
+    replacementForDate: toDateInputValue(record.replacementForDate),
   }
 }
 
@@ -172,9 +213,12 @@ export const normalizeServerFieldErrors = (sources: ApiErrorSource[]) => {
       .replace(/^body\./, '')
       .replace(/^query\./, '')
       .replace(/^params\./, '')
+      .replace(/\[\d+\]/g, '')
 
-    if (cleanedPath) {
-      accumulator[cleanedPath] = source.message
+    const formField = cleanedPath.split('.').pop() ?? cleanedPath
+
+    if (formField) {
+      accumulator[formField] = source.message
     }
 
     return accumulator
