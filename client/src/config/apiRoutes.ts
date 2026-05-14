@@ -126,6 +126,8 @@ export const apiRoutes = {
     rbacAuditCoverage: '/rbac-audit/coverage',
     monthlyPayrollReport: '/payroll-reports/monthly-report',
     salaryBankSheetPreview: '/bank-sheets/salary/preview',
+    salaryBankSheetExportExcel: '/bank-sheets/salary/export/excel',
+    salaryBankSheetExportPdf: '/bank-sheets/salary/export/pdf',
   },
   salarySummary: {
     preview: '/salary-summary/preview',

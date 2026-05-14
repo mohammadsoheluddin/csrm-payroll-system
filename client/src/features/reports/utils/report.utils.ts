@@ -43,7 +43,17 @@ export const normalizePreviewRows = (value: unknown): ReportPreviewRow[] => {
 
   if (typeof value === 'object' && value !== null) {
     const record = value as Record<string, unknown>
-    const candidates = [record.summaryRows, record.rows, record.records, record.items, record.data]
+    const candidates = [
+      record.summaryRows,
+      record.previewRows,
+      record.reportRows,
+      record.rows,
+      record.records,
+      record.items,
+      record.employees,
+      record.results,
+      record.data,
+    ]
 
     for (const candidate of candidates) {
       if (Array.isArray(candidate)) {
@@ -61,7 +71,15 @@ export const getPreviewTotals = (value: unknown) => {
   }
 
   const record = value as Record<string, unknown>
-  return (record.totals ?? record.summary ?? record.total ?? {}) as Record<string, unknown>
+  return (
+    record.totals ??
+    record.summaryTotals ??
+    record.grandTotals ??
+    record.grandTotal ??
+    record.summary ??
+    record.total ??
+    {}
+  ) as Record<string, unknown>
 }
 
 export const getCatalogItemTitle = (item: ReportCatalogItem) => {
@@ -85,7 +103,13 @@ export const buildReportMetrics = (value: unknown): ReportMetric[] => {
     .slice(0, 8)
     .map(([key, metricValue]) => ({
       label: toTitleCase(key),
-      value: typeof metricValue === 'number' && key.toLowerCase().includes('amount') ? formatCurrency(metricValue) : String(metricValue),
+      value:
+        typeof metricValue === 'number' &&
+        ['amount', 'total', 'gross', 'net', 'bank', 'cash', 'payable', 'salary', 'ot', 'ait', 'loan', 'suspense'].some((hint) =>
+          key.toLowerCase().includes(hint),
+        )
+          ? formatCurrency(metricValue)
+          : String(metricValue),
     }))
 }
 

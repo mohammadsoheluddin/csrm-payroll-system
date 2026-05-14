@@ -74,7 +74,7 @@ export const MonthEndControlPage = () => {
         </Card>
       )}
 
-      {lookups.isError && <ApiErrorState error={lookups.error} onRetry={lookups.refetch} />}
+      {lookups.isError && <ApiErrorState error={lookups.error} onRetry={() => lookups.refetch?.()} />}
 
       {statusQuery.isLoading ? (
         <LoadingState title="Loading month-end process status" />

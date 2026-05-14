@@ -72,6 +72,25 @@ export const getSalaryBankSheetPreview = async (filters: Partial<ReportPeriodFil
   return unwrapApiData(response)
 }
 
+export const downloadSalaryBankSheetFile = async ({
+  filters,
+  type,
+}: {
+  filters: Partial<ReportPeriodFilters>
+  type: Extract<ReportExportType, 'excel' | 'pdf'>
+}) => {
+  const endpoint =
+    type === 'excel'
+      ? apiRoutes.reports.salaryBankSheetExportExcel
+      : apiRoutes.reports.salaryBankSheetExportPdf
+
+  return downloadApiFile({
+    endpoint,
+    params: cleanReportParams(filters),
+    fileName: getReportFileName({ name: 'salary-bank-sheet', filters, type }),
+  })
+}
+
 export const getMonthlyPayrollReportPreview = async (filters: Partial<ReportPeriodFilters>) => {
   const response = await apiClient.get<ApiSuccessResponse<unknown>>(apiRoutes.reports.monthlyPayrollReport, {
     params: cleanReportParams(filters),

@@ -136,7 +136,7 @@ export const ReportPeriodToolbar = ({
                     employee: undefined,
                   })
                 }
-                disabled={!filters.company}
+                disabled={!filters.company || majorDepartmentOptions.length === 0}
               >
                 <option value="">All major departments</option>
                 {majorDepartmentOptions.map((option) => (
@@ -153,7 +153,7 @@ export const ReportPeriodToolbar = ({
                 className={inputClassName}
                 value={filters.department ?? ''}
                 onChange={(event) => updateFilters({ department: event.target.value || undefined, employee: undefined })}
-                disabled={!filters.company}
+                disabled={!filters.company || departmentOptions.length === 0}
               >
                 <option value="">All departments</option>
                 {departmentOptions.map((option) => (
@@ -173,6 +173,7 @@ export const ReportPeriodToolbar = ({
               className={inputClassName}
               value={filters.employee ?? ''}
               onChange={(event) => updateFilters({ employee: event.target.value || undefined })}
+              disabled={employeeOptions.length === 0}
             >
               <option value="">All employees</option>
               {employeeOptions.map((option) => (

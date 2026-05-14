@@ -10,7 +10,12 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PERMISSIONS } from '@/config/permissions'
 import { usePayrollLookups } from '@/features/payroll/hooks/usePayrollLookups'
-import { getSalaryBankSheetPreview, getMonthlyPayrollReportPreview, downloadMonthlyPayrollReportFile } from '@/features/reports/api/reports.api'
+import {
+  downloadMonthlyPayrollReportFile,
+  downloadSalaryBankSheetFile,
+  getMonthlyPayrollReportPreview,
+  getSalaryBankSheetPreview,
+} from '@/features/reports/api/reports.api'
 import { ReportExportToolbar } from '@/features/reports/components/ReportExportToolbar'
 import { ReportMetricCards } from '@/features/reports/components/ReportMetricCards'
 import { ReportPeriodToolbar } from '@/features/reports/components/ReportPeriodToolbar'
@@ -26,6 +31,7 @@ export const BankSheetsPage = () => {
   const role = useAuthStore((state) => state.user?.role)
   const canRead = canAccess([PERMISSIONS.BANK_SHEET_READ])
   const canPayrollReportExport = canAccess([PERMISSIONS.PAYROLL_REPORT_EXPORT])
+  const canBankSheetExport = canAccess([PERMISSIONS.BANK_SHEET_EXPORT])
   const [filters, setFilters] = useState<ReportPeriodFilters>(() => ({ ...currentReportPeriod(), paymentMode: 'bank' }))
   const lookups = usePayrollLookups({ enabled: canRead })
   const isPeriodReady = Boolean(filters.company && filters.month && filters.year)
@@ -45,6 +51,11 @@ export const BankSheetsPage = () => {
   const monthlyExportMutation = useApiMutation({
     mutationFn: (type: Extract<ReportExportType, 'csv' | 'excel'>) => downloadMonthlyPayrollReportFile({ filters, type }),
     successMessage: 'Monthly payroll report download started',
+  })
+
+  const bankSheetExportMutation = useApiMutation({
+    mutationFn: (type: Extract<ReportExportType, 'excel' | 'pdf'>) => downloadSalaryBankSheetFile({ filters, type }),
+    successMessage: 'Salary bank sheet download started',
   })
 
   if (!canRead) {
@@ -107,7 +118,7 @@ export const BankSheetsPage = () => {
         </Card>
       )}
 
-      {lookups.isError && <ApiErrorState error={lookups.error} onRetry={lookups.refetch} />}
+      {lookups.isError && <ApiErrorState error={lookups.error} onRetry={() => lookups.refetch?.()} />}
 
       <Card>
         <CardHeader className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -142,12 +153,21 @@ export const BankSheetsPage = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <CardTitle>Salary Bank Sheet Preview</CardTitle>
-              <CardDescription>Uses /bank-sheets/salary/preview. Export route will be added only if backend exposes it.</CardDescription>
+              <CardDescription>Uses /bank-sheets/salary/preview plus backend Excel/PDF export routes.</CardDescription>
             </div>
-            <Badge variant="muted">Preview only</Badge>
+            {canBankSheetExport ? (
+              <ReportExportToolbar
+                supportedTypes={['excel', 'pdf']}
+                onExport={(type) => bankSheetExportMutation.mutate(type as Extract<ReportExportType, 'excel' | 'pdf'>)}
+                isExporting={bankSheetExportMutation.isPending}
+                disabled={!isPeriodReady}
+              />
+            ) : (
+              <Badge variant="muted">Preview only</Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent>

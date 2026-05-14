@@ -90,7 +90,7 @@ export const SalarySummaryReportPage = () => {
         isLoading={lookups.isLoading || previewQuery.isFetching}
       />
 
-      {lookups.isError && <ApiErrorState error={lookups.error} onRetry={lookups.refetch} />}
+      {lookups.isError && <ApiErrorState error={lookups.error} onRetry={() => lookups.refetch?.()} />}
 
       {previewQuery.isLoading ? (
         <LoadingState title="Loading salary summary" />
