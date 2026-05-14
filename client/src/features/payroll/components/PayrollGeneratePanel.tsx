@@ -75,7 +75,7 @@ export const PayrollGeneratePanel = ({
               onGenerate({
                 ...filters,
                 overwrite,
-                allowCashFallback,
+                ...(supportsCashFallback ? { allowCashFallback } : {}),
                 remarks,
               })
             }
@@ -99,7 +99,7 @@ export const PayrollGeneratePanel = ({
 
         {!canGenerate && (
           <p className="text-xs text-muted-foreground">
-            Month, year, and company are required before generation. Additional department/employee filters are optional.
+            Month, year, and company are required before generation. Additional branch/department/employee filters are optional.
           </p>
         )}
       </CardContent>

@@ -48,10 +48,27 @@ export const PayrollPeriodToolbar = ({
   isLoading,
 }: PayrollPeriodToolbarProps) => {
   const updateFilter = (key: keyof PayrollPeriodQuery, value: string) => {
-    onChange({
+    const nextFilters: PayrollPeriodQuery = {
       ...filters,
       [key]: value,
-    })
+    }
+
+    if (key === 'company') {
+      nextFilters.majorDepartment = ''
+      nextFilters.department = ''
+      nextFilters.employee = ''
+    }
+
+    if (key === 'majorDepartment') {
+      nextFilters.department = ''
+      nextFilters.employee = ''
+    }
+
+    if (key === 'department' || key === 'branch') {
+      nextFilters.employee = ''
+    }
+
+    onChange(nextFilters)
   }
 
   return (

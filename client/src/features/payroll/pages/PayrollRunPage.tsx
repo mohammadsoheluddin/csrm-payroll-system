@@ -205,10 +205,15 @@ export const PayrollRunPage = () => {
         onChange={setFilters}
         onRefresh={() => void payrollQuery.refetch()}
         companyOptions={lookups.companyOptions}
-        majorDepartmentOptions={lookups.majorDepartmentOptions}
-        departmentOptions={lookups.departmentOptions}
+        majorDepartmentOptions={lookups.getMajorDepartmentOptions(filters.company)}
+        departmentOptions={lookups.getDepartmentOptions(filters.company, filters.majorDepartment)}
         branchOptions={lookups.branchOptions}
-        employeeOptions={lookups.employeeOptions}
+        employeeOptions={lookups.getEmployeeOptions({
+          company: filters.company,
+          majorDepartment: filters.majorDepartment,
+          department: filters.department,
+          branch: filters.branch,
+        })}
         statusOptions={statusOptions}
         isLoading={payrollQuery.isFetching || lookups.isLoading}
       />

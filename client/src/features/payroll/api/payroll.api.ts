@@ -12,6 +12,7 @@ import type {
   SalaryStructureRecord,
 } from '@/features/payroll/types/payroll.types'
 import {
+  cleanBulkActionPayload,
   cleanGeneratePayload,
   cleanPayrollQuery,
   cleanSalaryStructurePayload,
@@ -201,13 +202,10 @@ export const runWorkflowBulkAction = async ({
   endpoint: string
   payload: PayrollBulkActionPayload
 }) => {
-  const response = await apiClient.patch<ApiSuccessResponse<unknown>>(endpoint, {
-    ...cleanPayrollQuery(payload),
-    month: payload.month ? Number(payload.month) : undefined,
-    year: payload.year ? Number(payload.year) : undefined,
-    note: payload.note?.trim() || undefined,
-    strict: Boolean(payload.strict),
-  })
+  const response = await apiClient.patch<ApiSuccessResponse<unknown>>(
+    endpoint,
+    cleanBulkActionPayload(payload),
+  )
 
   return unwrapApiData(response)
 }

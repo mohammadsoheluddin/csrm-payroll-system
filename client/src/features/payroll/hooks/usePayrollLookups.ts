@@ -12,6 +12,21 @@ type EmployeeLookupsWithRetry = ReturnType<typeof useEmployeeLookups> & {
   refetch?: () => void
 }
 
+type PayrollLookupFilter = {
+  company?: string
+  majorDepartment?: string
+  department?: string
+  branch?: string
+}
+
+const matchesReference = (value: unknown, expected?: string) => {
+  if (!expected) {
+    return true
+  }
+
+  return getReferenceId(value) === expected
+}
+
 const employeeToOption = (employee: EmployeeRecord): PayrollLookupOption => {
   const id = getReferenceId(employee)
   const name = [employee.name?.firstName, employee.name?.middleName, employee.name?.lastName]
@@ -36,6 +51,29 @@ export const usePayrollLookups = (options: { enabled?: boolean } = {}) => {
     enabled,
   })
 
+  const employees = employeesQuery.data ?? []
+
+  const getMajorDepartmentOptions = (companyId?: string) => {
+    return lookups.getMajorDepartmentOptions?.(companyId) ?? lookups.majorDepartmentOptions
+  }
+
+  const getDepartmentOptions = (companyId?: string, majorDepartmentId?: string) => {
+    return lookups.getDepartmentOptions?.(companyId, majorDepartmentId) ?? lookups.departmentOptions
+  }
+
+  const getEmployeeOptions = (filters: PayrollLookupFilter = {}) => {
+    return employees
+      .filter((employee) => {
+        return (
+          matchesReference(employee.company, filters.company) &&
+          matchesReference(employee.majorDepartment, filters.majorDepartment) &&
+          matchesReference(employee.department, filters.department) &&
+          matchesReference(employee.branch, filters.branch)
+        )
+      })
+      .map(employeeToOption)
+  }
+
   const refetch = () => {
     lookups.refetch?.()
     void employeesQuery.refetch()
@@ -43,8 +81,11 @@ export const usePayrollLookups = (options: { enabled?: boolean } = {}) => {
 
   return {
     ...lookups,
-    employees: employeesQuery.data ?? [],
-    employeeOptions: (employeesQuery.data ?? []).map(employeeToOption),
+    employees,
+    employeeOptions: employees.map(employeeToOption),
+    getMajorDepartmentOptions,
+    getDepartmentOptions,
+    getEmployeeOptions,
     isLoading: lookups.isLoading || employeesQuery.isLoading,
     isError: lookups.isError || employeesQuery.isError,
     error: lookups.error ?? employeesQuery.error ?? null,

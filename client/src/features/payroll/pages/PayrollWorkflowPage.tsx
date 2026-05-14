@@ -125,6 +125,8 @@ export const PayrollWorkflowPage = ({ module }: PayrollWorkflowPageProps) => {
   const [selectedRecord, setSelectedRecord] = useState<PayrollWorkflowRecord | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction>(null)
   const [actionNote, setActionNote] = useState('')
+  const isPeriodReady = Boolean(filters.company && filters.month && filters.year)
+  const isExportReady = module.supportsPaymentMode ? Boolean(isPeriodReady && filters.paymentMode) : isPeriodReady
 
   const lookups = usePayrollLookups({ enabled: canRead })
 
@@ -137,7 +139,7 @@ export const PayrollWorkflowPage = ({ module }: PayrollWorkflowPageProps) => {
   const summaryQuery = useQuery({
     queryKey: queryKeys.payroll.workflowSummary(module.key, filters),
     queryFn: () => getWorkflowSummary({ module, params: filters }),
-    enabled: canRead && Boolean(filters.company && filters.month && filters.year),
+    enabled: canRead && isPeriodReady,
   })
 
   const invalidate = [queryKeys.payroll.workflow(module.key, mode, filters), queryKeys.payroll.workflowSummary(module.key, filters)]
@@ -285,10 +287,15 @@ export const PayrollWorkflowPage = ({ module }: PayrollWorkflowPageProps) => {
           void summaryQuery.refetch()
         }}
         companyOptions={lookups.companyOptions}
-        majorDepartmentOptions={lookups.majorDepartmentOptions}
-        departmentOptions={lookups.departmentOptions}
+        majorDepartmentOptions={lookups.getMajorDepartmentOptions(filters.company)}
+        departmentOptions={lookups.getDepartmentOptions(filters.company, filters.majorDepartment)}
         branchOptions={lookups.branchOptions}
-        employeeOptions={lookups.employeeOptions}
+        employeeOptions={lookups.getEmployeeOptions({
+          company: filters.company,
+          majorDepartment: filters.majorDepartment,
+          department: filters.department,
+          branch: filters.branch,
+        })}
         statusOptions={statusOptions}
         paymentModeOptions={paymentModeOptions}
         showPaymentMode={module.supportsPaymentMode}
@@ -328,32 +335,32 @@ export const PayrollWorkflowPage = ({ module }: PayrollWorkflowPageProps) => {
           </div>
           <div className="flex flex-wrap gap-2">
             {mode === 'active' && canProcess && (
-              <Button variant="outline" onClick={() => setPendingAction({ label: `Bulk Process ${module.shortTitle}`, action: 'bulk-process' })}>
+              <Button variant="outline" disabled={!isPeriodReady} onClick={() => setPendingAction({ label: `Bulk Process ${module.shortTitle}`, action: 'bulk-process' })}>
                 Bulk Process
               </Button>
             )}
             {mode === 'active' && canApprove && (
-              <Button variant="outline" onClick={() => setPendingAction({ label: `Bulk Approve ${module.shortTitle}`, action: 'bulk-approve' })}>
+              <Button variant="outline" disabled={!isPeriodReady} onClick={() => setPendingAction({ label: `Bulk Approve ${module.shortTitle}`, action: 'bulk-approve' })}>
                 Bulk Approve
               </Button>
             )}
             {mode === 'active' && canLock && (
-              <Button variant="outline" onClick={() => setPendingAction({ label: `Bulk Lock ${module.shortTitle}`, action: 'bulk-lock' })}>
+              <Button variant="outline" disabled={!isPeriodReady} onClick={() => setPendingAction({ label: `Bulk Lock ${module.shortTitle}`, action: 'bulk-lock' })}>
                 Bulk Lock
               </Button>
             )}
             {mode === 'active' && canUnlock && (
-              <Button variant="outline" onClick={() => setPendingAction({ label: `Bulk Unlock ${module.shortTitle}`, action: 'bulk-unlock' })}>
+              <Button variant="outline" disabled={!isPeriodReady} onClick={() => setPendingAction({ label: `Bulk Unlock ${module.shortTitle}`, action: 'bulk-unlock' })}>
                 Bulk Unlock
               </Button>
             )}
             {canExport && module.supportsExport && (
               <>
-                <Button variant="outline" onClick={() => exportMutation.mutate('excel')} disabled={exportMutation.isPending || !filters.company || !filters.month || !filters.year}>
+                <Button variant="outline" onClick={() => exportMutation.mutate('excel')} disabled={exportMutation.isPending || !isExportReady}>
                   <Download className="h-4 w-4" />
                   Excel
                 </Button>
-                <Button variant="outline" onClick={() => exportMutation.mutate('pdf')} disabled={exportMutation.isPending || !filters.company || !filters.month || !filters.year}>
+                <Button variant="outline" onClick={() => exportMutation.mutate('pdf')} disabled={exportMutation.isPending || !isExportReady}>
                   PDF
                 </Button>
               </>

@@ -118,11 +118,30 @@ export const getErrorDisplayVariant = (error: NormalizedApiError): ErrorDisplayV
   return 'destructive'
 }
 
+const normalizeServerFieldPath = (path: string) => {
+  return path.replace(/^body\./, '').replace(/^query\./, '').replace(/^params\./, '')
+}
+
 export const getFieldErrorMap = (error: unknown) => {
   const normalizedError = normalizeApiError(error)
 
   return normalizedError.errorSources.reduce<Record<string, string>>((acc, source) => {
-    acc[source.path] = source.message
+    const normalizedPath = normalizeServerFieldPath(source.path)
+
+    if (source.path) {
+      acc[source.path] = source.message
+    }
+
+    if (normalizedPath) {
+      acc[normalizedPath] = source.message
+    }
+
+    const topLevelField = normalizedPath.split('.')[0]
+
+    if (topLevelField && !acc[topLevelField]) {
+      acc[topLevelField] = source.message
+    }
+
     return acc
   }, {})
 }

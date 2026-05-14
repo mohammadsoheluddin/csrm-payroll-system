@@ -126,15 +126,33 @@ export const normalizeListResponse = <TRecord>(value: unknown): TRecord[] => {
   return []
 }
 
-export const cleanPayrollQuery = (query: PayrollPeriodQuery = {}) => {
-  return Object.entries(query).reduce<Record<string, string | number>>((accumulator, [key, value]) => {
-    if (value === undefined || value === null || value === '') {
-      return accumulator
+const emptyToUndefined = (value: unknown) => {
+  return value === undefined || value === null || value === '' ? undefined : value
+}
+
+const toNumberOrUndefined = (value: unknown) => {
+  const normalized = emptyToUndefined(value)
+
+  if (normalized === undefined) {
+    return undefined
+  }
+
+  const numericValue = Number(normalized)
+  return Number.isFinite(numericValue) ? numericValue : undefined
+}
+
+const removeEmptyValues = <TRecord extends Record<string, unknown>>(record: TRecord) => {
+  return Object.entries(record).reduce<Record<string, unknown>>((accumulator, [key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      accumulator[key] = value
     }
 
-    accumulator[key] = value as string | number
     return accumulator
   }, {})
+}
+
+export const cleanPayrollQuery = (query: PayrollPeriodQuery = {}) => {
+  return removeEmptyValues(query) as Record<string, string | number>
 }
 
 export const toNumberOrZero = (value: unknown) => {
@@ -161,16 +179,41 @@ export const cleanSalaryStructurePayload = (payload: SalaryStructurePayload) => 
 }
 
 export const cleanGeneratePayload = (payload: PayrollGeneratePayload) => {
-  const cleaned = cleanPayrollQuery(payload)
+  const month = toNumberOrUndefined(payload.month)
+  const year = toNumberOrUndefined(payload.year)
 
-  return {
-    ...cleaned,
-    month: Number(payload.month),
-    year: Number(payload.year),
-    overwrite: Boolean(payload.overwrite),
-    allowCashFallback: Boolean(payload.allowCashFallback),
+  return removeEmptyValues({
+    company: payload.company,
+    branch: payload.branch,
+    majorDepartment: payload.majorDepartment,
+    department: payload.department,
+    employee: payload.employee,
+    month,
+    year,
+    overwrite: payload.overwrite === undefined ? undefined : Boolean(payload.overwrite),
+    allowCashFallback:
+      payload.allowCashFallback === undefined ? undefined : Boolean(payload.allowCashFallback),
     remarks: payload.remarks?.trim() || undefined,
-  }
+  })
+}
+
+export const cleanBulkActionPayload = (payload: PayrollGeneratePayload & { note?: string; strict?: boolean }) => {
+  const month = toNumberOrUndefined(payload.month)
+  const year = toNumberOrUndefined(payload.year)
+
+  return removeEmptyValues({
+    payrollMonth: payload.payrollMonth,
+    company: payload.company,
+    branch: payload.branch,
+    majorDepartment: payload.majorDepartment,
+    department: payload.department,
+    employee: payload.employee,
+    paymentMode: payload.paymentMode,
+    month,
+    year,
+    note: payload.note?.trim() || undefined,
+    strict: payload.strict === undefined ? undefined : Boolean(payload.strict),
+  })
 }
 
 export const recordsToPayrollOptions = (records: Array<Record<string, unknown>>): PayrollLookupOption[] => {
