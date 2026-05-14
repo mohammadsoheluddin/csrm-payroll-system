@@ -23,6 +23,15 @@ export const queryKeys = {
     detail: (id: string) => ['employees', 'detail', id] as const,
     lookups: ['employees', 'lookups'] as const,
   },
+  attendance: {
+    root: ['attendance'] as const,
+    list: (mode: string, params?: Record<string, unknown>) => ['attendance', 'list', mode, params ?? {}] as const,
+  },
+  leave: {
+    root: ['leave'] as const,
+    list: (mode: string, params?: Record<string, unknown>) => ['leave', 'list', mode, params ?? {}] as const,
+    balance: (employeeId: string, year: string | number) => ['leave', 'balance', employeeId, year] as const,
+  },
   reports: {
     catalog: ['reports', 'catalog'] as const,
     dashboard: (params?: Record<string, unknown>) => ['reports', 'dashboard', params ?? {}] as const,

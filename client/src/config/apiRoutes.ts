@@ -16,6 +16,22 @@ export const apiRoutes = {
     lifecycle: (id: string) => `/employees/${id}/lifecycle`,
     restore: (id: string) => `/employees/${id}/restore`,
   },
+  attendance: {
+    root: '/attendance',
+    create: '/attendance/create-attendance',
+    deleted: '/attendance/deleted',
+    detail: (id: string) => `/attendance/${id}`,
+    restore: (id: string) => `/attendance/${id}/restore`,
+  },
+  leave: {
+    root: '/leave',
+    create: '/leave/create-leave',
+    deleted: '/leave/deleted',
+    detail: (id: string) => `/leave/${id}`,
+    approve: (id: string) => `/leave/${id}/approve`,
+    restore: (id: string) => `/leave/${id}/restore`,
+    balance: (employeeId: string) => `/leave/balance/${employeeId}`,
+  },
   masterData: {
     companies: '/companies',
     branches: '/branches',

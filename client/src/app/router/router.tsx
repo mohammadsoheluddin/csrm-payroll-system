@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { routePaths } from '@/config/routePaths'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
+import { AttendanceRegisterPage } from '@/features/attendance-leave/pages/AttendanceRegisterPage'
+import { LeaveApplicationsPage } from '@/features/attendance-leave/pages/LeaveApplicationsPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { getMasterDataModuleByPath } from '@/features/master-data/config/masterData.config'
 import { EmployeeDirectoryPage } from '@/features/employees/pages/EmployeeDirectoryPage'
@@ -47,6 +49,28 @@ const appRoutes = appRouteConfig.map((route) => {
       element: (
         <ProtectedRoute requiredPermissions={route.requiredPermissions}>
           <EmployeeDirectoryPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.attendance) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <AttendanceRegisterPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.leave) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <LeaveApplicationsPage />
         </ProtectedRoute>
       ),
     }

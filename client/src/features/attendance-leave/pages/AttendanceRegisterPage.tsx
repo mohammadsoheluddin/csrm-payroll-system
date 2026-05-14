@@ -1,0 +1,332 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ArchiveRestore, Edit3, Plus, RefreshCcw, Trash2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+
+import { SimpleDataTable } from '@/components/data-table/SimpleDataTable'
+import { ApiErrorState } from '@/components/feedback/ApiErrorState'
+import { LoadingState } from '@/components/feedback/LoadingState'
+import { PermissionDeniedInline } from '@/components/feedback/PermissionDeniedInline'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { PERMISSIONS } from '@/config/permissions'
+import {
+  createAttendanceRecord,
+  deleteAttendanceRecord,
+  getAttendanceRecords,
+  restoreAttendanceRecord,
+  updateAttendanceRecord,
+} from '@/features/attendance-leave/api/attendanceLeave.api'
+import { AttendanceFormPanel } from '@/features/attendance-leave/components/AttendanceFormPanel'
+import { AttendanceLeaveStatCards } from '@/features/attendance-leave/components/AttendanceLeaveStatCards'
+import { AttendanceToolbar } from '@/features/attendance-leave/components/AttendanceToolbar'
+import { attendanceFilterDefaults } from '@/features/attendance-leave/config/attendanceLeave.constants'
+import type {
+  AttendanceLeaveListMode,
+  AttendanceQueryParams,
+  AttendanceRecord,
+} from '@/features/attendance-leave/types/attendanceLeave.types'
+import {
+  employeesToSelectOptions,
+  getAttendanceLeaveEmployeeCode,
+  getAttendanceLeaveEmployeeName,
+  getEmployeeDepartmentLabel,
+  getRecordId,
+  normalizeServerFieldErrors,
+  statusBadgeVariant,
+} from '@/features/attendance-leave/utils/attendanceLeave.utils'
+import { getEmployees } from '@/features/employees/api/employee.api'
+import { normalizeApiError } from '@/lib/api/apiError'
+import { toTitleCase } from '@/lib/format/record.utils'
+import { queryKeys } from '@/lib/query/queryKeys'
+import { useAuthStore } from '@/stores/auth.store'
+
+export const AttendanceRegisterPage = () => {
+  const queryClient = useQueryClient()
+  const canAccess = useAuthStore((state) => state.canAccess)
+  const [mode, setMode] = useState<AttendanceLeaveListMode>('active')
+  const [filters, setFilters] = useState<AttendanceQueryParams>({ ...attendanceFilterDefaults })
+  const [formMode, setFormMode] = useState<'closed' | 'create' | 'edit'>('closed')
+  const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null)
+  const [serverFormError, setServerFormError] = useState<string | null>(null)
+  const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({})
+
+  const canManageAttendance = canAccess([PERMISSIONS.ATTENDANCE_MANAGE])
+  const queryKey = queryKeys.attendance.list(mode, filters)
+
+  const attendanceQuery = useQuery({
+    queryKey,
+    queryFn: () => getAttendanceRecords({ mode, params: filters }),
+  })
+
+  const employeeOptionsQuery = useQuery({
+    queryKey: queryKeys.employees.list('active', { attendanceSelect: true }),
+    queryFn: () => getEmployees({ mode: 'active', params: { status: 'active' } }),
+  })
+
+  const employeeOptions = useMemo(
+    () => employeesToSelectOptions(employeeOptionsQuery.data ?? []),
+    [employeeOptionsQuery.data],
+  )
+
+  const records = attendanceQuery.data ?? []
+
+  const clearFormErrors = () => {
+    setServerFormError(null)
+    setServerFieldErrors({})
+  }
+
+  const invalidateAttendance = async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.attendance.root })
+  }
+
+  const closeForm = () => {
+    setFormMode('closed')
+    setSelectedRecord(null)
+    clearFormErrors()
+  }
+
+  const setFormError = (error: unknown) => {
+    const normalized = normalizeApiError(error)
+    setServerFormError(normalized.message)
+    setServerFieldErrors(normalizeServerFieldErrors(normalized.errorSources))
+    toast.error(normalized.message, { description: normalized.title })
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createAttendanceRecord,
+    onSuccess: async () => {
+      toast.success('Attendance created successfully')
+      closeForm()
+      await invalidateAttendance()
+    },
+    onError: setFormError,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: updateAttendanceRecord,
+    onSuccess: async () => {
+      toast.success('Attendance updated successfully')
+      closeForm()
+      await invalidateAttendance()
+    },
+    onError: setFormError,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteAttendanceRecord,
+    onSuccess: async () => {
+      toast.success('Attendance soft deleted successfully')
+      closeForm()
+      await invalidateAttendance()
+    },
+    onError: (error) => {
+      const normalized = normalizeApiError(error)
+      toast.error(normalized.message, { description: normalized.title })
+    },
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreAttendanceRecord,
+    onSuccess: async () => {
+      toast.success('Attendance restored successfully')
+      await invalidateAttendance()
+    },
+    onError: (error) => {
+      const normalized = normalizeApiError(error)
+      toast.error(normalized.message, { description: normalized.title })
+    },
+  })
+
+  const handleSubmit = (payload: Record<string, unknown>) => {
+    clearFormErrors()
+
+    if (formMode === 'edit' && selectedRecord) {
+      updateMutation.mutate({ id: getRecordId(selectedRecord), payload })
+      return
+    }
+
+    createMutation.mutate(payload)
+  }
+
+  const handleDelete = (record: AttendanceRecord) => {
+    const confirmed = window.confirm('Soft delete this attendance record?')
+
+    if (!confirmed) {
+      return
+    }
+
+    deleteMutation.mutate({ id: getRecordId(record), deleteReason: 'Deleted from frontend attendance register.' })
+  }
+
+  const handleRestore = (record: AttendanceRecord) => {
+    restoreMutation.mutate({ id: getRecordId(record), restoreReason: 'Restored from frontend attendance register.' })
+  }
+
+  if (!canAccess([PERMISSIONS.ATTENDANCE_READ])) {
+    return <PermissionDeniedInline message="You need attendance:read permission to open the attendance register." />
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <Badge variant="default">Part-F9</Badge>
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground">Attendance Register</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+              Backend-connected attendance list, manual entry/correction, soft delete, restore, and payroll lock-aware error handling foundation.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void attendanceQuery.refetch()}
+              disabled={attendanceQuery.isFetching}
+            >
+              <RefreshCcw className="h-4 w-4" /> Refresh
+            </Button>
+            {canManageAttendance && mode === 'active' && (
+              <Button
+                type="button"
+                onClick={() => {
+                  setSelectedRecord(null)
+                  clearFormErrors()
+                  setFormMode('create')
+                }}
+              >
+                <Plus className="h-4 w-4" /> New Attendance
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <AttendanceLeaveStatCards type="attendance" records={records} />
+
+      <AttendanceToolbar
+        mode={mode}
+        filters={filters}
+        employees={employeeOptions}
+        onModeChange={(nextMode) => {
+          setMode(nextMode)
+          closeForm()
+        }}
+        onFiltersChange={(nextFilters) => setFilters(nextFilters)}
+        onRefresh={() => void attendanceQuery.refetch()}
+        isRefreshing={attendanceQuery.isFetching}
+      />
+
+      {employeeOptionsQuery.isError && (
+        <ApiErrorState error={employeeOptionsQuery.error} onRetry={() => void employeeOptionsQuery.refetch()} />
+      )}
+
+      {formMode !== 'closed' && (
+        <AttendanceFormPanel
+          key={`${formMode}-${selectedRecord?._id ?? selectedRecord?.id ?? 'new'}`}
+          mode={formMode}
+          record={selectedRecord}
+          employees={employeeOptions}
+          isSubmitting={createMutation.isPending || updateMutation.isPending}
+          serverError={serverFormError}
+          fieldErrors={serverFieldErrors}
+          onCancel={closeForm}
+          onSubmit={handleSubmit}
+        />
+      )}
+
+      <Card className="p-5">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Attendance Records</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Showing {records.length} {mode} records from backend attendance API.
+            </p>
+          </div>
+        </div>
+
+        {attendanceQuery.isLoading ? (
+          <LoadingState title="Loading attendance records..." />
+        ) : attendanceQuery.isError ? (
+          <ApiErrorState error={attendanceQuery.error} onRetry={() => void attendanceQuery.refetch()} />
+        ) : (
+          <SimpleDataTable<AttendanceRecord>
+            records={records}
+            getRowKey={(record) => getRecordId(record)}
+            emptyMessage="No attendance records found for selected filters."
+            columns={[
+              {
+                key: 'employee',
+                label: 'Employee',
+                render: (record) => (
+                  <div>
+                    <p className="font-semibold text-foreground">{getAttendanceLeaveEmployeeName(record)}</p>
+                    <p className="text-xs text-muted-foreground">{getAttendanceLeaveEmployeeCode(record)}</p>
+                  </div>
+                ),
+              },
+              {
+                key: 'department',
+                label: 'Department',
+                render: (record) => getEmployeeDepartmentLabel(record),
+              },
+              { key: 'attendanceDate', label: 'Date' },
+              {
+                key: 'status',
+                label: 'Status',
+                render: (record) => <Badge variant={statusBadgeVariant(record.status)}>{toTitleCase(record.status ?? '—')}</Badge>,
+              },
+              {
+                key: 'time',
+                label: 'Time',
+                render: (record) => `${record.checkInTime ?? '—'} → ${record.checkOutTime ?? '—'}`,
+              },
+              {
+                key: 'source',
+                label: 'Source',
+                render: (record) => <Badge variant="muted">{toTitleCase(record.source ?? 'manual')}</Badge>,
+              },
+              { key: 'remarks', label: 'Remarks' },
+            ]}
+            actions={(record) => (
+              <div className="flex justify-end gap-2">
+                {canManageAttendance && mode === 'active' && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedRecord(record)
+                        clearFormErrors()
+                        setFormMode('edit')
+                      }}
+                    >
+                      <Edit3 className="h-4 w-4" /> Edit
+                    </Button>
+                    <Button type="button" variant="danger" size="sm" onClick={() => handleDelete(record)}>
+                      <Trash2 className="h-4 w-4" /> Delete
+                    </Button>
+                  </>
+                )}
+                {canManageAttendance && mode === 'deleted' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleRestore(record)}
+                    disabled={restoreMutation.isPending}
+                  >
+                    <ArchiveRestore className="h-4 w-4" /> Restore
+                  </Button>
+                )}
+              </div>
+            )}
+          />
+        )}
+      </Card>
+    </div>
+  )
+}

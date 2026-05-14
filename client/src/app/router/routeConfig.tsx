@@ -140,7 +140,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Attendance & Leave',
     breadcrumbs: ['Attendance', 'Register'],
     requiredPermissions: [PERMISSIONS.ATTENDANCE_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.attendanceImports,
@@ -170,7 +170,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Attendance & Leave',
     breadcrumbs: ['Leave', 'Applications'],
     requiredPermissions: [PERMISSIONS.LEAVE_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.leaveBalances,
