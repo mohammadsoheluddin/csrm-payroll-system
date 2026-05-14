@@ -48,6 +48,9 @@ export const queryKeys = {
     dashboard: (params?: Record<string, unknown>) => ['reports', 'dashboard', params ?? {}] as const,
     readiness: (params?: Record<string, unknown>) => ['reports', 'readiness', params ?? {}] as const,
     monthEndStatus: (params?: Record<string, unknown>) => ['reports', 'month-end-status', params ?? {}] as const,
+    salarySummary: (params?: Record<string, unknown>) => ['reports', 'salary-summary', params ?? {}] as const,
+    bankSheet: (params?: Record<string, unknown>) => ['reports', 'bank-sheet', params ?? {}] as const,
+    monthlyPayroll: (params?: Record<string, unknown>) => ['reports', 'monthly-payroll', params ?? {}] as const,
   },
   audit: {
     logs: (params?: Record<string, unknown>) => ['audit', 'logs', params ?? {}] as const,

@@ -12,6 +12,11 @@ import { MasterDataFoundationPage } from '@/features/master-data/pages/MasterDat
 import { PayrollRunPage } from '@/features/payroll/pages/PayrollRunPage'
 import { SalaryStructuresPage } from '@/features/payroll/pages/SalaryStructuresPage'
 import { PayrollWorkflowPage } from '@/features/payroll/pages/PayrollWorkflowPage'
+import { BankSheetsPage } from '@/features/reports/pages/BankSheetsPage'
+import { MonthEndControlPage } from '@/features/reports/pages/MonthEndControlPage'
+import { ReportCenterPage } from '@/features/reports/pages/ReportCenterPage'
+import { ReportLayoutStandardsPage } from '@/features/reports/pages/ReportLayoutStandardsPage'
+import { SalarySummaryReportPage } from '@/features/reports/pages/SalarySummaryReportPage'
 import { payrollWorkflowModules } from '@/features/payroll/config/payrollWorkflow.config'
 import { ThemeSettingsPage } from '@/features/settings/ThemeSettingsPage'
 import { ForbiddenPage } from '@/features/system/pages/ForbiddenPage'
@@ -131,6 +136,62 @@ const appRoutes = appRouteConfig.map((route) => {
       element: (
         <ProtectedRoute requiredPermissions={route.requiredPermissions}>
           <PayrollWorkflowPage module={payrollWorkflowModules.salaryPaymentDistributions} />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+
+  if (route.path === routePaths.bankSheets) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <BankSheetsPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.reportCenter) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <ReportCenterPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.salarySummary) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <SalarySummaryReportPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.reportLayoutStandards) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <ReportLayoutStandardsPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.monthEndControl) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <MonthEndControlPage />
         </ProtectedRoute>
       ),
     }

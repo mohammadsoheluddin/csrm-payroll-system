@@ -306,11 +306,11 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     path: routePaths.bankSheets,
     title: 'Bank Sheets',
     shortTitle: 'Bank Sheets',
-    description: 'Preview and export bank salary sheets using backend sub-route patterns.',
+    description: 'Preview bank salary sheets and monthly payroll export routes using backend sub-route patterns.',
     section: 'Payroll Engine',
     breadcrumbs: ['Payroll', 'Bank Sheets'],
     requiredPermissions: [PERMISSIONS.BANK_SHEET_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.reportCenter,
@@ -320,7 +320,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Reports & Control',
     breadcrumbs: ['Reports', 'Report Center'],
     requiredPermissions: [PERMISSIONS.REPORT_CENTER_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.salarySummary,
@@ -330,7 +330,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Reports & Control',
     breadcrumbs: ['Reports', 'Salary Summary'],
     requiredPermissions: [PERMISSIONS.SALARY_SUMMARY_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.reportLayoutStandards,
@@ -340,7 +340,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Reports & Control',
     breadcrumbs: ['Reports', 'Layout Standards'],
     requiredPermissions: [PERMISSIONS.REPORT_LAYOUT_STANDARD_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.monthEndControl,
@@ -350,7 +350,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Reports & Control',
     breadcrumbs: ['Reports', 'Month-End Control'],
     requiredPermissions: [PERMISSIONS.MONTH_END_PROCESS_CONTROL_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.auditLogs,
