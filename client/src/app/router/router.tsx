@@ -9,6 +9,10 @@ import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { getMasterDataModuleByPath } from '@/features/master-data/config/masterData.config'
 import { EmployeeDirectoryPage } from '@/features/employees/pages/EmployeeDirectoryPage'
 import { MasterDataFoundationPage } from '@/features/master-data/pages/MasterDataFoundationPage'
+import { PayrollRunPage } from '@/features/payroll/pages/PayrollRunPage'
+import { SalaryStructuresPage } from '@/features/payroll/pages/SalaryStructuresPage'
+import { PayrollWorkflowPage } from '@/features/payroll/pages/PayrollWorkflowPage'
+import { payrollWorkflowModules } from '@/features/payroll/config/payrollWorkflow.config'
 import { ThemeSettingsPage } from '@/features/settings/ThemeSettingsPage'
 import { ForbiddenPage } from '@/features/system/pages/ForbiddenPage'
 import { ModulePlaceholderPage } from '@/features/system/pages/ModulePlaceholderPage'
@@ -71,6 +75,62 @@ const appRoutes = appRouteConfig.map((route) => {
       element: (
         <ProtectedRoute requiredPermissions={route.requiredPermissions}>
           <LeaveApplicationsPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+
+  if (route.path === routePaths.payroll) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <PayrollRunPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.salaryStructures) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <SalaryStructuresPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.salarySheets) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <PayrollWorkflowPage module={payrollWorkflowModules.salarySheets} />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.salaryStatements) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <PayrollWorkflowPage module={payrollWorkflowModules.salaryStatements} />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.salaryPaymentDistributions) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <PayrollWorkflowPage module={payrollWorkflowModules.salaryPaymentDistributions} />
         </ProtectedRoute>
       ),
     }

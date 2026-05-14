@@ -32,6 +32,17 @@ export const queryKeys = {
     list: (mode: string, params?: Record<string, unknown>) => ['leave', 'list', mode, params ?? {}] as const,
     balance: (employeeId: string, year: string | number) => ['leave', 'balance', employeeId, year] as const,
   },
+  payroll: {
+    root: ['payroll'] as const,
+    list: (mode: string, params?: Record<string, unknown>) => ['payroll', 'list', mode, params ?? {}] as const,
+    detail: (id: string) => ['payroll', 'detail', id] as const,
+    salaryStructures: (mode: string, params?: Record<string, unknown>) =>
+      ['payroll', 'salary-structures', mode, params ?? {}] as const,
+    workflow: (key: string, mode: string, params?: Record<string, unknown>) =>
+      ['payroll', 'workflow', key, mode, params ?? {}] as const,
+    workflowSummary: (key: string, params?: Record<string, unknown>) =>
+      ['payroll', 'workflow-summary', key, params ?? {}] as const,
+  },
   reports: {
     catalog: ['reports', 'catalog'] as const,
     dashboard: (params?: Record<string, unknown>) => ['reports', 'dashboard', params ?? {}] as const,

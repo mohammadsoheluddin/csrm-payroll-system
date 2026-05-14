@@ -200,7 +200,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Payroll Engine',
     breadcrumbs: ['Payroll', 'Run'],
     requiredPermissions: [PERMISSIONS.PAYROLL_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.salaryStructures,
@@ -210,7 +210,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Payroll Engine',
     breadcrumbs: ['Salary', 'Structures'],
     requiredPermissions: [PERMISSIONS.SALARY_STRUCTURE_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.salarySheets,
@@ -220,7 +220,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Payroll Engine',
     breadcrumbs: ['Salary', 'Sheets'],
     requiredPermissions: [PERMISSIONS.SALARY_SHEET_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.salaryStatements,
@@ -230,7 +230,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Payroll Engine',
     breadcrumbs: ['Salary', 'Statements'],
     requiredPermissions: [PERMISSIONS.SALARY_STATEMENT_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.salaryPaymentDistributions,
@@ -240,7 +240,7 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     section: 'Payroll Engine',
     breadcrumbs: ['Salary', 'Payment Distribution'],
     requiredPermissions: [PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_READ],
-    status: 'planned',
+    status: 'ready',
   },
   {
     path: routePaths.timeBills,
