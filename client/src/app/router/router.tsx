@@ -3,6 +3,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { routePaths } from '@/config/routePaths'
 import { LoginPage } from '@/features/auth/pages/LoginPage'
+import { AuditLogsPage } from '@/features/audit/pages/AuditLogsPage'
+import { RbacAuditPage } from '@/features/audit/pages/RbacAuditPage'
 import { AttendanceRegisterPage } from '@/features/attendance-leave/pages/AttendanceRegisterPage'
 import { LeaveApplicationsPage } from '@/features/attendance-leave/pages/LeaveApplicationsPage'
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
@@ -192,6 +194,28 @@ const appRoutes = appRouteConfig.map((route) => {
       element: (
         <ProtectedRoute requiredPermissions={route.requiredPermissions}>
           <MonthEndControlPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.auditLogs) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <AuditLogsPage />
+        </ProtectedRoute>
+      ),
+    }
+  }
+
+  if (route.path === routePaths.rbacAudit) {
+    return {
+      path: route.path,
+      element: (
+        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+          <RbacAuditPage />
         </ProtectedRoute>
       ),
     }
