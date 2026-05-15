@@ -41,7 +41,16 @@ app.use(
   }),
 );
 
-app.use(express.json());
+/**
+ * Legacy salary Excel parsing sends the selected .xlsx file as a base64 JSON
+ * payload. Express defaults JSON payloads to 100kb, which is too small for
+ * real CSRM/TSL salary sheets and causes: "request entity too large".
+ *
+ * Keep this limit reasonable so normal Excel salary/time-bill files can be
+ * parsed while still avoiding unlimited request bodies.
+ */
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 app.use(cookieParser());
 
 app.use("/api/v1", router);
