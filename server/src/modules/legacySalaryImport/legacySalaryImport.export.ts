@@ -7,6 +7,7 @@ import {
   setupStandardExcelWorksheet,
   type TReportColumnDefinition,
 } from "../../utils/reportLayout";
+import { Types } from "mongoose";
 import { LegacySalaryRecord } from "./legacySalaryImport.model";
 import type {
   TLegacySalaryExportFileResult,
@@ -36,13 +37,13 @@ const legacySalaryColumns: TReportColumnDefinition[] = [
 ];
 
 const buildRecordFilter = (query: TLegacySalaryRecordQuery = {}) => {
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { isDeleted: { $ne: true } };
 
-  if (query.batch) filter.batch = query.batch;
+  if (query.batch && Types.ObjectId.isValid(query.batch)) filter.batch = new Types.ObjectId(query.batch);
   if (query.payrollMonth) filter.payrollMonth = query.payrollMonth;
   if (query.month) filter.month = query.month;
   if (query.year) filter.year = query.year;
-  if (query.company) filter.company = query.company;
+  if (query.company && Types.ObjectId.isValid(query.company)) filter.company = new Types.ObjectId(query.company);
   if (query.employeeId) filter.employeeId = { $regex: query.employeeId, $options: "i" };
   if (query.officeId) filter.officeId = { $regex: query.officeId, $options: "i" };
   if (query.employeeName) filter.employeeName = { $regex: query.employeeName, $options: "i" };

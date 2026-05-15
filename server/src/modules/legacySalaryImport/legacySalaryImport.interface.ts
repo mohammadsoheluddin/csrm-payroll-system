@@ -96,6 +96,8 @@ export interface TLegacySalaryParseExcelPayload {
 export interface TLegacySalaryParsedExcelRow {
   rowNo: number;
   rawPayload: TLegacySalaryRawPayload;
+  mappedPayload: Partial<TLegacySalaryImportRowInput>;
+  unmappedHeaders: string[];
 }
 
 export interface TLegacySalaryParsedExcelResult {
@@ -106,6 +108,9 @@ export interface TLegacySalaryParsedExcelResult {
   totalRows: number;
   rows: TLegacySalaryParsedExcelRow[];
   headers: string[];
+  mappedHeaders: string[];
+  unmappedHeaders: string[];
+  notes: string[];
 }
 
 export interface TLegacySalaryImportValidRow {
@@ -291,6 +296,14 @@ export interface TLegacySalaryRecord {
   payableAmount: number;
   remarks?: string;
   rawPayload?: TLegacySalaryRawPayload;
+  isDeleted?: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: Types.ObjectId | string | null;
+  deleteReason?: string | null;
+  restoredAt?: Date | null;
+  restoredBy?: Types.ObjectId | string | null;
+  restoreReason?: string | null;
+  updatedBy?: Types.ObjectId | string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

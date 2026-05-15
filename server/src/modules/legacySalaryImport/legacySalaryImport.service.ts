@@ -86,6 +86,90 @@ const EMPTY_TOTALS: TLegacySalaryAmountTotals = {
   payableAmount: 0,
 };
 
+const ACTIVE_RECORD_FILTER = { isDeleted: { $ne: true } };
+
+const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput> = {
+  id: "employeeId",
+  empid: "employeeId",
+  employeeid: "employeeId",
+  employeecode: "employeeId",
+  officeid: "officeId",
+  officecode: "officeId",
+  cardno: "cardNo",
+  cardnumber: "cardNo",
+  name: "employeeName",
+  employeename: "employeeName",
+  company: "companyName",
+  companyname: "companyName",
+  majordepartment: "majorDepartmentName",
+  majordepartmentname: "majorDepartmentName",
+  department: "departmentName",
+  dept: "departmentName",
+  departmentname: "departmentName",
+  designation: "designationName",
+  designationname: "designationName",
+  branch: "branchName",
+  branchname: "branchName",
+  paytype: "payType",
+  paymentmode: "paymentMode",
+  gross: "grossAmount",
+  grosssalary: "grossAmount",
+  grossamount: "grossAmount",
+  basic: "basicAmount",
+  basicsalary: "basicAmount",
+  basicamount: "basicAmount",
+  houserent: "houseRentAmount",
+  medical: "medicalAmount",
+  conveyance: "conveyanceAmount",
+  tiffin: "tiffinAmount",
+  tiffinamount: "tiffinAmount",
+  othour: "overtimeHour",
+  overtimehour: "overtimeHour",
+  overtimehours: "overtimeHour",
+  otrate: "overtimeRate",
+  overtimerate: "overtimeRate",
+  ot: "overtimeAmount",
+  otamount: "overtimeAmount",
+  overtime: "overtimeAmount",
+  overtimeamount: "overtimeAmount",
+  bonus: "bonusAmount",
+  bonusamount: "bonusAmount",
+  allowance: "otherAllowanceAmount",
+  otherallowance: "otherAllowanceAmount",
+  otherallowanceamount: "otherAllowanceAmount",
+  bank: "bankAmount",
+  bankamount: "bankAmount",
+  cash: "cashAmount",
+  cashamount: "cashAmount",
+  mobile: "mobileBankAmount",
+  mobilebank: "mobileBankAmount",
+  mobilebankamount: "mobileBankAmount",
+  ait: "aitAmount",
+  tax: "aitAmount",
+  taxamount: "aitAmount",
+  loan: "loanAmount",
+  loanamount: "loanAmount",
+  advance: "advanceAmount",
+  advanceamount: "advanceAmount",
+  pf: "pfAmount",
+  providentfund: "pfAmount",
+  stamp: "stampAmount",
+  food: "foodAmount",
+  absentdeduction: "absentDeductionAmount",
+  leavededuction: "leaveDeductionAmount",
+  otherdeduction: "otherDeductionAmount",
+  totaldeduction: "totalDeductionAmount",
+  deduction: "totalDeductionAmount",
+  net: "netAmount",
+  netsalary: "netAmount",
+  netamount: "netAmount",
+  payable: "payableAmount",
+  payableamount: "payableAmount",
+  remarks: "remarks",
+  remark: "remarks",
+};
+
+
 const normalizeString = (value: unknown) => {
   if (value === undefined || value === null) {
     return undefined;
@@ -97,6 +181,9 @@ const normalizeString = (value: unknown) => {
 
 const normalizeUpperString = (value: unknown) => normalizeString(value)?.toUpperCase();
 
+const normalizeBanglaDigits = (value: string) =>
+  value.replace(/[০-৯]/g, (digit) => String("০১২৩৪৫৬৭৮৯".indexOf(digit)));
+
 const toNumber = (value: unknown) => {
   if (value === undefined || value === null || value === "") {
     return 0;
@@ -106,8 +193,24 @@ const toNumber = (value: unknown) => {
     return value;
   }
 
-  const parsed = Number(String(value).replace(/,/g, "").trim());
-  return Number.isFinite(parsed) ? parsed : 0;
+  const text = normalizeBanglaDigits(String(value))
+    .replace(/৳|tk\.?|bdt/gi, "")
+    .replace(/,/g, "")
+    .trim();
+
+  if (!text || text === "-" || text === "—") {
+    return 0;
+  }
+
+  const isNegativeByBracket = /^\(.*\)$/.test(text);
+  const normalized = text.replace(/[()]/g, "");
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return isNegativeByBracket ? -Math.abs(parsed) : parsed;
 };
 
 const normalizePaymentMode = (value: unknown): TLegacySalaryPaymentMode => {
@@ -527,13 +630,13 @@ const getSingleLegacySalaryImportBatchFromDB = async (id: string) => {
     throw new AppError(HTTP_STATUS.NOT_FOUND, "Legacy salary import batch not found");
   }
 
-  const records = await LegacySalaryRecord.find({ batch: id }).sort({ rowNo: 1 }).limit(500).lean();
+  const records = await LegacySalaryRecord.find({ batch: id, ...ACTIVE_RECORD_FILTER }).sort({ rowNo: 1 }).limit(500).lean();
 
   return { batch, records };
 };
 
 const buildRecordFilter = (query: TLegacySalaryRecordQuery = {}) => {
-  const filter: Record<string, any> = {};
+  const filter: Record<string, any> = { ...ACTIVE_RECORD_FILTER };
 
   if (query.batch) filter.batch = new Types.ObjectId(query.batch);
   if (query.payrollMonth) filter.payrollMonth = query.payrollMonth;
@@ -632,6 +735,8 @@ const deleteLegacySalaryImportBatchFromDB = async (
 
   const updated = await LegacySalaryImportBatch.findByIdAndUpdate(id, update, { new: true }).lean();
 
+  await LegacySalaryRecord.updateMany({ batch: id, isDeleted: { $ne: true } }, update);
+
   return updated;
 };
 
@@ -653,12 +758,21 @@ const restoreLegacySalaryImportBatchFromDB = async (
 
   const updated = await LegacySalaryImportBatch.findByIdAndUpdate(id, update, { new: true }).lean();
 
+  await LegacySalaryRecord.updateMany({ batch: id, isDeleted: true }, update);
+
   return updated;
 };
 
 const parseLegacySalaryExcelBase64 = async (
   payload: TLegacySalaryParseExcelPayload,
 ): Promise<TLegacySalaryParsedExcelResult> => {
+  if (/\.xls$/i.test(payload.fileName) && !/\.xlsx$/i.test(payload.fileName)) {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Legacy salary import currently supports .xlsx files. Please save the old .xls file as .xlsx first.",
+    );
+  }
+
   const workbook = new ExcelJS.Workbook();
   const base64 = payload.fileBase64.includes(",")
     ? payload.fileBase64.split(",").pop() || ""
@@ -682,11 +796,26 @@ const parseLegacySalaryExcelBase64 = async (
 
   const headerRowNumber = payload.headerRow || 1;
   const dataStartRow = payload.dataStartRow || headerRowNumber + 1;
+
+  if (dataStartRow <= headerRowNumber) {
+    throw new AppError(HTTP_STATUS.BAD_REQUEST, "Data start row must be after header row");
+  }
+
   const headerRow = worksheet.getRow(headerRowNumber);
   const headers: string[] = [];
+  const mappedHeaders: (keyof TLegacySalaryImportRowInput | undefined)[] = [];
+  const unmappedHeaderSet = new Set<string>();
 
   headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-    headers[colNumber - 1] = normalizeHeader(cell.value);
+    const normalizedHeader = normalizeHeader(cell.value);
+    headers[colNumber - 1] = normalizedHeader;
+
+    const mappedHeader = mapExcelHeaderToImportField(normalizedHeader);
+    if (mappedHeader) {
+      mappedHeaders[colNumber - 1] = mappedHeader;
+    } else if (normalizedHeader) {
+      unmappedHeaderSet.add(normalizedHeader);
+    }
   });
 
   if (!headers.filter(Boolean).length) {
@@ -702,6 +831,8 @@ const parseLegacySalaryExcelBase64 = async (
     }
 
     const rawPayload: Record<string, unknown> = {};
+    const mappedPayload: Partial<TLegacySalaryImportRowInput> = {};
+    const rowUnmappedHeaders = new Set<string>();
     let hasValue = false;
 
     headers.forEach((header, index) => {
@@ -713,15 +844,36 @@ const parseLegacySalaryExcelBase64 = async (
       const normalizedValue = normalizeCellValue(value);
       rawPayload[header] = normalizedValue;
 
+      const mappedHeader = mappedHeaders[index];
+      if (mappedHeader) {
+        (mappedPayload as Record<string, unknown>)[mappedHeader] = normalizeImportMappedValue(mappedHeader, normalizedValue);
+      } else {
+        rowUnmappedHeaders.add(header);
+      }
+
       if (normalizedValue !== undefined && normalizedValue !== null && normalizedValue !== "") {
         hasValue = true;
       }
     });
 
     if (hasValue) {
-      rows.push({ rowNo: rowNumber, rawPayload });
+      rows.push({
+        rowNo: rowNumber,
+        rawPayload,
+        mappedPayload,
+        unmappedHeaders: Array.from(rowUnmappedHeaders),
+      });
     }
   });
+
+  const noteList = [
+    "Parsed Excel data is stored as external legacy salary source data only.",
+    "Preview/commit should use mappedPayload rows after user review; native payroll calculation is not affected.",
+  ];
+
+  if (unmappedHeaderSet.size) {
+    noteList.push("Some Excel columns were not mapped automatically. Review unmappedHeaders before commit.");
+  }
 
   return {
     fileName: payload.fileName,
@@ -731,6 +883,9 @@ const parseLegacySalaryExcelBase64 = async (
     totalRows: rows.length,
     rows,
     headers: headers.filter(Boolean),
+    mappedHeaders: mappedHeaders.filter(Boolean).map(String),
+    unmappedHeaders: Array.from(unmappedHeaderSet),
+    notes: noteList,
   };
 };
 
@@ -745,18 +900,49 @@ const normalizeHeader = (value: unknown) => {
     .replace(/^./, (char) => char.toLowerCase());
 };
 
+const normalizeHeaderKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const mapExcelHeaderToImportField = (header: string): keyof TLegacySalaryImportRowInput | undefined => {
+  const directKey = header as keyof TLegacySalaryImportRowInput;
+
+  if (directKey in LEGACY_EXCEL_HEADER_MAP) {
+    return LEGACY_EXCEL_HEADER_MAP[directKey as string];
+  }
+
+  return LEGACY_EXCEL_HEADER_MAP[normalizeHeaderKey(header)];
+};
+
+const normalizeImportMappedValue = (
+  key: keyof TLegacySalaryImportRowInput,
+  value: unknown,
+): TLegacySalaryImportRowInput[keyof TLegacySalaryImportRowInput] => {
+  if (AMOUNT_FIELDS.includes(key as keyof TLegacySalaryAmountTotals) || key === "overtimeHour" || key === "overtimeRate") {
+    return toNumber(value);
+  }
+
+  if (key === "paymentMode") {
+    return normalizePaymentMode(value);
+  }
+
+  return normalizeString(value) as TLegacySalaryImportRowInput[keyof TLegacySalaryImportRowInput];
+};
+
 const normalizeCellValue = (value: unknown): unknown => {
   if (value === undefined || value === null) {
     return undefined;
   }
 
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+
   if (typeof value === "object") {
-    const richValue = value as { text?: string; result?: unknown; formula?: string; hyperlink?: string };
+    const richValue = value as { text?: string; result?: unknown; formula?: string; hyperlink?: string; richText?: { text?: string }[] };
 
     if (richValue.text) return richValue.text;
     if (richValue.result !== undefined) return richValue.result;
     if (richValue.hyperlink) return richValue.hyperlink;
-    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (Array.isArray(richValue.richText)) return richValue.richText.map((item) => item.text || "").join("");
   }
 
   return value;

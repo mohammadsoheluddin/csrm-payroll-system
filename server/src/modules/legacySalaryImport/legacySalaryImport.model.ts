@@ -167,13 +167,14 @@ const legacySalaryRecordSchema = new Schema<TLegacySalaryRecord>(
     payableAmount: { type: Number, default: 0 },
     remarks: { type: String, trim: true },
     rawPayload: { type: Schema.Types.Mixed },
+    ...softDeleteSchemaFields,
   },
   { timestamps: true },
 );
 
 legacySalaryRecordSchema.index({ batch: 1, rowNo: 1 }, { unique: true });
-legacySalaryRecordSchema.index({ payrollMonth: 1, company: 1, sheetType: 1 });
-legacySalaryRecordSchema.index({ employeeId: 1, officeId: 1, cardNo: 1 });
+legacySalaryRecordSchema.index({ payrollMonth: 1, company: 1, sheetType: 1, isDeleted: 1 });
+legacySalaryRecordSchema.index({ employeeId: 1, officeId: 1, cardNo: 1, isDeleted: 1 });
 
 export const LegacySalaryImportBatch = model<TLegacySalaryImportBatch>(
   "LegacySalaryImportBatch",
