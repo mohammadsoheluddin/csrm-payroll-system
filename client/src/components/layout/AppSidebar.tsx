@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 
 import { Button } from '@/components/ui/Button'
+import { preloadRoute } from '@/app/router/routePreloaders'
 import { getVisibleSidebarGroups, sidebarExpandIcon } from '@/config/sidebar.config'
 import type { SidebarItem } from '@/config/sidebar.config'
 import { cn } from '@/lib/utils/cn'
@@ -33,6 +34,8 @@ const SidebarNavItem = ({ item, isCollapsed, onNavigate }: SidebarNavItemProps) 
     return (
       <NavLink
         to={item.href}
+        onMouseEnter={() => preloadRoute(item.href)}
+        onFocus={() => preloadRoute(item.href)}
         onClick={onNavigate}
         className={({ isActive: isLinkActive }) =>
           cn(
@@ -76,6 +79,8 @@ const SidebarNavItem = ({ item, isCollapsed, onNavigate }: SidebarNavItemProps) 
             <NavLink
               key={child.href}
               to={child.href}
+              onMouseEnter={() => preloadRoute(child.href)}
+              onFocus={() => preloadRoute(child.href)}
               onClick={onNavigate}
               className={({ isActive: isChildActive }) =>
                 cn(

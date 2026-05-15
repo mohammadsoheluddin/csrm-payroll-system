@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { PropsWithChildren } from 'react'
 
+import { preloadLikelyRoutesAfterLogin } from '@/app/router/routePreloaders'
 import { getMyProfile, refreshAccessToken } from '@/features/auth/api/auth.api'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         }
 
         setAuthenticated({ accessToken, user })
+        preloadLikelyRoutesAfterLogin()
       } catch {
         if (!isMounted) {
           return

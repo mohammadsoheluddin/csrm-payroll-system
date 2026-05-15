@@ -1,223 +1,171 @@
+import type { ReactNode } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import { AppLayout } from '@/components/layout/AppLayout'
 import { routePaths } from '@/config/routePaths'
-import { LoginPage } from '@/features/auth/pages/LoginPage'
-import { AuditLogsPage } from '@/features/audit/pages/AuditLogsPage'
-import { RbacAuditPage } from '@/features/audit/pages/RbacAuditPage'
-import { AttendanceRegisterPage } from '@/features/attendance-leave/pages/AttendanceRegisterPage'
-import { LeaveApplicationsPage } from '@/features/attendance-leave/pages/LeaveApplicationsPage'
-import { DashboardPage } from '@/features/dashboard/pages/DashboardPage'
 import { getMasterDataModuleByPath } from '@/features/master-data/config/masterData.config'
-import { EmployeeDirectoryPage } from '@/features/employees/pages/EmployeeDirectoryPage'
-import { MasterDataFoundationPage } from '@/features/master-data/pages/MasterDataFoundationPage'
-import { PayrollRunPage } from '@/features/payroll/pages/PayrollRunPage'
-import { SalaryStructuresPage } from '@/features/payroll/pages/SalaryStructuresPage'
-import { PayrollWorkflowPage } from '@/features/payroll/pages/PayrollWorkflowPage'
-import { BankSheetsPage } from '@/features/reports/pages/BankSheetsPage'
-import { MonthEndControlPage } from '@/features/reports/pages/MonthEndControlPage'
-import { ReportCenterPage } from '@/features/reports/pages/ReportCenterPage'
-import { ReportLayoutStandardsPage } from '@/features/reports/pages/ReportLayoutStandardsPage'
-import { SalarySummaryReportPage } from '@/features/reports/pages/SalarySummaryReportPage'
 import { payrollWorkflowModules } from '@/features/payroll/config/payrollWorkflow.config'
-import { ThemeSettingsPage } from '@/features/settings/ThemeSettingsPage'
-import { ForbiddenPage } from '@/features/system/pages/ForbiddenPage'
-import { ModulePlaceholderPage } from '@/features/system/pages/ModulePlaceholderPage'
-import { NotFoundPage } from '@/features/system/pages/NotFoundPage'
-import { SessionExpiredPage } from '@/features/system/pages/SessionExpiredPage'
 
 import { ProtectedRoute } from './ProtectedRoute'
 import { PublicOnlyRoute } from './PublicOnlyRoute'
-import { appRouteConfig } from './routeConfig'
+import { RouteLoadingFallback } from './RouteLoadingFallback'
+import { appRouteConfig, type AppRouteConfigItem } from './routeConfig'
+import { withRouteSuspense } from './lazyRoute'
+
+import {
+  AttendanceRegisterPage,
+  AuditLogsPage,
+  BankSheetsPage,
+  DashboardPage,
+  EmployeeDirectoryPage,
+  ForbiddenPage,
+  LeaveApplicationsPage,
+  LoginPage,
+  MasterDataFoundationPage,
+  ModulePlaceholderPage,
+  MonthEndControlPage,
+  NotFoundPage,
+  PayrollRunPage,
+  PayrollWorkflowPage,
+  RbacAuditPage,
+  ReportCenterPage,
+  ReportLayoutStandardsPage,
+  SalaryStructuresPage,
+  SalarySummaryReportPage,
+  SessionExpiredPage,
+  ThemeSettingsPage,
+} from './lazyPages'
+
+const routeFallback = (routeTitle: string) => (
+  <RouteLoadingFallback
+    title={`Loading ${routeTitle}`}
+    message="This module is loaded only when needed to keep the first screen fast."
+  />
+)
+
+const protectedElement = (route: AppRouteConfigItem, child: ReactNode) => (
+  <ProtectedRoute requiredPermissions={route.requiredPermissions}>
+    {withRouteSuspense(child, routeFallback(route.shortTitle ?? route.title))}
+  </ProtectedRoute>
+)
 
 const appRoutes = appRouteConfig.map((route) => {
   if (route.path === routePaths.dashboard) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <DashboardPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <DashboardPage />),
     }
   }
 
   if (route.path === routePaths.themeSettings) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <ThemeSettingsPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <ThemeSettingsPage />),
     }
   }
-
 
   if (route.path === routePaths.employees) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <EmployeeDirectoryPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <EmployeeDirectoryPage />),
     }
   }
 
   if (route.path === routePaths.attendance) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <AttendanceRegisterPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <AttendanceRegisterPage />),
     }
   }
 
   if (route.path === routePaths.leave) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <LeaveApplicationsPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <LeaveApplicationsPage />),
     }
   }
-
 
   if (route.path === routePaths.payroll) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <PayrollRunPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <PayrollRunPage />),
     }
   }
 
   if (route.path === routePaths.salaryStructures) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <SalaryStructuresPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <SalaryStructuresPage />),
     }
   }
 
   if (route.path === routePaths.salarySheets) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <PayrollWorkflowPage module={payrollWorkflowModules.salarySheets} />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <PayrollWorkflowPage module={payrollWorkflowModules.salarySheets} />),
     }
   }
 
   if (route.path === routePaths.salaryStatements) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <PayrollWorkflowPage module={payrollWorkflowModules.salaryStatements} />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <PayrollWorkflowPage module={payrollWorkflowModules.salaryStatements} />),
     }
   }
 
   if (route.path === routePaths.salaryPaymentDistributions) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <PayrollWorkflowPage module={payrollWorkflowModules.salaryPaymentDistributions} />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <PayrollWorkflowPage module={payrollWorkflowModules.salaryPaymentDistributions} />),
     }
   }
-
 
   if (route.path === routePaths.bankSheets) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <BankSheetsPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <BankSheetsPage />),
     }
   }
 
   if (route.path === routePaths.reportCenter) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <ReportCenterPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <ReportCenterPage />),
     }
   }
 
   if (route.path === routePaths.salarySummary) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <SalarySummaryReportPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <SalarySummaryReportPage />),
     }
   }
 
   if (route.path === routePaths.reportLayoutStandards) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <ReportLayoutStandardsPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <ReportLayoutStandardsPage />),
     }
   }
 
   if (route.path === routePaths.monthEndControl) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <MonthEndControlPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <MonthEndControlPage />),
     }
   }
 
   if (route.path === routePaths.auditLogs) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <AuditLogsPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <AuditLogsPage />),
     }
   }
 
   if (route.path === routePaths.rbacAudit) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <RbacAuditPage />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <RbacAuditPage />),
     }
   }
 
@@ -226,21 +174,13 @@ const appRoutes = appRouteConfig.map((route) => {
   if (masterDataModule) {
     return {
       path: route.path,
-      element: (
-        <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-          <MasterDataFoundationPage module={masterDataModule} />
-        </ProtectedRoute>
-      ),
+      element: protectedElement(route, <MasterDataFoundationPage module={masterDataModule} />),
     }
   }
 
   return {
     path: route.path,
-    element: (
-      <ProtectedRoute requiredPermissions={route.requiredPermissions}>
-        <ModulePlaceholderPage route={route} />
-      </ProtectedRoute>
-    ),
+    element: protectedElement(route, <ModulePlaceholderPage route={route} />),
   }
 })
 
@@ -253,17 +193,17 @@ export const router = createBrowserRouter([
     path: routePaths.login,
     element: (
       <PublicOnlyRoute>
-        <LoginPage />
+        {withRouteSuspense(<LoginPage />, routeFallback('Login'))}
       </PublicOnlyRoute>
     ),
   },
   {
     path: routePaths.sessionExpired,
-    element: <SessionExpiredPage />,
+    element: withRouteSuspense(<SessionExpiredPage />, routeFallback('Session Expired')),
   },
   {
     path: routePaths.forbidden,
-    element: <ForbiddenPage />,
+    element: withRouteSuspense(<ForbiddenPage />, routeFallback('Forbidden')),
   },
   {
     element: <AppLayout />,
@@ -271,6 +211,6 @@ export const router = createBrowserRouter([
   },
   {
     path: '*',
-    element: <NotFoundPage />,
+    element: withRouteSuspense(<NotFoundPage />, routeFallback('Page Not Found')),
   },
 ])
