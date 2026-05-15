@@ -20,6 +20,7 @@ import {
   EmployeeDirectoryPage,
   ForbiddenPage,
   LeaveApplicationsPage,
+  LegacySalaryImportPage,
   LoginPage,
   MasterDataFoundationPage,
   ModulePlaceholderPage,
@@ -117,6 +118,13 @@ const appRoutes = appRouteConfig.map((route) => {
     return {
       path: route.path,
       element: protectedElement(route, <PayrollWorkflowPage module={payrollWorkflowModules.salaryPaymentDistributions} />),
+    }
+  }
+
+  if (route.path === routePaths.legacySalaryImports) {
+    return {
+      path: route.path,
+      element: protectedElement(route, <LegacySalaryImportPage />),
     }
   }
 

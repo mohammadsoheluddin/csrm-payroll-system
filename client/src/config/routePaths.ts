@@ -33,6 +33,7 @@ export const routePaths = {
   salarySheets: '/salary/sheets',
   salaryStatements: '/salary/statements',
   salaryPaymentDistributions: '/salary/payment-distributions',
+  legacySalaryImports: '/salary/legacy-imports',
 
   timeBills: '/time-bill',
   otStatements: '/time-bill/ot-statements',

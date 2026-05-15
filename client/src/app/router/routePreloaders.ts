@@ -21,6 +21,7 @@ const preloaders: Partial<Record<string, () => Promise<unknown>>> = {
   [routePaths.salarySheets]: () => import('@/features/payroll/pages/PayrollWorkflowPage'),
   [routePaths.salaryStatements]: () => import('@/features/payroll/pages/PayrollWorkflowPage'),
   [routePaths.salaryPaymentDistributions]: () => import('@/features/payroll/pages/PayrollWorkflowPage'),
+  [routePaths.legacySalaryImports]: () => import('@/features/legacy-salary-import/pages/LegacySalaryImportPage'),
 
   [routePaths.bankSheets]: () => import('@/features/reports/pages/BankSheetsPage'),
   [routePaths.reportCenter]: () => import('@/features/reports/pages/ReportCenterPage'),

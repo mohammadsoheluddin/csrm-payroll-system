@@ -38,6 +38,7 @@ const frontendRoutes = [
   { area: 'Salary', path: '/salary/sheets' },
   { area: 'Salary', path: '/salary/statements' },
   { area: 'Salary', path: '/salary/payment-distributions' },
+  { area: 'Salary', path: '/salary/legacy-imports' },
   { area: 'Reports', path: '/reports/center' },
   { area: 'Reports', path: '/reports/salary-summary' },
   { area: 'Reports', path: '/bank-sheets' },

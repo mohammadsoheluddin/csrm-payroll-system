@@ -21,6 +21,9 @@ export const LeaveApplicationsPage = lazy(() =>
 export const PayrollRunPage = lazy(() =>
   import('@/features/payroll/pages/PayrollRunPage').then((module) => ({ default: module.PayrollRunPage })),
 )
+export const LegacySalaryImportPage = lazy(() =>
+  import('@/features/legacy-salary-import/pages/LegacySalaryImportPage').then((module) => ({ default: module.LegacySalaryImportPage })),
+)
 export const SalaryStructuresPage = lazy(() =>
   import('@/features/payroll/pages/SalaryStructuresPage').then((module) => ({ default: module.SalaryStructuresPage })),
 )

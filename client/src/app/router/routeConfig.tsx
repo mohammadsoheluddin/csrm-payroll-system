@@ -242,6 +242,17 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     requiredPermissions: [PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_READ],
     status: 'ready',
   },
+
+  {
+    path: routePaths.legacySalaryImports,
+    title: 'Legacy Salary Import',
+    shortTitle: 'Legacy Salary',
+    description: 'Upload, preview, commit, search, summarize, and export external salary sheets without changing native payroll.',
+    section: 'Payroll Engine',
+    breadcrumbs: ['Salary', 'Legacy Import'],
+    requiredPermissions: [PERMISSIONS.LEGACY_SALARY_IMPORT_READ],
+    status: 'ready',
+  },
   {
     path: routePaths.timeBills,
     title: 'Time Bill / OT Bill',

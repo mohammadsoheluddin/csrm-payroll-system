@@ -52,6 +52,13 @@ export const queryKeys = {
     bankSheet: (params?: Record<string, unknown>) => ['reports', 'bank-sheet', params ?? {}] as const,
     monthlyPayroll: (params?: Record<string, unknown>) => ['reports', 'monthly-payroll', params ?? {}] as const,
   },
+
+  legacySalaryImport: {
+    root: ['legacy-salary-import'] as const,
+    batches: (mode: string, params?: Record<string, unknown>) => ['legacy-salary-import', 'batches', mode, params ?? {}] as const,
+    records: (params?: Record<string, unknown>) => ['legacy-salary-import', 'records', params ?? {}] as const,
+    summary: (params?: Record<string, unknown>) => ['legacy-salary-import', 'summary', params ?? {}] as const,
+  },
   audit: {
     logs: (params?: Record<string, unknown>) => ['audit', 'logs', params ?? {}] as const,
     summary: (params?: Record<string, unknown>) => ['audit', 'summary', params ?? {}] as const,

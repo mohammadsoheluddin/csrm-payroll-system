@@ -204,6 +204,12 @@ export const sidebarGroups: SidebarGroup[] = [
             href: routePaths.salaryPaymentDistributions,
             requiredPermissions: [PERMISSIONS.SALARY_PAYMENT_DISTRIBUTION_READ],
           },
+          {
+            label: 'Legacy Salary Import',
+            href: routePaths.legacySalaryImports,
+            requiredPermissions: [PERMISSIONS.LEGACY_SALARY_IMPORT_READ],
+            badge: 'B52',
+          },
         ],
       },
       {

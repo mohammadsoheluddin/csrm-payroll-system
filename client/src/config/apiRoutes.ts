@@ -153,6 +153,21 @@ export const apiRoutes = {
     exportExcel: '/salary-summary/export/excel',
     exportPdf: '/salary-summary/export/pdf',
   },
+  legacySalaryImports: {
+    root: '/legacy-salary-imports',
+    templateCsv: '/legacy-salary-imports/template/csv',
+    templateExcel: '/legacy-salary-imports/template/excel',
+    parseExcel: '/legacy-salary-imports/parse-excel',
+    preview: '/legacy-salary-imports/preview',
+    commit: '/legacy-salary-imports/commit',
+    deleted: '/legacy-salary-imports/deleted',
+    records: '/legacy-salary-imports/records',
+    summary: '/legacy-salary-imports/summary',
+    exportCsv: '/legacy-salary-imports/records/export/csv',
+    exportExcel: '/legacy-salary-imports/records/export/excel',
+    detail: (id: string) => `/legacy-salary-imports/${id}`,
+    restore: (id: string) => `/legacy-salary-imports/${id}/restore`,
+  },
 } as const
 
 export type ApiRouteMap = typeof apiRoutes
