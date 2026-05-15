@@ -33,8 +33,123 @@ export const cleanupQueryParams = <TParams extends Record<string, unknown>>(para
   }, {})
 }
 
+export const pickFilledQueryParams = <TParams extends Record<string, unknown>>(
+  params: TParams,
+  keys: Array<keyof TParams>,
+) => {
+  return keys.reduce<Record<string, string | number | boolean>>((acc, key) => {
+    const value = params[key]
+
+    if (isFilled(value)) {
+      acc[String(key)] = value as string | number | boolean
+    }
+
+    return acc
+  }, {})
+}
+
+export const getAuditListQueryParams = (filters: AuditLogFilters) => {
+  return pickFilledQueryParams(filters, [
+    'searchTerm',
+    'module',
+    'action',
+    'riskLevel',
+    'category',
+    'actorEmail',
+    'actorRole',
+    'entityId',
+    'requestId',
+    'requestMethod',
+    'requestPath',
+    'ipAddress',
+    'networkType',
+    'deviceType',
+    'fromDate',
+    'toDate',
+    'includeData',
+    'sensitiveOnly',
+    'sortBy',
+    'sortOrder',
+    'page',
+    'limit',
+  ])
+}
+
+export const getSensitiveAuditQueryParams = (filters: AuditLogFilters) => {
+  return pickFilledQueryParams(filters, [
+    'module',
+    'action',
+    'riskLevel',
+    'category',
+    'actorEmail',
+    'actorRole',
+    'entityId',
+    'fromDate',
+    'toDate',
+    'includeData',
+    'page',
+    'limit',
+  ])
+}
+
+export const getAuditSummaryQueryParams = (filters: AuditLogFilters) => {
+  return pickFilledQueryParams(filters, [
+    'module',
+    'action',
+    'riskLevel',
+    'category',
+    'actorRole',
+    'actorEmail',
+    'entityId',
+    'ipAddress',
+    'networkType',
+    'deviceType',
+    'fromDate',
+    'toDate',
+  ])
+}
+
+export const getRbacFilterQueryParams = (filters: RbacAuditFilters): RbacAuditFilters => {
+  return Object.entries(filters).reduce<RbacAuditFilters>((acc, [key, value]) => {
+    if (['module', 'role', 'category', 'riskLevel'].includes(key) && typeof value === 'string' && value.trim()) {
+      acc[key] = value
+    }
+
+    return acc
+  }, {})
+}
+
+export const getRbacModuleQueryParams = (filters: RbacAuditFilters): RbacAuditFilters => {
+  return Object.entries(filters).reduce<RbacAuditFilters>((acc, [key, value]) => {
+    if (['module', 'category'].includes(key) && typeof value === 'string' && value.trim()) {
+      acc[key] = value
+    }
+
+    return acc
+  }, {})
+}
+
+export const isSensitiveOnlyMode = (filters: AuditLogFilters) => filters.sensitiveOnly === 'true'
+
+export const canUseDedicatedSensitiveAuditRoute = (filters: AuditLogFilters) => {
+  return isSensitiveOnlyMode(filters) && !filters.searchTerm && !filters.requestId && !filters.requestPath && !filters.ipAddress && !filters.deviceType
+}
+
+export const isValidObjectId = (value?: string) => Boolean(value && /^[0-9a-fA-F]{24}$/.test(value))
+
 export const getAuditLogId = (record: AuditLogRecord) => {
-  return record._id ?? record.id ?? `${record.module ?? 'audit'}-${record.action ?? 'event'}-${record.createdAt ?? Math.random()}`
+  const value = record._id ?? record.id
+
+  if (typeof value === 'string' && value.trim()) {
+    return value
+  }
+
+  return `${record.module ?? 'audit'}-${record.action ?? 'event'}-${record.createdAt ?? record.requestId ?? 'row'}`
+}
+
+export const getAuditLogDetailId = (record: AuditLogRecord | null) => {
+  const value = record?._id ?? record?.id
+  return typeof value === 'string' && isValidObjectId(value) ? value : ''
 }
 
 export const getAuditLogTitle = (record: AuditLogRecord) => {
@@ -50,6 +165,10 @@ export const getRiskBadgeVariant = (riskLevel?: AuditRiskLevel) => {
 
   if (riskLevel === 'medium') {
     return 'warning' as const
+  }
+
+  if (riskLevel === 'low') {
+    return 'success' as const
   }
 
   return 'muted' as const

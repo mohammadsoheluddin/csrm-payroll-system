@@ -24,6 +24,9 @@ export type AuditLogRecord = Record<string, unknown> & {
   requestMethod?: string
   requestPath?: string
   requestUrl?: string
+  requestOriginalUrl?: string
+  requestQuery?: Record<string, unknown> | null
+  userAgent?: string
   ipAddress?: string
   networkType?: string
   deviceType?: string

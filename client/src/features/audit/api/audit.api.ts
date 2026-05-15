@@ -14,29 +14,46 @@ import type {
   RbacRoleSummary,
   RbacRouteCoverageItem,
 } from '@/features/audit/types/audit.types'
-import { cleanupQueryParams } from '@/features/audit/utils/audit.utils'
+import {
+  cleanupQueryParams,
+  getAuditListQueryParams,
+  getAuditSummaryQueryParams,
+  getRbacFilterQueryParams,
+  getRbacModuleQueryParams,
+  getSensitiveAuditQueryParams,
+} from '@/features/audit/utils/audit.utils'
 import { apiClient } from '@/lib/api/httpClient'
 import { unwrapApiData, unwrapApiResult } from '@/lib/api/apiResponse'
 
+const ensureArray = <TData>(value: unknown): TData[] => (Array.isArray(value) ? value as TData[] : [])
+
 export const getAuditLogs = async (params: AuditLogFilters) => {
   const response = await apiClient.get(apiRoutes.auditLogs.root, {
-    params: cleanupQueryParams(params),
+    params: getAuditListQueryParams(params),
   })
+  const result = unwrapApiResult<AuditLogRecord[]>(response)
 
-  return unwrapApiResult<AuditLogRecord[]>(response)
+  return {
+    ...result,
+    data: ensureArray<AuditLogRecord>(result.data),
+  }
 }
 
 export const getSensitiveAuditLogs = async (params: AuditLogFilters) => {
   const response = await apiClient.get(apiRoutes.auditLogs.sensitive, {
-    params: cleanupQueryParams(params),
+    params: getSensitiveAuditQueryParams(params),
   })
+  const result = unwrapApiResult<AuditLogRecord[]>(response)
 
-  return unwrapApiResult<AuditLogRecord[]>(response)
+  return {
+    ...result,
+    data: ensureArray<AuditLogRecord>(result.data),
+  }
 }
 
 export const getAuditSummary = async (params: AuditLogFilters) => {
   const response = await apiClient.get(apiRoutes.auditLogs.summary, {
-    params: cleanupQueryParams(params),
+    params: getAuditSummaryQueryParams(params),
   })
 
   return unwrapApiData<AuditSummary>(response)
@@ -44,7 +61,7 @@ export const getAuditSummary = async (params: AuditLogFilters) => {
 
 export const getAuditTimeline = async (params: AuditLogFilters & { groupBy?: string }) => {
   const response = await apiClient.get(apiRoutes.auditLogs.timeline, {
-    params: cleanupQueryParams({ ...params, groupBy: params.groupBy ?? 'day', limit: 60 }),
+    params: cleanupQueryParams({ ...getAuditSummaryQueryParams(params), groupBy: params.groupBy ?? 'day', limit: 60 }),
   })
 
   return unwrapApiData<AuditTimeline>(response)
@@ -72,39 +89,39 @@ export const getRbacAuditSummary = async () => {
 
 export const getRbacModules = async (params: RbacAuditFilters) => {
   const response = await apiClient.get(apiRoutes.rbacAudit.modules, {
-    params: cleanupQueryParams(params),
+    params: getRbacModuleQueryParams(params),
   })
 
-  return unwrapApiData<RbacModuleDefinition[]>(response)
+  return ensureArray<RbacModuleDefinition>(unwrapApiData<RbacModuleDefinition[]>(response))
 }
 
 export const getRbacPermissions = async (params: RbacAuditFilters) => {
   const response = await apiClient.get(apiRoutes.rbacAudit.permissions, {
-    params: cleanupQueryParams(params),
+    params: getRbacFilterQueryParams(params),
   })
 
-  return unwrapApiData<RbacPermissionDefinition[]>(response)
+  return ensureArray<RbacPermissionDefinition>(unwrapApiData<RbacPermissionDefinition[]>(response))
 }
 
 export const getRbacRoles = async (params: RbacAuditFilters) => {
   const response = await apiClient.get(apiRoutes.rbacAudit.roles, {
-    params: cleanupQueryParams(params),
+    params: getRbacFilterQueryParams(params),
   })
 
-  return unwrapApiData<RbacRoleSummary[]>(response)
+  return ensureArray<RbacRoleSummary>(unwrapApiData<RbacRoleSummary[]>(response))
 }
 
 export const getRbacMatrix = async (params: RbacAuditFilters) => {
   const response = await apiClient.get(apiRoutes.rbacAudit.matrix, {
-    params: cleanupQueryParams(params),
+    params: getRbacFilterQueryParams(params),
   })
 
-  return unwrapApiData<RbacMatrixRow[]>(response)
+  return ensureArray<RbacMatrixRow>(unwrapApiData<RbacMatrixRow[]>(response))
 }
 
 export const getRbacCoverage = async (params: RbacAuditFilters) => {
   const response = await apiClient.get(apiRoutes.rbacAudit.coverage, {
-    params: cleanupQueryParams(params),
+    params: getRbacFilterQueryParams(params),
   })
 
   return unwrapApiData<RbacCoverageSummary>(response)
@@ -112,8 +129,8 @@ export const getRbacCoverage = async (params: RbacAuditFilters) => {
 
 export const getRbacRouteCoverage = async (params: RbacAuditFilters) => {
   const response = await apiClient.get(apiRoutes.rbacAudit.routeCoverage, {
-    params: cleanupQueryParams(params),
+    params: getRbacModuleQueryParams(params),
   })
 
-  return unwrapApiData<RbacRouteCoverageItem[]>(response)
+  return ensureArray<RbacRouteCoverageItem>(unwrapApiData<RbacRouteCoverageItem[]>(response))
 }

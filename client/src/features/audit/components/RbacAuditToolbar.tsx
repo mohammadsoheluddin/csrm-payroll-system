@@ -21,7 +21,8 @@ type RbacAuditToolbarProps = {
 
 export const RbacAuditToolbar = ({ filters, modules, onChange, onRefresh, isLoading }: RbacAuditToolbarProps) => {
   const setFilter = (key: keyof RbacAuditFilters, value: string) => {
-    onChange({ ...filters, [key]: value })
+    const nextFilters = { ...filters, [key]: value || undefined }
+    onChange(nextFilters)
   }
 
   return (

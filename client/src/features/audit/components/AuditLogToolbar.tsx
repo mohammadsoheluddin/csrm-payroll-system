@@ -17,7 +17,7 @@ const inputClass = 'h-10 rounded-xl border border-border bg-background px-3 text
 
 export const AuditLogToolbar = ({ filters, options, onChange, onRefresh, isLoading }: AuditLogToolbarProps) => {
   const setFilter = (key: keyof AuditLogFilters, value: string | number | boolean | undefined) => {
-    onChange({ ...filters, [key]: value, page: 1 })
+    onChange({ ...filters, [key]: value === '' ? undefined : value, page: 1 })
   }
 
   return (

@@ -15,7 +15,7 @@ import { USER_ROLES } from '@/config/roles'
 import { getRbacAuditSummary, getRbacCoverage, getRbacMatrix, getRbacModules, getRbacRoles, getRbacRouteCoverage } from '@/features/audit/api/audit.api'
 import { RbacAuditToolbar } from '@/features/audit/components/RbacAuditToolbar'
 import type { RbacAuditFilters, RbacMatrixRow, RbacRouteCoverageItem } from '@/features/audit/types/audit.types'
-import { DEFAULT_RBAC_FILTERS, getCoverageBadgeVariant, getIssueBadgeVariant } from '@/features/audit/utils/audit.utils'
+import { DEFAULT_RBAC_FILTERS, getCoverageBadgeVariant, getIssueBadgeVariant, getRbacFilterQueryParams, getRbacModuleQueryParams } from '@/features/audit/utils/audit.utils'
 import { formatDateTime, toTitleCase } from '@/lib/format/record.utils'
 import { queryKeys } from '@/lib/query/queryKeys'
 import { useAuthStore } from '@/stores/auth.store'
@@ -44,7 +44,7 @@ const routeCoverageColumns: SimpleDataTableColumn<RbacRouteCoverageItem>[] = [
   {
     key: 'requiredPermissions',
     label: 'Required / Available',
-    render: (record) => `${record.availablePermissions?.length ?? 0} / ${record.requiredPermissions?.length ?? 0}`,
+    render: (record) => `${record.requiredPermissions?.length ?? 0} / ${record.availablePermissions?.length ?? 0}`,
   },
   {
     key: 'missingPermissions',
@@ -88,39 +88,42 @@ export const RbacAuditPage = () => {
   const canRead = canAccess([PERMISSIONS.RBAC_AUDIT_READ])
   const [filters, setFilters] = useState<RbacAuditFilters>(DEFAULT_RBAC_FILTERS)
 
+  const rbacQueryParams = getRbacFilterQueryParams(filters)
+  const rbacModuleQueryParams = getRbacModuleQueryParams(filters)
+
   const modulesQuery = useQuery({
-    queryKey: queryKeys.audit.rbacModules({}),
-    queryFn: () => getRbacModules({}),
+    queryKey: queryKeys.audit.rbacModules(rbacModuleQueryParams),
+    queryFn: () => getRbacModules(rbacModuleQueryParams),
     enabled: canRead,
   })
 
   const summaryQuery = useQuery({
-    queryKey: queryKeys.audit.rbacSummary(filters),
+    queryKey: queryKeys.audit.rbacSummary({}),
     queryFn: getRbacAuditSummary,
     enabled: canRead,
   })
 
   const rolesQuery = useQuery({
-    queryKey: queryKeys.audit.rbacRoles(filters),
-    queryFn: () => getRbacRoles(filters),
+    queryKey: queryKeys.audit.rbacRoles(rbacQueryParams),
+    queryFn: () => getRbacRoles(rbacQueryParams),
     enabled: canRead,
   })
 
   const matrixQuery = useQuery({
-    queryKey: queryKeys.audit.rbacMatrix(filters),
-    queryFn: () => getRbacMatrix(filters),
+    queryKey: queryKeys.audit.rbacMatrix(rbacQueryParams),
+    queryFn: () => getRbacMatrix(rbacQueryParams),
     enabled: canRead,
   })
 
   const coverageQuery = useQuery({
-    queryKey: queryKeys.audit.rbacCoverage(filters),
-    queryFn: () => getRbacCoverage(filters),
+    queryKey: queryKeys.audit.rbacCoverage(rbacQueryParams),
+    queryFn: () => getRbacCoverage(rbacQueryParams),
     enabled: canRead,
   })
 
   const routeCoverageQuery = useQuery({
-    queryKey: queryKeys.audit.rbacRouteCoverage(filters),
-    queryFn: () => getRbacRouteCoverage(filters),
+    queryKey: queryKeys.audit.rbacRouteCoverage(rbacModuleQueryParams),
+    queryFn: () => getRbacRouteCoverage(rbacModuleQueryParams),
     enabled: canRead,
   })
 
@@ -149,10 +152,10 @@ export const RbacAuditPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Part-F12</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Part-F12.1</p>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">RBAC Audit</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Backend-connected permission, role, route coverage, and RBAC issue review screen using safe /rbac-audit sub-routes.
+            Backend-connected permission, role, route coverage, and RBAC issue review screen with endpoint-safe filters and route coverage normalization.
           </p>
         </div>
         <Button variant="outline" onClick={refreshAll} disabled={summaryQuery.isFetching || coverageQuery.isFetching}>

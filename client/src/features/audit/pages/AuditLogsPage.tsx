@@ -11,12 +11,12 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { PERMISSIONS } from '@/config/permissions'
-import { getAuditFilterOptions, getAuditLogs, getAuditSummary, getAuditTimeline } from '@/features/audit/api/audit.api'
+import { getAuditFilterOptions, getAuditLogs, getAuditSummary, getAuditTimeline, getSensitiveAuditLogs } from '@/features/audit/api/audit.api'
 import { AuditLogDetailDrawer } from '@/features/audit/components/AuditLogDetailDrawer'
 import { AuditLogToolbar } from '@/features/audit/components/AuditLogToolbar'
 import { AuditMetricCards } from '@/features/audit/components/AuditMetricCards'
 import type { AuditLogFilters, AuditLogRecord } from '@/features/audit/types/audit.types'
-import { DEFAULT_AUDIT_FILTERS, getAuditLogId, getRiskBadgeVariant, getTopSummaryRows, summarizeAuditMetrics } from '@/features/audit/utils/audit.utils'
+import { canUseDedicatedSensitiveAuditRoute, DEFAULT_AUDIT_FILTERS, getAuditLogId, getAuditSummaryQueryParams, getRiskBadgeVariant, getTopSummaryRows, summarizeAuditMetrics } from '@/features/audit/utils/audit.utils'
 import { formatDateTime, toTitleCase } from '@/lib/format/record.utils'
 import { queryKeys } from '@/lib/query/queryKeys'
 import { useAuthStore } from '@/stores/auth.store'
@@ -58,7 +58,7 @@ const auditColumns: SimpleDataTableColumn<AuditLogRecord>[] = [
     render: (record) => (
       <div>
         <p className="font-medium text-foreground">{record.entityName ?? '—'}</p>
-        <p className="text-xs text-muted-foreground">{record.entityId ?? '—'}</p>
+        <p className="text-xs text-muted-foreground">{record.entityId ?? record.requestId ?? '—'}</p>
       </div>
     ),
   },
@@ -76,17 +76,8 @@ export const AuditLogsPage = () => {
   const [filters, setFilters] = useState<AuditLogFilters>(DEFAULT_AUDIT_FILTERS)
   const [selectedRecord, setSelectedRecord] = useState<AuditLogRecord | null>(null)
 
-  const baseSummaryFilters = {
-    module: filters.module,
-    action: filters.action,
-    riskLevel: filters.riskLevel,
-    category: filters.category,
-    actorRole: filters.actorRole,
-    actorEmail: filters.actorEmail,
-    entityId: filters.entityId,
-    fromDate: filters.fromDate,
-    toDate: filters.toDate,
-  }
+  const baseSummaryFilters = getAuditSummaryQueryParams(filters)
+  const useSensitiveEndpoint = canUseDedicatedSensitiveAuditRoute(filters)
 
   const filterOptionsQuery = useQuery({
     queryKey: queryKeys.audit.filterOptions({ fromDate: filters.fromDate, toDate: filters.toDate }),
@@ -95,8 +86,8 @@ export const AuditLogsPage = () => {
   })
 
   const logsQuery = useQuery({
-    queryKey: queryKeys.audit.logs(filters),
-    queryFn: () => getAuditLogs(filters),
+    queryKey: useSensitiveEndpoint ? queryKeys.audit.sensitive(filters) : queryKeys.audit.logs(filters),
+    queryFn: () => (useSensitiveEndpoint ? getSensitiveAuditLogs(filters) : getAuditLogs(filters)),
     enabled: canRead,
   })
 
@@ -134,10 +125,10 @@ export const AuditLogsPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Part-F12</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Part-F12.1</p>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Audit Logs</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Backend-connected audit trail viewer for sensitive actions, approvals, exports, permission denials, and request metadata.
+            Backend-connected audit trail viewer with hardened filters, sensitive-mode routing, detail drawer safety, and request metadata preview.
           </p>
         </div>
         <Button variant="outline" onClick={refreshAll} disabled={logsQuery.isFetching || summaryQuery.isFetching}>
