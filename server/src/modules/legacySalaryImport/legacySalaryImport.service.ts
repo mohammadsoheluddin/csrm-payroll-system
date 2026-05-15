@@ -47,6 +47,7 @@ const AMOUNT_FIELDS: (keyof TLegacySalaryAmountTotals)[] = [
   "bankAmount",
   "cashAmount",
   "mobileBankAmount",
+  "suspenseAmount",
   "aitAmount",
   "loanAmount",
   "advanceAmount",
@@ -72,6 +73,7 @@ const EMPTY_TOTALS: TLegacySalaryAmountTotals = {
   bankAmount: 0,
   cashAmount: 0,
   mobileBankAmount: 0,
+  suspenseAmount: 0,
   aitAmount: 0,
   loanAmount: 0,
   advanceAmount: 0,
@@ -93,12 +95,18 @@ const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput>
   empid: "employeeId",
   employeeid: "employeeId",
   employeecode: "employeeId",
+  idno: "employeeId",
+  idnumber: "employeeId",
+  idnos: "employeeId",
   officeid: "officeId",
   officecode: "officeId",
   cardno: "cardNo",
   cardnumber: "cardNo",
   name: "employeeName",
   employeename: "employeeName",
+  nameofac: "employeeName",
+  nameofaccount: "employeeName",
+  accountname: "employeeName",
   company: "companyName",
   companyname: "companyName",
   majordepartment: "majorDepartmentName",
@@ -123,6 +131,7 @@ const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput>
   conveyance: "conveyanceAmount",
   tiffin: "tiffinAmount",
   tiffinamount: "tiffinAmount",
+  tiffinbill: "tiffinAmount",
   othour: "overtimeHour",
   overtimehour: "overtimeHour",
   overtimehours: "overtimeHour",
@@ -132,6 +141,9 @@ const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput>
   otamount: "overtimeAmount",
   overtime: "overtimeAmount",
   overtimeamount: "overtimeAmount",
+  totalovertimebill: "overtimeAmount",
+  totalotbill: "overtimeAmount",
+  otbill: "overtimeAmount",
   bonus: "bonusAmount",
   bonusamount: "bonusAmount",
   allowance: "otherAllowanceAmount",
@@ -139,11 +151,20 @@ const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput>
   otherallowanceamount: "otherAllowanceAmount",
   bank: "bankAmount",
   bankamount: "bankAmount",
+  banksalary: "bankAmount",
+  otbankamount: "bankAmount",
+  bankotamount: "bankAmount",
   cash: "cashAmount",
   cashamount: "cashAmount",
+  balance: "cashAmount",
+  baleance: "cashAmount",
   mobile: "mobileBankAmount",
   mobilebank: "mobileBankAmount",
   mobilebankamount: "mobileBankAmount",
+  suspense: "suspenseAmount",
+  suspence: "suspenseAmount",
+  suspenseamount: "suspenseAmount",
+  suspenceamount: "suspenseAmount",
   ait: "aitAmount",
   tax: "aitAmount",
   taxamount: "aitAmount",
@@ -156,6 +177,13 @@ const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput>
   stamp: "stampAmount",
   food: "foodAmount",
   absentdeduction: "absentDeductionAmount",
+  absencededuction: "absentDeductionAmount",
+  attdeduc: "absentDeductionAmount",
+  attdud: "absentDeductionAmount",
+  attendancededuction: "absentDeductionAmount",
+  deductamt: "totalDeductionAmount",
+  deductedamt: "totalDeductionAmount",
+  deductedamount: "totalDeductionAmount",
   leavededuction: "leaveDeductionAmount",
   otherdeduction: "otherDeductionAmount",
   totaldeduction: "totalDeductionAmount",
@@ -169,6 +197,10 @@ const LEGACY_EXCEL_HEADER_MAP: Record<string, keyof TLegacySalaryImportRowInput>
   remark: "remarks",
 };
 
+type LegacyExcelContext = {
+  majorDepartmentName?: string;
+  departmentName?: string;
+};
 
 const normalizeString = (value: unknown) => {
   if (value === undefined || value === null) {
@@ -369,6 +401,7 @@ const normalizeLegacySalaryRow = async (
   const bankAmount = toNumber(row.bankAmount);
   const cashAmount = toNumber(row.cashAmount);
   const mobileBankAmount = toNumber(row.mobileBankAmount);
+  const suspenseAmount = toNumber(row.suspenseAmount);
   const deductedAmount =
     toNumber(row.aitAmount) +
     toNumber(row.loanAmount) +
@@ -384,7 +417,7 @@ const normalizeLegacySalaryRow = async (
   const grossAmount = toNumber(row.grossAmount);
   const netAmount = toNumber(row.netAmount) || Math.max(grossAmount - totalDeductionAmount, 0);
   const payableAmount =
-    toNumber(row.payableAmount) || bankAmount + cashAmount + mobileBankAmount || netAmount;
+    toNumber(row.payableAmount) || netAmount || bankAmount + cashAmount + mobileBankAmount + suspenseAmount;
 
   const validRow: TLegacySalaryImportValidRow = {
     rowNo,
@@ -425,6 +458,7 @@ const normalizeLegacySalaryRow = async (
     bankAmount,
     cashAmount,
     mobileBankAmount,
+    suspenseAmount,
     aitAmount: toNumber(row.aitAmount),
     loanAmount: toNumber(row.loanAmount),
     advanceAmount: toNumber(row.advanceAmount),
@@ -706,6 +740,7 @@ const getLegacySalarySummaryFromDB = async (
     filters: query,
     rows: Array.from(groupMap.values()).sort((a, b) => a.groupName.localeCompare(b.groupName)),
     grandTotal,
+    totals: grandTotal,
   };
 };
 
@@ -763,6 +798,146 @@ const restoreLegacySalaryImportBatchFromDB = async (
   return updated;
 };
 
+const getNormalizedRowValues = (row: ExcelJS.Row) => {
+  const values: string[] = [];
+
+  row.eachCell({ includeEmpty: false }, (cell) => {
+    const normalized = normalizeString(normalizeCellValue(cell.value));
+    if (normalized && !values.includes(normalized)) {
+      values.push(normalized);
+    }
+  });
+
+  return values;
+};
+
+const getHeaderScore = (row: ExcelJS.Row) => {
+  let mappedCount = 0;
+  let hasIdentifierHeader = false;
+  let hasEmployeeNameHeader = false;
+
+  row.eachCell({ includeEmpty: false }, (cell) => {
+    const header = normalizeHeader(cell.value);
+    const mappedHeader = mapExcelHeaderToImportField(header);
+
+    if (mappedHeader) {
+      mappedCount += 1;
+    }
+
+    if (["employeeId", "officeId", "cardNo"].includes(String(mappedHeader))) {
+      hasIdentifierHeader = true;
+    }
+
+    if (mappedHeader === "employeeName") {
+      hasEmployeeNameHeader = true;
+    }
+  });
+
+  return {
+    mappedCount,
+    hasIdentifierHeader,
+    hasEmployeeNameHeader,
+    score: mappedCount + (hasIdentifierHeader ? 2 : 0) + (hasEmployeeNameHeader ? 2 : 0),
+  };
+};
+
+const detectLegacySalaryHeaderRow = (worksheet: ExcelJS.Worksheet, explicitHeaderRow?: number) => {
+  if (explicitHeaderRow) {
+    return explicitHeaderRow;
+  }
+
+  let bestRow = 1;
+  let bestScore = 0;
+  const scanUntil = Math.min(worksheet.rowCount || 1, 30);
+
+  for (let rowNumber = 1; rowNumber <= scanUntil; rowNumber += 1) {
+    const headerScore = getHeaderScore(worksheet.getRow(rowNumber));
+    const looksLikeSalaryHeader =
+      headerScore.mappedCount >= 3 &&
+      (headerScore.hasIdentifierHeader || headerScore.hasEmployeeNameHeader);
+
+    if (looksLikeSalaryHeader && headerScore.score > bestScore) {
+      bestRow = rowNumber;
+      bestScore = headerScore.score;
+    }
+  }
+
+  return bestScore > 0 ? bestRow : 1;
+};
+
+const cleanContextLabel = (value: string) =>
+  value
+    .replace(/sub\s*department\s+name/gi, "")
+    .replace(/department\s+name/gi, "")
+    .replace(/[:：]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const updateContextFromRow = (row: ExcelJS.Row, context: LegacyExcelContext): LegacyExcelContext => {
+  const values = getNormalizedRowValues(row);
+  const firstValue = values[0];
+
+  if (!firstValue) {
+    return context;
+  }
+
+  const lowerValue = firstValue.toLowerCase();
+
+  if (lowerValue.includes("department name") && !lowerValue.includes("sub department")) {
+    const majorDepartmentName = cleanContextLabel(firstValue);
+    return majorDepartmentName ? { majorDepartmentName } : context;
+  }
+
+  if (lowerValue.includes("sub department name")) {
+    const departmentName = cleanContextLabel(firstValue);
+    return departmentName ? { ...context, departmentName } : context;
+  }
+
+  const singleCellSectionLabel =
+    values.length === 1 &&
+    !isLegacySummaryOrFooterRow(values) &&
+    getHeaderScore(row).mappedCount === 0;
+
+  if (singleCellSectionLabel) {
+    return { ...context, departmentName: firstValue };
+  }
+
+  return context;
+};
+
+const isRepeatedHeaderRow = (row: ExcelJS.Row) => {
+  const headerScore = getHeaderScore(row);
+  return headerScore.mappedCount >= 3 && (headerScore.hasIdentifierHeader || headerScore.hasEmployeeNameHeader);
+};
+
+const isLegacySummaryOrFooterRow = (values: string[]) => {
+  const firstValue = normalizeString(values[0])?.toLowerCase() || "";
+  const combinedValue = values.join(" ").toLowerCase();
+
+  if (!firstValue) {
+    return true;
+  }
+
+  if (/^(total|net|gross|bank|cash|prepared by|checked by|approved by|signature|signatur)$/.test(firstValue)) {
+    return true;
+  }
+
+  return /(prepared by|checked by|accounts & finance|approved by)/.test(combinedValue);
+};
+
+const applyExcelContextToMappedPayload = (
+  mappedPayload: Partial<TLegacySalaryImportRowInput>,
+  context: LegacyExcelContext,
+) => {
+  if (!mappedPayload.majorDepartmentName && context.majorDepartmentName) {
+    mappedPayload.majorDepartmentName = context.majorDepartmentName;
+  }
+
+  if (!mappedPayload.departmentName && context.departmentName) {
+    mappedPayload.departmentName = context.departmentName;
+  }
+};
+
 const parseLegacySalaryExcelBase64 = async (
   payload: TLegacySalaryParseExcelPayload,
 ): Promise<TLegacySalaryParsedExcelResult> => {
@@ -794,7 +969,7 @@ const parseLegacySalaryExcelBase64 = async (
     throw new AppError(HTTP_STATUS.NOT_FOUND, "Worksheet not found");
   }
 
-  const headerRowNumber = payload.headerRow || 1;
+  const headerRowNumber = detectLegacySalaryHeaderRow(worksheet, payload.headerRow);
   const dataStartRow = payload.dataStartRow || headerRowNumber + 1;
 
   if (dataStartRow <= headerRowNumber) {
@@ -824,9 +999,31 @@ const parseLegacySalaryExcelBase64 = async (
 
   const rows: TLegacySalaryParsedExcelResult["rows"] = [];
   const maxRows = payload.maxRows || 5000;
+  let context: LegacyExcelContext = {};
+
+  for (let rowNumber = 1; rowNumber < dataStartRow; rowNumber += 1) {
+    context = updateContextFromRow(worksheet.getRow(rowNumber), context);
+  }
 
   worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     if (rowNumber < dataStartRow || rows.length >= maxRows) {
+      return;
+    }
+
+    const rowValues = getNormalizedRowValues(row);
+
+    if (!rowValues.length) {
+      return;
+    }
+
+    const updatedContext = updateContextFromRow(row, context);
+    const contextOnlyRow =
+      updatedContext !== context &&
+      (rowValues.length === 1 || rowValues[0].toLowerCase().includes("department name"));
+
+    context = updatedContext;
+
+    if (contextOnlyRow || isRepeatedHeaderRow(row) || isLegacySummaryOrFooterRow(rowValues)) {
       return;
     }
 
@@ -856,7 +1053,18 @@ const parseLegacySalaryExcelBase64 = async (
       }
     });
 
-    if (hasValue) {
+    applyExcelContextToMappedPayload(mappedPayload, context);
+
+    const hasMappedIdentity = Boolean(
+      mappedPayload.employeeIdentifier ||
+      mappedPayload.employeeId ||
+      mappedPayload.officeId ||
+      mappedPayload.cardNo ||
+      mappedPayload.employeeName,
+    );
+    const hasMappedAmount = AMOUNT_FIELDS.some((field) => Number((mappedPayload as Record<string, unknown>)[field]) > 0);
+
+    if (hasValue && (hasMappedIdentity || hasMappedAmount)) {
       rows.push({
         rowNo: rowNumber,
         rawPayload,
@@ -870,6 +1078,10 @@ const parseLegacySalaryExcelBase64 = async (
     "Parsed Excel data is stored as external legacy salary source data only.",
     "Preview/commit should use mappedPayload rows after user review; native payroll calculation is not affected.",
   ];
+
+  if (!payload.headerRow) {
+    noteList.push(`Header row auto-detected as row ${headerRowNumber}. You can override it from the frontend if needed.`);
+  }
 
   if (unmappedHeaderSet.size) {
     noteList.push("Some Excel columns were not mapped automatically. Review unmappedHeaders before commit.");

@@ -3,6 +3,7 @@ import type {
   LegacySalaryFilters,
   LegacySalaryImportPayload,
   LegacySalaryImportRowInput,
+  LegacySalaryParseOptions,
   LegacySalaryParsedResult,
   LegacySalaryRecord,
   LegacySalarySummaryResult,
@@ -21,6 +22,14 @@ export const legacySalaryDefaultFilters = (): LegacySalaryFilters => {
     groupBy: 'department',
   }
 }
+
+
+export const legacySalaryDefaultParseOptions = (): LegacySalaryParseOptions => ({
+  sheetName: '',
+  headerRow: '',
+  dataStartRow: '',
+  maxRows: '10000',
+})
 
 export const sourceOptions = [
   { value: 'current_payroll_software', label: 'Current Payroll Software' },
@@ -224,11 +233,12 @@ export const getRecordEmployeeLabel = (record: LegacySalaryRecord) => {
 export const normalizeSummaryRows = (summary?: LegacySalarySummaryResult | null) => {
   return (summary?.rows ?? []).map((row, index) => ({
     id: String(row.groupKey ?? row.groupLabel ?? index),
-    groupLabel: String(row.groupLabel ?? row.groupKey ?? 'Unknown'),
+    groupLabel: String(row.groupLabel ?? row.groupName ?? row.groupKey ?? 'Unknown'),
     employeeCount: Number(row.employeeCount ?? row.totals?.employeeCount ?? 0),
     grossAmount: Number(row.totals?.grossAmount ?? row.grossAmount ?? 0),
     netAmount: Number(row.totals?.netAmount ?? row.netAmount ?? 0),
     payableAmount: Number(row.totals?.payableAmount ?? row.payableAmount ?? 0),
+    suspenseAmount: Number(row.totals?.suspenseAmount ?? row.suspenseAmount ?? 0),
     bankAmount: Number(row.totals?.bankAmount ?? row.bankAmount ?? 0),
     cashAmount: Number(row.totals?.cashAmount ?? row.cashAmount ?? 0),
     status: typeof row.status === 'string' ? row.status : undefined,

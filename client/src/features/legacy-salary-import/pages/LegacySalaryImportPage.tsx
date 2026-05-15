@@ -33,6 +33,7 @@ import type {
   LegacySalaryListMode,
   LegacySalaryMatchBy,
   LegacySalaryParsedResult,
+  LegacySalaryParseOptions,
   LegacySalaryPreviewResult,
 } from '@/features/legacy-salary-import/types/legacySalaryImport.types'
 import {
@@ -44,6 +45,7 @@ import {
   getBatchFileInfo,
   getLegacySalaryRecordId,
   legacySalaryDefaultFilters,
+  legacySalaryDefaultParseOptions,
   parsedRowsToImportRows,
   totalsToMetrics,
 } from '@/features/legacy-salary-import/utils/legacySalaryImport.utils'
@@ -74,6 +76,7 @@ export const LegacySalaryImportPage = () => {
   const [archiveMode, setArchiveMode] = useState<LegacySalaryListMode>('active')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [parsedResult, setParsedResult] = useState<LegacySalaryParsedResult | null>(null)
+  const [parseOptions, setParseOptions] = useState<LegacySalaryParseOptions>(legacySalaryDefaultParseOptions)
   const [previewResult, setPreviewResult] = useState<LegacySalaryPreviewResult | null>(null)
   const [pendingPayload, setPendingPayload] = useState<LegacySalaryImportPayload | null>(null)
   const [manualRowsJson, setManualRowsJson] = useState('')
@@ -111,11 +114,18 @@ export const LegacySalaryImportPage = () => {
         throw new Error('Please choose an .xlsx salary sheet first.')
       }
 
+      if (!/\.xlsx$/i.test(selectedFile.name)) {
+        throw new Error('Only .xlsx legacy salary files are supported. Please save old .xls files as .xlsx first.')
+      }
+
       const fileBase64 = await fileToBase64(selectedFile)
       return parseLegacySalaryExcel({
         fileName: selectedFile.name,
         fileBase64,
-        maxRows: 10000,
+        sheetName: parseOptions.sheetName.trim() || undefined,
+        headerRow: parseOptions.headerRow.trim() || undefined,
+        dataStartRow: parseOptions.dataStartRow.trim() || undefined,
+        maxRows: parseOptions.maxRows.trim() || 10000,
       })
     },
     successMessage: 'Excel file parsed successfully',
@@ -172,7 +182,7 @@ export const LegacySalaryImportPage = () => {
   })
 
   const uploadedRows = useMemo(() => parsedRowsToImportRows(parsedResult), [parsedResult])
-  const heroMetrics = totalsToMetrics(previewResult?.totals ?? summaryQuery.data?.totals)
+  const heroMetrics = totalsToMetrics(previewResult?.totals ?? summaryQuery.data?.grandTotal ?? summaryQuery.data?.totals)
 
   const handlePreview = (payload: LegacySalaryImportPayload) => {
     if (payload.rows.length === 0) {
@@ -303,15 +313,26 @@ export const LegacySalaryImportPage = () => {
             filters={filters}
             selectedFile={selectedFile}
             parsedResult={parsedResult}
+            parseOptions={parseOptions}
             manualRowsJson={manualRowsJson}
             matchBy={matchBy}
             remarks={remarks}
+            canProcess={canProcess}
+            canExport={canExport}
             isParsing={parseMutation.isPending}
             isPreviewing={previewMutation.isPending}
             isDownloadingTemplate={templateMutation.isPending}
             parseError={parseMutation.error}
             previewError={previewMutation.error}
             onFileChange={(file) => {
+              if (file && !/\.xlsx$/i.test(file.name)) {
+                toast.error('Unsupported Excel format', {
+                  description: 'Please open the old .xls file in Excel and save it as .xlsx before importing.',
+                })
+                setSelectedFile(null)
+                return
+              }
+
               setSelectedFile(file)
               setParsedResult(null)
               setPreviewResult(null)
@@ -319,6 +340,7 @@ export const LegacySalaryImportPage = () => {
             }}
             onParseExcel={() => parseMutation.mutate()}
             onPreview={handlePreview}
+            onParseOptionsChange={(patch) => setParseOptions((current) => ({ ...current, ...patch }))}
             onManualRowsJsonChange={setManualRowsJson}
             onMatchByChange={setMatchBy}
             onRemarksChange={setRemarks}
@@ -341,7 +363,7 @@ export const LegacySalaryImportPage = () => {
                       {uploadedRows.length} mapped rows from {parsedResult.fileName}. Review preview before committing.
                     </p>
                   </div>
-                  <Button onClick={handleParsedRowsQuickPreview} disabled={previewMutation.isPending}>
+                  <Button onClick={handleParsedRowsQuickPreview} disabled={!canProcess || previewMutation.isPending}>
                     Preview Parsed Rows
                   </Button>
                 </CardContent>

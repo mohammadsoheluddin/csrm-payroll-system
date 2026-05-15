@@ -31,6 +31,7 @@ export type LegacySalaryTotals = Record<string, number> & {
   bankAmount?: number
   cashAmount?: number
   mobileBankAmount?: number
+  suspenseAmount?: number
   aitAmount?: number
   loanAmount?: number
   advanceAmount?: number
@@ -73,6 +74,7 @@ export type LegacySalaryImportRowInput = Record<string, unknown> & {
   bankAmount?: number
   cashAmount?: number
   mobileBankAmount?: number
+  suspenseAmount?: number
   aitAmount?: number
   loanAmount?: number
   advanceAmount?: number
@@ -99,6 +101,13 @@ export type LegacySalaryImportPayload = {
   matchBy?: LegacySalaryMatchBy
   remarks?: string
   rows: LegacySalaryImportRowInput[]
+}
+
+export type LegacySalaryParseOptions = {
+  sheetName: string
+  headerRow: string
+  dataStartRow: string
+  maxRows: string
 }
 
 export type LegacySalaryParseExcelPayload = {
@@ -216,6 +225,7 @@ export type LegacySalaryRecord = Record<string, unknown> & {
   bankAmount?: number
   cashAmount?: number
   mobileBankAmount?: number
+  suspenseAmount?: number
   aitAmount?: number
   loanAmount?: number
   netAmount?: number
@@ -236,6 +246,7 @@ export type LegacySalarySummaryResult = {
   groupBy?: LegacySalarySummaryGroupBy
   rows?: LegacySalarySummaryRow[]
   totals?: LegacySalaryTotals
+  grandTotal?: LegacySalaryTotals
 }
 
 export type LegacySalaryFilters = {

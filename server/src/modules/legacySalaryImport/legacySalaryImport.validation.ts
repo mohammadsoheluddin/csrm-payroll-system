@@ -73,6 +73,7 @@ const legacySalaryImportRowSchema = z
     bankAmount: optionalAmount,
     cashAmount: optionalAmount,
     mobileBankAmount: optionalAmount,
+    suspenseAmount: optionalAmount,
     aitAmount: optionalAmount,
     loanAmount: optionalAmount,
     advanceAmount: optionalAmount,

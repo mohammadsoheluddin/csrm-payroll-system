@@ -76,6 +76,7 @@ export const LegacySalaryRecordsPanel = ({
                       <th className="px-4 py-3 text-right">Gross</th>
                       <th className="px-4 py-3 text-right">Bank</th>
                       <th className="px-4 py-3 text-right">Cash</th>
+                      <th className="px-4 py-3 text-right">Suspense</th>
                       <th className="px-4 py-3 text-right">AIT</th>
                       <th className="px-4 py-3 text-right">Loan</th>
                       <th className="px-4 py-3 text-right">Net</th>
@@ -93,6 +94,7 @@ export const LegacySalaryRecordsPanel = ({
                         <td className="px-4 py-3 text-right">৳ {formatMoney(record.grossAmount)}</td>
                         <td className="px-4 py-3 text-right">৳ {formatMoney(record.bankAmount)}</td>
                         <td className="px-4 py-3 text-right">৳ {formatMoney(record.cashAmount)}</td>
+                        <td className="px-4 py-3 text-right">৳ {formatMoney(record.suspenseAmount)}</td>
                         <td className="px-4 py-3 text-right">৳ {formatMoney(record.aitAmount)}</td>
                         <td className="px-4 py-3 text-right">৳ {formatMoney(record.loanAmount)}</td>
                         <td className="px-4 py-3 text-right font-semibold">৳ {formatMoney(record.netAmount)}</td>
@@ -100,7 +102,7 @@ export const LegacySalaryRecordsPanel = ({
                     ))}
                     {records.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                        <td colSpan={10} className="px-4 py-12 text-center text-muted-foreground">
                           No imported legacy salary records found for current filters.
                         </td>
                       </tr>

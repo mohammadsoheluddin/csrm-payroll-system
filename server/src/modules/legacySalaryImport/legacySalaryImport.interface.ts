@@ -56,6 +56,7 @@ export interface TLegacySalaryImportRowInput {
   bankAmount?: number;
   cashAmount?: number;
   mobileBankAmount?: number;
+  suspenseAmount?: number;
   aitAmount?: number;
   loanAmount?: number;
   advanceAmount?: number;
@@ -143,6 +144,7 @@ export interface TLegacySalaryImportValidRow {
   bankAmount: number;
   cashAmount: number;
   mobileBankAmount: number;
+  suspenseAmount: number;
   aitAmount: number;
   loanAmount: number;
   advanceAmount: number;
@@ -178,6 +180,7 @@ export interface TLegacySalaryAmountTotals {
   bankAmount: number;
   cashAmount: number;
   mobileBankAmount: number;
+  suspenseAmount: number;
   aitAmount: number;
   loanAmount: number;
   advanceAmount: number;
@@ -282,6 +285,7 @@ export interface TLegacySalaryRecord {
   bankAmount: number;
   cashAmount: number;
   mobileBankAmount: number;
+  suspenseAmount: number;
   aitAmount: number;
   loanAmount: number;
   advanceAmount: number;
@@ -357,6 +361,7 @@ export interface TLegacySalarySummaryResult {
   filters: TLegacySalarySummaryQuery;
   rows: TLegacySalarySummaryRow[];
   grandTotal: TLegacySalaryAmountTotals;
+  totals?: TLegacySalaryAmountTotals;
 }
 
 export interface TLegacySalaryExportFileResult {
