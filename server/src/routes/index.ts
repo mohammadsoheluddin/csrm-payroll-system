@@ -66,6 +66,8 @@ import salaryPaymentDistributionRoutes from "../modules/salaryPaymentDistributio
 
 import salarySummaryRoutes from "../modules/salarySummary/salarySummary.route";
 
+import legacySalaryImportRoutes from "../modules/legacySalaryImport/legacySalaryImport.route";
+
 import timeBillRoutes from "../modules/timeBill/timeBill.route";
 
 import otStatementRoutes from "../modules/otStatement/otStatement.route";
@@ -206,6 +208,11 @@ const moduleRoutes = [
   {
     path: "/salary-summary",
     route: salarySummaryRoutes,
+  },
+
+  {
+    path: "/legacy-salary-imports",
+    route: legacySalaryImportRoutes,
   },
 
   {
