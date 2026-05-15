@@ -17,9 +17,34 @@ Logged-in role:
 
 ```txt
 git status:
+git log --oneline -5:
+zip files removed: Yes / No
 frontend lint:
 frontend build:
 backend build:
+smoke helper:
+```
+
+## Smoke helper result
+
+Paste output from:
+
+```bash
+node scripts/frontend-smoke-check.mjs
+```
+
+```txt
+Smoke helper output:
+```
+
+Optional authenticated check:
+
+```bash
+API_AUTH_TOKEN="paste_access_token_here" node scripts/frontend-smoke-check.mjs
+```
+
+```txt
+Authenticated smoke helper output:
 ```
 
 ## Route result matrix
@@ -49,6 +74,25 @@ backend build:
 | Reports | /reports/layout-standards | Pending |  |
 | Audit | /audit/logs | Pending |  |
 | RBAC | /rbac/audit | Pending |  |
+
+## Feature behavior checklist
+
+| Check | Status | Note |
+| --- | --- | --- |
+| Login page opens | Pending |  |
+| No infinite Checking session | Pending |  |
+| No CORS error | Pending |  |
+| Sidebar loads after login | Pending |  |
+| Permission-based menu filtering works | Pending |  |
+| Master Data list/create/edit basic flow works | Pending |  |
+| Employee list/profile drawer works | Pending |  |
+| Attendance list/form works | Pending |  |
+| Leave list/form/review works | Pending |  |
+| Payroll screens load | Pending |  |
+| Reports screens load | Pending |  |
+| Salary Summary no-data/success state clean | Pending |  |
+| Audit/RBAC screens load | Pending |  |
+| Error/empty/loading states look clean | Pending |  |
 
 ## Responsive result
 
