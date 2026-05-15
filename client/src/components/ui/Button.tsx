@@ -12,14 +12,14 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 focus-visible:ring-primary',
+    'bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/20 focus-visible:ring-primary',
   secondary:
     'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring',
-  ghost: 'text-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring',
+  ghost: 'text-foreground hover:bg-muted/80 hover:text-foreground focus-visible:ring-ring',
   outline:
-    'border border-border bg-background text-foreground shadow-sm hover:bg-muted focus-visible:ring-ring',
+    'border border-border bg-card/80 text-foreground shadow-sm hover:border-primary/30 hover:bg-muted/70 focus-visible:ring-ring',
   danger:
-    'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:ring-destructive',
+    'bg-destructive text-destructive-foreground shadow-sm shadow-destructive/20 hover:bg-destructive/90 hover:shadow-md hover:shadow-destructive/20 focus-visible:ring-destructive',
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -40,8 +40,9 @@ export const Button = ({
     <button
       type={type}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition',
+        'inline-flex items-center justify-center gap-2 rounded-xl font-semibold tracking-tight transition-all duration-200 ease-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+        'active:translate-y-px active:scale-[0.99]',
         'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
         variantClasses[variant],
         sizeClasses[size],

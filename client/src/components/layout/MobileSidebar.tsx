@@ -16,23 +16,24 @@ export const MobileSidebar = () => {
         aria-label="Close mobile sidebar backdrop"
         onClick={closeMobileSidebar}
         className={cn(
-          'absolute inset-0 bg-foreground/40 backdrop-blur-sm transition-opacity',
+          'absolute inset-0 bg-foreground/45 backdrop-blur-md transition-opacity duration-300',
           isOpen ? 'opacity-100' : 'opacity-0',
         )}
       />
 
       <aside
         className={cn(
-          'absolute left-0 top-0 h-full w-80 max-w-[86vw] border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300',
+          'absolute left-0 top-0 h-full w-80 max-w-[88vw] overflow-hidden border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 ease-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-white/7 to-transparent" />
         <div className="absolute right-3 top-3 z-10">
           <Button
             variant="ghost"
             size="icon"
             onClick={closeMobileSidebar}
-            className="text-sidebar-foreground hover:bg-sidebar-accent"
+            className="h-9 w-9 text-sidebar-foreground hover:bg-sidebar-accent"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />

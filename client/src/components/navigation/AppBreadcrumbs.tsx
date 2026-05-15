@@ -10,10 +10,10 @@ export const AppBreadcrumbs = () => {
   const breadcrumbs = routeMeta?.breadcrumbs ?? ['Unknown Page']
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
+    <nav aria-label="Breadcrumb" className="flex max-w-[66vw] items-center gap-1 overflow-hidden text-xs text-muted-foreground xl:max-w-[780px]">
       <Link
         to={routePaths.dashboard}
-        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 transition hover:bg-muted hover:text-foreground"
+        className="inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 font-medium transition hover:bg-muted hover:text-foreground"
       >
         <Home className="h-3.5 w-3.5" />
         Home
@@ -23,9 +23,9 @@ export const AppBreadcrumbs = () => {
         const isLast = index === breadcrumbs.length - 1
 
         return (
-          <span key={`${item}-${index}`} className="inline-flex items-center gap-1">
-            <ChevronRight className="h-3.5 w-3.5" />
-            <span className={isLast ? 'font-medium text-foreground' : undefined}>{item}</span>
+          <span key={`${item}-${index}`} className="inline-flex min-w-0 items-center gap-1">
+            <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+            <span className={isLast ? 'truncate font-semibold text-foreground' : 'truncate'}>{item}</span>
           </span>
         )
       })}

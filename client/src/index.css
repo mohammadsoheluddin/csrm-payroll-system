@@ -155,7 +155,9 @@ html {
 body {
   min-height: 100%;
   margin: 0;
-  background: hsl(var(--background));
+  background:
+    radial-gradient(circle at top left, hsl(var(--primary) / 9%), transparent 34rem),
+    linear-gradient(135deg, hsl(var(--background)), hsl(var(--muted) / 50%));
   color: hsl(var(--foreground));
   font-family: var(--font-sans);
   font-synthesis: none;
@@ -164,11 +166,141 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+#root {
+  min-height: 100vh;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 55%);
+  outline-offset: 2px;
+}
+
 ::selection {
   background: hsl(var(--primary) / 18%);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: hsl(var(--muted-foreground) / 32%);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 48%);
+}
+
+@keyframes csrm-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes csrm-soft-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+.csrm-page-enter {
+  animation: csrm-fade-up 280ms ease both;
+}
+
+.csrm-premium-surface {
+  border: 1px solid hsl(var(--border) / 78%);
+  background:
+    linear-gradient(180deg, hsl(var(--card) / 98%), hsl(var(--card) / 92%)),
+    hsl(var(--card));
+  box-shadow:
+    0 1px 1px hsl(var(--foreground) / 4%),
+    0 18px 45px hsl(var(--foreground) / 7%);
+}
+
+.csrm-glass-surface {
+  border: 1px solid hsl(var(--border) / 72%);
+  background: hsl(var(--card) / 82%);
+  box-shadow: 0 16px 40px hsl(var(--foreground) / 6%);
+  backdrop-filter: blur(18px);
+}
+
+.csrm-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
+  background: hsl(var(--muted));
+}
+
+.csrm-skeleton::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  transform: translateX(-100%);
+  animation: csrm-shimmer 1.4s infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--background) / 72%),
+    transparent
+  );
+}
+
+@keyframes csrm-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -23,6 +23,7 @@ export const ExportActionButton = ({
   label,
   disabled,
   children,
+  className,
   ...buttonProps
 }: ExportActionButtonProps) => {
   const [isDownloading, setIsDownloading] = useState(false)
@@ -44,9 +45,15 @@ export const ExportActionButton = ({
   }
 
   return (
-    <Button type="button" disabled={disabled || isDownloading} onClick={handleDownload} {...buttonProps}>
+    <Button
+      type="button"
+      disabled={disabled || isDownloading}
+      onClick={handleDownload}
+      className={className}
+      {...buttonProps}
+    >
       {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-      {children ?? label}
+      <span className="truncate">{children ?? label}</span>
     </Button>
   )
 }

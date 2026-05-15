@@ -72,35 +72,38 @@ export const SimpleDataTable = <TRecord extends Record<string, unknown>>({
   emptyMessage = 'No records found.',
 }: SimpleDataTableProps<TRecord>) => {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border text-sm">
-          <thead className="bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="csrm-premium-surface overflow-hidden rounded-3xl">
+      <div className="overflow-x-auto [scrollbar-gutter:stable]">
+        <table className="min-w-full divide-y divide-border/80 text-sm">
+          <thead className="sticky top-0 z-10 bg-muted/70 text-left text-[11px] font-black uppercase tracking-[0.08em] text-muted-foreground backdrop-blur-xl">
             <tr>
               {columns.map((column) => (
-                <th key={column.key} className={cn('whitespace-nowrap px-4 py-3', column.className)}>
+                <th key={column.key} className={cn('whitespace-nowrap px-4 py-3.5', column.className)}>
                   {column.label}
                 </th>
               ))}
-              {actions && <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>}
+              {actions && <th className="sticky right-0 whitespace-nowrap bg-muted/80 px-4 py-3.5 text-right backdrop-blur-xl">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border bg-card">
+          <tbody className="divide-y divide-border/70 bg-card/80">
             {records.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-10 text-center text-muted-foreground">
-                  {emptyMessage}
+                <td colSpan={columns.length + (actions ? 1 : 0)} className="px-4 py-14 text-center text-muted-foreground">
+                  <div className="mx-auto max-w-sm rounded-2xl border border-dashed border-border bg-background/60 p-5">
+                    <p className="text-sm font-semibold text-foreground">No records to show</p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">{emptyMessage}</p>
+                  </div>
                 </td>
               </tr>
             ) : (
               records.map((record) => (
-                <tr key={getRowKey(record)} className="transition hover:bg-muted/30">
+                <tr key={getRowKey(record)} className="transition-colors duration-150 hover:bg-muted/35">
                   {columns.map((column) => (
-                    <td key={column.key} className={cn('max-w-[260px] truncate px-4 py-3 text-foreground', column.className)}>
+                    <td key={column.key} className={cn('max-w-[280px] truncate px-4 py-3.5 text-foreground', column.className)}>
                       {renderValue(record, column)}
                     </td>
                   ))}
-                  {actions && <td className="px-4 py-3 text-right">{actions(record)}</td>}
+                  {actions && <td className="sticky right-0 bg-card/95 px-4 py-3.5 text-right shadow-[-12px_0_24px_-24px_hsl(var(--foreground))] backdrop-blur-xl">{actions(record)}</td>}
                 </tr>
               ))
             )}

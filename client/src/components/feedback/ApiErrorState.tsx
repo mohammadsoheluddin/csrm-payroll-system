@@ -27,14 +27,16 @@ export const ApiErrorState = ({ error, onRetry, className }: ApiErrorStateProps)
         : AlertTriangle
 
   return (
-    <div className={cn('rounded-2xl border p-5 shadow-sm', variantStyles[variant], className)}>
-      <div className="flex gap-3">
-        <Icon className="mt-0.5 h-5 w-5 shrink-0" />
+    <div className={cn('rounded-3xl border p-5 shadow-sm backdrop-blur-xl', variantStyles[variant], className)}>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-background/70">
+          <Icon className="h-5 w-5" />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold">{normalizedError.title}</p>
+            <p className="font-bold">{normalizedError.title}</p>
             {normalizedError.status && (
-              <span className="rounded-full bg-background/70 px-2 py-0.5 text-xs font-semibold">
+              <span className="rounded-full bg-background/70 px-2 py-0.5 text-xs font-bold">
                 HTTP {normalizedError.status}
               </span>
             )}
@@ -42,10 +44,10 @@ export const ApiErrorState = ({ error, onRetry, className }: ApiErrorStateProps)
           <p className="mt-1 text-sm leading-6 opacity-90">{normalizedError.message}</p>
 
           {normalizedError.errorSources.length > 0 && (
-            <ul className="mt-3 space-y-1 text-sm opacity-90">
+            <ul className="mt-3 grid gap-1 text-sm opacity-90">
               {normalizedError.errorSources.map((source) => (
-                <li key={`${source.path}-${source.message}`}>
-                  <span className="font-semibold">{source.path}:</span> {source.message}
+                <li key={`${source.path}-${source.message}`} className="rounded-xl bg-background/45 px-3 py-2">
+                  <span className="font-bold">{source.path}:</span> {source.message}
                 </li>
               ))}
             </ul>
