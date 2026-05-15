@@ -23,6 +23,7 @@ export type SimpleDataTableProps<TRecord extends Record<string, unknown>> = {
   columns: SimpleDataTableColumn<TRecord>[]
   getRowKey: (record: TRecord) => string
   actions?: (record: TRecord) => ReactNode
+  actionsColumnClassName?: string
   emptyMessage?: string
 }
 
@@ -69,6 +70,7 @@ export const SimpleDataTable = <TRecord extends Record<string, unknown>>({
   columns,
   getRowKey,
   actions,
+  actionsColumnClassName,
   emptyMessage = 'No records found.',
 }: SimpleDataTableProps<TRecord>) => {
   return (
@@ -82,7 +84,16 @@ export const SimpleDataTable = <TRecord extends Record<string, unknown>>({
                   {column.label}
                 </th>
               ))}
-              {actions && <th className="sticky right-0 whitespace-nowrap bg-muted/80 px-4 py-3.5 text-right backdrop-blur-xl">Actions</th>}
+              {actions && (
+                <th
+                  className={cn(
+                    'sticky right-0 w-[1%] min-w-[12rem] whitespace-nowrap bg-muted/80 px-4 py-3.5 text-right backdrop-blur-xl',
+                    actionsColumnClassName,
+                  )}
+                >
+                  Actions
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70 bg-card/80">
@@ -103,7 +114,16 @@ export const SimpleDataTable = <TRecord extends Record<string, unknown>>({
                       {renderValue(record, column)}
                     </td>
                   ))}
-                  {actions && <td className="sticky right-0 bg-card/95 px-4 py-3.5 text-right shadow-[-12px_0_24px_-24px_hsl(var(--foreground))] backdrop-blur-xl">{actions(record)}</td>}
+                  {actions && (
+                    <td
+                      className={cn(
+                        'sticky right-0 w-[1%] min-w-[12rem] bg-card/95 px-4 py-3.5 text-right shadow-[-12px_0_24px_-24px_hsl(var(--foreground))] backdrop-blur-xl',
+                        actionsColumnClassName,
+                      )}
+                    >
+                      {actions(record)}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

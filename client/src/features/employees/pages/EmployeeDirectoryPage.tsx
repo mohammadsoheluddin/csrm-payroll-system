@@ -342,6 +342,7 @@ export const EmployeeDirectoryPage = () => {
           records={employees}
           getRowKey={getEmployeeId}
           emptyMessage={mode === 'deleted' ? 'No deleted employees found.' : 'No employees found.'}
+          actionsColumnClassName="min-w-[25rem] lg:min-w-[27rem]"
           columns={[
             {
               key: 'employeeId',
@@ -367,19 +368,19 @@ export const EmployeeDirectoryPage = () => {
             { key: 'payType', label: 'Pay', type: 'badge' },
           ]}
           actions={(employee) => (
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setProfileEmployee(employee)}>
+            <div className="flex min-w-max flex-nowrap items-center justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setProfileEmployee(employee)}>
                 <Eye className="h-4 w-4" />
                 View
               </Button>
 
               {canManageEmployee && mode === 'active' && (
                 <>
-                  <Button type="button" variant="outline" size="sm" onClick={() => openEditForm(employee)}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => openEditForm(employee)}>
                     <Edit3 className="h-4 w-4" />
                     Edit
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setLifecycleEmployee(employee)}>
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setLifecycleEmployee(employee)}>
                     <ShieldCheck className="h-4 w-4" />
                     Lifecycle
                   </Button>
@@ -387,6 +388,7 @@ export const EmployeeDirectoryPage = () => {
                     type="button"
                     variant="danger"
                     size="sm"
+                    className="shrink-0"
                     onClick={() =>
                       deleteMutation.mutate({
                         id: getEmployeeId(employee),
@@ -406,6 +408,7 @@ export const EmployeeDirectoryPage = () => {
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="shrink-0"
                   onClick={() =>
                     restoreMutation.mutate({
                       id: getEmployeeId(employee),
