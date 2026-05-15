@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
 import AttendanceFinalization from "../attendanceFinalization/attendanceFinalization.model";
 import EmployeeBankInfo from "../employeeBankInfo/employeeBankInfo.model";
+import EmployeeDocument from "../employeeDocument/employeeDocument.model";
 import { EmployeeMovement } from "../employeeMovement/employeeMovement.model";
 import Employee from "../employee/employee.model";
 import LeaveBalance from "../leaveBalance/leaveBalance.model";
@@ -242,6 +243,7 @@ const buildDataGaps = (options: {
   employee: TObject;
   salaryStructures: TObject[];
   bankInfos: TObject[];
+  documents: TObject[];
   leaveBalances: TObject[];
 }): TEmployeeProfileDataGap[] => {
   const gaps: TEmployeeProfileDataGap[] = [];
@@ -276,6 +278,16 @@ const buildDataGaps = (options: {
     });
   }
 
+  if (!options.documents.length) {
+    gaps.push({
+      key: "employeeDocuments",
+      label: "Employee document vault empty",
+      severity: "warning",
+      message:
+        "No employee document record found. NID, appointment letter, certificates or HR letters may need to be archived.",
+    });
+  }
+
   if (!options.leaveBalances.length) {
     gaps.push({
       key: "leaveBalance",
@@ -295,6 +307,7 @@ const buildTimeline = (options: {
   salaryStructures: TObject[];
   payrollRecords: TObject[];
   legacySalaryRecords: TObject[];
+  documents: TObject[];
 }): TEmployeeProfileTimelineEvent[] => {
   const timeline: TEmployeeProfileTimelineEvent[] = [];
 
@@ -339,6 +352,22 @@ const buildTimeline = (options: {
       status: movement.status,
       description: movement.reason || movement.remarks,
       referenceId: toId(movement),
+    });
+  });
+
+  options.documents.forEach((document) => {
+    timeline.push({
+      type: "document",
+      title: `Document: ${document.title || document.category}`,
+      date: document.issueDate || document.createdAt,
+      status: document.status,
+      referenceId: toId(document),
+      metadata: {
+        category: document.category,
+        documentNo: document.documentNo,
+        expiryDate: document.expiryDate,
+        confidentiality: document.confidentiality,
+      },
     });
   });
 
@@ -427,6 +456,7 @@ const getEmployeeProfileFromDB = async (
   const [
     salaryStructures,
     bankInfos,
+    documents,
     movements,
     leaveBalances,
     attendanceFinalizations,
@@ -446,6 +476,14 @@ const getEmployeeProfileFromDB = async (
       isDeleted: false,
     })
       .sort({ isPrimary: -1, status: 1, effectiveFrom: -1, createdAt: -1 })
+      .lean<TObject[]>(),
+
+    EmployeeDocument.find({
+      employee: employeeObjectId,
+      isDeleted: false,
+    })
+      .sort({ status: 1, category: 1, createdAt: -1 })
+      .limit(30)
       .lean<TObject[]>(),
 
     EmployeeMovement.find({
@@ -516,14 +554,17 @@ const getEmployeeProfileFromDB = async (
     employee,
     salaryStructures,
     bankInfos,
+    documents,
     leaveBalances,
   });
+  const todayDate = getDateOnly(new Date()) || new Date().toISOString().slice(0, 10);
   const timeline = buildTimeline({
     employee,
     movements,
     salaryStructures: salaryStructures.slice(0, 5),
     payrollRecords: payrollRecords.slice(0, 5),
     legacySalaryRecords: legacySalaryRecords.slice(0, 5),
+    documents: documents.slice(0, 8),
   });
 
   return {
@@ -579,6 +620,16 @@ const getEmployeeProfileFromDB = async (
         primaryBankInfo,
         paymentOptions: bankInfos,
       },
+      documents: {
+        count: documents.length,
+        pendingCount: documents.filter((item) => item.status === "pending").length,
+        verifiedCount: documents.filter((item) => item.status === "verified").length,
+        rejectedCount: documents.filter((item) => item.status === "rejected").length,
+        expiredCount: documents.filter(
+          (item) => item.expiryDate && item.expiryDate < todayDate,
+        ).length,
+        records: documents,
+      },
       attendance: {
         latestAttendanceFinalization,
         history: attendanceFinalizations,
@@ -608,14 +659,29 @@ const getEmployeeProfileFromDB = async (
 const getEmployeeProfileSummaryFromDB = async (employeeRef: string) => {
   const employee = await findEmployeeOrThrow(employeeRef);
 
-  const [salaryStructureCount, bankInfoCount, movementCount, payrollCount] =
-    await Promise.all([
+  const [
+    salaryStructureCount,
+    bankInfoCount,
+    documentCount,
+    pendingDocumentCount,
+    movementCount,
+    payrollCount,
+  ] = await Promise.all([
       SalaryStructure.countDocuments({
         employee: employee._id,
         isDeleted: false,
       }),
       EmployeeBankInfo.countDocuments({
         employee: employee._id,
+        isDeleted: false,
+      }),
+      EmployeeDocument.countDocuments({
+        employee: employee._id,
+        isDeleted: false,
+      }),
+      EmployeeDocument.countDocuments({
+        employee: employee._id,
+        status: "pending",
         isDeleted: false,
       }),
       EmployeeMovement.countDocuments({
@@ -634,10 +700,12 @@ const getEmployeeProfileSummaryFromDB = async (employeeRef: string) => {
     counters: {
       salaryStructureCount,
       bankInfoCount,
+      documentCount,
+      pendingDocumentCount,
       movementCount,
       payrollCount,
     },
-    serviceBookReady: Boolean(salaryStructureCount && bankInfoCount),
+    serviceBookReady: Boolean(salaryStructureCount && bankInfoCount && documentCount),
   };
 };
 

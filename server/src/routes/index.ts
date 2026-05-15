@@ -36,6 +36,8 @@ import employeeRoutes from "../modules/employee/employee.route";
 
 import employeeProfileRoutes from "../modules/employeeProfile/employeeProfile.route";
 
+import employeeDocumentRoutes from "../modules/employeeDocument/employeeDocument.route";
+
 import employeeBulkImportRoutes from "../modules/employeeBulkImport/employeeBulkImport.route";
 
 import holidayRoutes from "../modules/holiday/holiday.route";
@@ -135,6 +137,11 @@ const moduleRoutes = [
   {
     path: "/employee-profiles",
     route: employeeProfileRoutes,
+  },
+
+  {
+    path: "/employee-documents",
+    route: employeeDocumentRoutes,
   },
 
   {

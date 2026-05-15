@@ -9,6 +9,7 @@ export type TEmployeeProfileTimelineEventType =
   | "confirmation"
   | "lifecycle"
   | "movement"
+  | "document"
   | "salary_structure"
   | "payroll"
   | "legacy_salary";
