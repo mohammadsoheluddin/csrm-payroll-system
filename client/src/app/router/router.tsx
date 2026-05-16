@@ -20,6 +20,7 @@ import {
   DashboardPage,
   EmployeeDirectoryPage,
   EmployeeDocumentUploadPage,
+  EmployeeProfilePage,
   ForbiddenPage,
   LeaveApplicationsPage,
   LegacySalaryImportPage,
@@ -71,6 +72,13 @@ const appRoutes = appRouteConfig.map((route) => {
     return {
       path: route.path,
       element: protectedElement(route, <EmployeeDirectoryPage />),
+    }
+  }
+
+  if (route.path === routePaths.employeeProfile) {
+    return {
+      path: route.path,
+      element: protectedElement(route, <EmployeeProfilePage />),
     }
   }
 

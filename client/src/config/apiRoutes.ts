@@ -16,6 +16,11 @@ export const apiRoutes = {
     lifecycle: (id: string) => `/employees/${id}/lifecycle`,
     restore: (id: string) => `/employees/${id}/restore`,
   },
+  employeeProfiles: {
+    root: '/employee-profiles',
+    detail: (employeeRef: string) => `/employee-profiles/${encodeURIComponent(employeeRef)}`,
+    summary: (employeeRef: string) => `/employee-profiles/${encodeURIComponent(employeeRef)}/summary`,
+  },
   employeeDocuments: {
     root: '/employee-documents',
     upload: '/employee-documents/upload',

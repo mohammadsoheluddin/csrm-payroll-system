@@ -103,6 +103,16 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     status: 'ready',
   },
   {
+    path: routePaths.employeeProfile,
+    title: 'Employee Full Profile',
+    shortTitle: 'Employee Profile',
+    description: 'Read-only digital service book with employee, salary, payment, attendance, leave, document, movement, payroll, and legacy archive sections.',
+    section: 'Employee Lifecycle',
+    breadcrumbs: ['Employees', 'Full Profile'],
+    requiredPermissions: [PERMISSIONS.EMPLOYEE_READ],
+    status: 'ready',
+  },
+  {
     path: routePaths.employees,
     title: 'Employee Directory',
     shortTitle: 'Employees',
@@ -413,11 +423,21 @@ export const appRouteConfig: AppRouteConfigItem[] = [
   },
 ]
 
+const pathToMatcher = (path: string) => {
+  if (!path.includes(':')) {
+    return null
+  }
+
+  const pattern = `^${path.replace(/:[^/]+/g, '[^/]+')}$`
+  return new RegExp(pattern)
+}
+
 export const getRouteConfigByPath = (pathname: string) => {
   return (
     appRouteConfig.find((route) => route.path === pathname) ??
+    appRouteConfig.find((route) => pathToMatcher(route.path)?.test(pathname)) ??
     appRouteConfig.find(
-      (route) => route.path !== routePaths.root && pathname.startsWith(route.path),
+      (route) => route.path !== routePaths.root && !route.path.includes(':') && pathname.startsWith(route.path),
     )
   )
 }

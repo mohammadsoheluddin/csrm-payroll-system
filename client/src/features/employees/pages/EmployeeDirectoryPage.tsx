@@ -5,6 +5,7 @@ import {
   Edit3,
   Eye,
   FileText,
+  IdCard,
   Plus,
   RefreshCcw,
   ShieldCheck,
@@ -22,7 +23,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PERMISSIONS } from '@/config/permissions'
-import { routePaths } from '@/config/routePaths'
+import { buildEmployeeDocumentsPath, buildEmployeeProfilePath } from '@/config/routePaths'
 import {
   changeEmployeeLifecycle,
   createEmployee,
@@ -379,13 +380,24 @@ export const EmployeeDirectoryPage = () => {
                 View
               </Button>
 
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => navigate(buildEmployeeProfilePath(getEmployeeId(employee)))}
+              >
+                <IdCard className="h-4 w-4" />
+                Profile
+              </Button>
+
               {canReadEmployeeDocuments && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="shrink-0"
-                  onClick={() => navigate(`${routePaths.employeeDocuments}?employee=${getEmployeeId(employee)}`)}
+                  onClick={() => navigate(buildEmployeeDocumentsPath(getEmployeeId(employee)))}
                 >
                   <FileText className="h-4 w-4" />
                   Docs

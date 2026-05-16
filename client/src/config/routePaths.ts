@@ -17,6 +17,7 @@ export const routePaths = {
   companyBankAccounts: '/masters/company-bank-accounts',
 
   employees: '/employees',
+  employeeProfile: '/employees/:employeeRef/profile',
   employeeBulkImport: '/employees/bulk-import',
   employeeMovements: '/employees/movements',
   employeeDocuments: '/employees/documents',
@@ -53,5 +54,13 @@ export const routePaths = {
   auditLogs: '/audit/logs',
   rbacAudit: '/rbac/audit',
 } as const
+
+export const buildEmployeeProfilePath = (employeeRef: string) => {
+  return `/employees/${encodeURIComponent(employeeRef)}/profile`
+}
+
+export const buildEmployeeDocumentsPath = (employeeRef: string) => {
+  return `${routePaths.employeeDocuments}?employee=${encodeURIComponent(employeeRef)}`
+}
 
 export type RoutePath = (typeof routePaths)[keyof typeof routePaths]

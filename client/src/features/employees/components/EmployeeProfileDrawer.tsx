@@ -8,9 +8,11 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { buildEmployeeProfilePath } from '@/config/routePaths'
 import { EmployeeProfileDocumentTab } from '@/features/employees/employee-documents/components/EmployeeProfileDocumentTab'
 import type { EmployeeRecord } from '@/features/employees/types/employee.types'
 import {
@@ -44,6 +46,8 @@ const SectionTitle = ({ icon: Icon, title }: { icon: typeof UserRound; title: st
 )
 
 export const EmployeeProfileDrawer = ({ employee, isOpen, onClose }: EmployeeProfileDrawerProps) => {
+  const navigate = useNavigate()
+
   if (!employee) {
     return null
   }
@@ -74,9 +78,22 @@ export const EmployeeProfileDrawer = ({ employee, isOpen, onClose }: EmployeePro
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">Employee Profile</p>
             <h2 className="mt-1 text-xl font-bold tracking-tight text-foreground">{getEmployeeDisplayName(employee)}</h2>
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close employee profile">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                navigate(buildEmployeeProfilePath(employee._id || employee.id || employee.employeeId))
+                onClose()
+              }}
+            >
+              Full Profile
+            </Button>
+            <Button type="button" variant="ghost" size="icon" onClick={onClose} aria-label="Close employee profile">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-6 p-6">

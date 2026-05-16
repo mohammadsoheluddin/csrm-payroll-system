@@ -17,6 +17,11 @@ export const EmployeeDocumentUploadPage = lazy(() =>
     default: module.EmployeeDocumentUploadPage,
   })),
 )
+export const EmployeeProfilePage = lazy(() =>
+  import('@/features/employees/employee-profile/pages/EmployeeProfilePage').then((module) => ({
+    default: module.EmployeeProfilePage,
+  })),
+)
 export const AttendanceRegisterPage = lazy(() =>
   import('@/features/attendance-leave/pages/AttendanceRegisterPage').then((module) => ({ default: module.AttendanceRegisterPage })),
 )

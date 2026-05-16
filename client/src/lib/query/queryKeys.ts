@@ -23,6 +23,12 @@ export const queryKeys = {
     detail: (id: string) => ['employees', 'detail', id] as const,
     lookups: ['employees', 'lookups'] as const,
   },
+  employeeProfiles: {
+    root: ['employee-profiles'] as const,
+    detail: (employeeRef: string, params?: Record<string, unknown>) =>
+      ['employee-profiles', 'detail', employeeRef, params ?? {}] as const,
+    summary: (employeeRef: string) => ['employee-profiles', 'summary', employeeRef] as const,
+  },
   employeeDocuments: {
     root: ['employee-documents'] as const,
     list: (mode: string, params?: Record<string, unknown>) =>
