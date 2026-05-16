@@ -11,6 +11,7 @@ import {
 
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmployeeProfileDocumentTab } from '@/features/employees/employee-documents/components/EmployeeProfileDocumentTab'
 import type { EmployeeRecord } from '@/features/employees/types/employee.types'
 import {
   getEmployeeDisplayName,
@@ -135,6 +136,8 @@ export const EmployeeProfileDrawer = ({ employee, isOpen, onClose }: EmployeePro
             </div>
           </section>
 
+          <EmployeeProfileDocumentTab employee={employee} />
+
           <section className="space-y-3">
             <SectionTitle icon={ShieldCheck} title="Lifecycle & Audit Snapshot" />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -154,7 +157,7 @@ export const EmployeeProfileDrawer = ({ employee, isOpen, onClose }: EmployeePro
             </div>
             <p className="mt-2">
               Future employee profile tabs will connect salary structure, bank payment options, attendance summary,
-              leave ledger, movement history, audit trail, and document attachments.
+              leave ledger, movement history, audit trail, and richer document attachment actions.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge variant="muted"><Mail className="mr-1 h-3 w-3" /> HR letters</Badge>

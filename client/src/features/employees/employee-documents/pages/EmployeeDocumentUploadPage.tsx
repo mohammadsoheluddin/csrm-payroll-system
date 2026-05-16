@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Archive, ArchiveRestore, FileUp, RefreshCcw, Search, ShieldCheck } from 'lucide-react'
+import { Archive, ArchiveRestore, FileUp, RefreshCcw, Search, ShieldCheck, UserRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -23,6 +23,7 @@ import {
   verifyEmployeeDocument,
 } from '@/features/employees/employee-documents/api/employeeDocument.api'
 import { EmployeeDocumentSummaryCards } from '@/features/employees/employee-documents/components/EmployeeDocumentSummaryCards'
+import { EmployeeDocumentStatusDialog, type EmployeeDocumentStatusDialogState } from '@/features/employees/employee-documents/components/EmployeeDocumentStatusDialog'
 import { EmployeeDocumentTable } from '@/features/employees/employee-documents/components/EmployeeDocumentTable'
 import { EmployeeDocumentUploadPanel } from '@/features/employees/employee-documents/components/EmployeeDocumentUploadPanel'
 import type {
@@ -80,6 +81,8 @@ export const EmployeeDocumentUploadPage = () => {
   const [employeeSearch, setEmployeeSearch] = useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(searchParams.get('employee') ?? '')
   const [filters, setFilters] = useState<EmployeeDocumentQueryParams>(filterDefaults)
+  const [actionDialog, setActionDialog] = useState<EmployeeDocumentStatusDialogState>(null)
+  const [uploadResetSignal, setUploadResetSignal] = useState(0)
 
   const canReadDocuments = canAccess([PERMISSIONS.EMPLOYEE_DOCUMENT_READ])
   const canUploadDocuments = canAccess([PERMISSIONS.EMPLOYEE_DOCUMENT_MANAGE])
@@ -147,6 +150,7 @@ export const EmployeeDocumentUploadPage = () => {
     mutationFn: uploadEmployeeDocumentFile,
     onSuccess: async () => {
       toast.success('Employee document uploaded successfully')
+      setUploadResetSignal((current) => current + 1)
       await invalidateDocumentQueries()
     },
     onError: (error) => {
@@ -159,6 +163,7 @@ export const EmployeeDocumentUploadPage = () => {
     mutationFn: verifyEmployeeDocument,
     onSuccess: async () => {
       toast.success('Employee document verified')
+      setActionDialog(null)
       await invalidateDocumentQueries()
     },
     onError: (error) => {
@@ -171,6 +176,7 @@ export const EmployeeDocumentUploadPage = () => {
     mutationFn: rejectEmployeeDocument,
     onSuccess: async () => {
       toast.success('Employee document rejected')
+      setActionDialog(null)
       await invalidateDocumentQueries()
     },
     onError: (error) => {
@@ -183,6 +189,7 @@ export const EmployeeDocumentUploadPage = () => {
     mutationFn: deleteEmployeeDocument,
     onSuccess: async () => {
       toast.success('Employee document soft deleted')
+      setActionDialog(null)
       await invalidateDocumentQueries()
     },
     onError: (error) => {
@@ -195,6 +202,7 @@ export const EmployeeDocumentUploadPage = () => {
     mutationFn: restoreEmployeeDocument,
     onSuccess: async () => {
       toast.success('Employee document restored')
+      setActionDialog(null)
       await invalidateDocumentQueries()
     },
     onError: (error) => {
@@ -213,6 +221,32 @@ export const EmployeeDocumentUploadPage = () => {
 
   const isStatusMutating =
     verifyMutation.isPending || rejectMutation.isPending || deleteMutation.isPending || restoreMutation.isPending
+
+  const confirmDocumentAction = (state: Exclude<EmployeeDocumentStatusDialogState, null>, note: string) => {
+    const documentId = getEmployeeDocumentId(state.document)
+
+    if (!documentId) {
+      toast.error('Employee document id is missing')
+      return
+    }
+
+    if (state.action === 'verify') {
+      verifyMutation.mutate({ id: documentId, verificationRemarks: note })
+      return
+    }
+
+    if (state.action === 'reject') {
+      rejectMutation.mutate({ id: documentId, rejectionReason: note })
+      return
+    }
+
+    if (state.action === 'delete') {
+      deleteMutation.mutate({ id: documentId, deleteReason: note })
+      return
+    }
+
+    restoreMutation.mutate({ id: documentId, restoreReason: note })
+  }
 
   const handleEmployeeSelect = (employeeId: string) => {
     setSelectedEmployeeId(employeeId)
@@ -247,14 +281,14 @@ export const EmployeeDocumentUploadPage = () => {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="success">Part-F18</Badge>
+                <Badge variant="success">Part-F18.1</Badge>
                 <Badge variant="default">Document Vault UI</Badge>
-                <Badge variant="muted">File Storage: Local</Badge>
+                <Badge variant="muted">Profile integrated</Badge>
               </div>
               <h2 className="mt-3 text-2xl font-bold tracking-tight text-foreground">Employee Document Upload</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-muted-foreground">
-                Upload, review, verify, reject, download, soft-delete, and restore employee documents. This UI connects
-                with Part-B54 and Part-B54.1 backend APIs and keeps document storage separate from payroll calculation.
+                Upload, review, verify, reject, download, soft-delete, and restore employee documents. This polish pass
+                adds safer upload validation, action dialogs, and employee profile document snapshot integration.
               </p>
             </div>
 
@@ -401,8 +435,42 @@ export const EmployeeDocumentUploadPage = () => {
 
           {summaryQuery.isError && <ApiErrorState error={summaryQuery.error} onRetry={() => summaryQuery.refetch()} />}
 
+          <Card className="p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="rounded-2xl bg-primary/10 p-3 text-primary">
+                  <UserRound className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Selected employee document workspace</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {getEmployeeDisplayName(selectedEmployee)} • Uploads and verification actions will be linked to this employee.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+                <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Total</p>
+                  <p className="mt-1 font-black text-foreground">{summaryQuery.data?.counters.total ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Verified</p>
+                  <p className="mt-1 font-black text-foreground">{summaryQuery.data?.counters.verified ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Pending</p>
+                  <p className="mt-1 font-black text-foreground">{summaryQuery.data?.counters.pending ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-muted/30 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Rejected</p>
+                  <p className="mt-1 font-black text-foreground">{summaryQuery.data?.counters.rejected ?? 0}</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <EmployeeDocumentUploadPanel
-            key={selectedEmployeeId}
+            key={`${selectedEmployeeId}-${uploadResetSignal}`}
             employee={selectedEmployee}
             companyId={selectedCompanyId}
             canUpload={canUploadDocuments}
@@ -445,30 +513,10 @@ export const EmployeeDocumentUploadPage = () => {
                 canDelete={canDeleteDocuments}
                 isMutating={isStatusMutating}
                 onDownload={(document) => downloadMutation.mutate(document)}
-                onVerify={(document) => {
-                  const remarks = window.prompt('Verification remarks', 'Document checked and verified by HR.')
-                  if (remarks !== null) {
-                    verifyMutation.mutate({ id: getEmployeeDocumentId(document), verificationRemarks: remarks })
-                  }
-                }}
-                onReject={(document) => {
-                  const reason = window.prompt('Reject reason', 'Document is unclear or incomplete.')
-                  if (reason?.trim()) {
-                    rejectMutation.mutate({ id: getEmployeeDocumentId(document), rejectionReason: reason.trim() })
-                  }
-                }}
-                onDelete={(document) => {
-                  const reason = window.prompt('Delete reason', 'Deleted from employee document UI')
-                  if (reason !== null) {
-                    deleteMutation.mutate({ id: getEmployeeDocumentId(document), deleteReason: reason })
-                  }
-                }}
-                onRestore={(document) => {
-                  const reason = window.prompt('Restore reason', 'Restored from employee document UI')
-                  if (reason !== null) {
-                    restoreMutation.mutate({ id: getEmployeeDocumentId(document), restoreReason: reason })
-                  }
-                }}
+                onVerify={(document) => setActionDialog({ action: 'verify', document })}
+                onReject={(document) => setActionDialog({ action: 'reject', document })}
+                onDelete={(document) => setActionDialog({ action: 'delete', document })}
+                onRestore={(document) => setActionDialog({ action: 'restore', document })}
               />
             )}
           </Card>
@@ -488,6 +536,12 @@ export const EmployeeDocumentUploadPage = () => {
           </div>
         </div>
       </Card>
+      <EmployeeDocumentStatusDialog
+        state={actionDialog}
+        isSubmitting={isStatusMutating}
+        onClose={() => setActionDialog(null)}
+        onConfirm={confirmDocumentAction}
+      />
     </section>
   )
 }

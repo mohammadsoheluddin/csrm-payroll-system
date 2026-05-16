@@ -6,6 +6,28 @@ import type {
   EmployeeDocumentStatus,
 } from '@/features/employees/employee-documents/types/employeeDocument.types'
 
+export const EMPLOYEE_DOCUMENT_MAX_UPLOAD_SIZE = 25 * 1024 * 1024
+
+export const employeeDocumentAcceptedFileExtensions = [
+  '.pdf',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.csv',
+  '.txt',
+  '.ppt',
+  '.pptx',
+] as const
+
+export const employeeDocumentAcceptedFileTypes = employeeDocumentAcceptedFileExtensions.join(',')
+
+const acceptedExtensionSet = new Set(employeeDocumentAcceptedFileExtensions.map((extension) => extension.replace('.', '')))
+
 export const employeeDocumentCategoryOptions: Array<{ value: EmployeeDocumentCategory; label: string }> = [
   { value: 'nid', label: 'NID' },
   { value: 'birth_certificate', label: 'Birth Certificate' },
@@ -137,4 +159,82 @@ export const hasEmployeeDocumentExpired = (expiryDate?: string) => {
 
   const today = new Date().toISOString().slice(0, 10)
   return expiryDate < today
+}
+
+export const getEmployeeDocumentDaysUntilExpiry = (expiryDate?: string) => {
+  if (!expiryDate) {
+    return null
+  }
+
+  const expiry = new Date(`${expiryDate.slice(0, 10)}T00:00:00.000Z`).getTime()
+  const today = new Date(`${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`).getTime()
+
+  if (!Number.isFinite(expiry) || !Number.isFinite(today)) {
+    return null
+  }
+
+  return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24))
+}
+
+export const getEmployeeDocumentExpiryLabel = (expiryDate?: string) => {
+  const days = getEmployeeDocumentDaysUntilExpiry(expiryDate)
+
+  if (days === null) {
+    return 'No expiry'
+  }
+
+  if (days < 0) {
+    return `Expired ${Math.abs(days)} day(s) ago`
+  }
+
+  if (days === 0) {
+    return 'Expires today'
+  }
+
+  if (days <= 30) {
+    return `Expires in ${days} day(s)`
+  }
+
+  return String(expiryDate).slice(0, 10)
+}
+
+export const getEmployeeDocumentExpiryVariant = (expiryDate?: string) => {
+  const days = getEmployeeDocumentDaysUntilExpiry(expiryDate)
+
+  if (days === null) {
+    return 'muted' as const
+  }
+
+  if (days < 0) {
+    return 'danger' as const
+  }
+
+  if (days <= 30) {
+    return 'warning' as const
+  }
+
+  return 'success' as const
+}
+
+export const isEmployeeDocumentFileAllowed = (file: File) => {
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+
+  if (!acceptedExtensionSet.has(extension)) {
+    return `Unsupported file type .${extension || 'unknown'}. Allowed file types: ${employeeDocumentAcceptedFileExtensions.join(', ')}`
+  }
+
+  if (file.size > EMPLOYEE_DOCUMENT_MAX_UPLOAD_SIZE) {
+    return `File is too large. Maximum allowed size is ${formatFileSize(EMPLOYEE_DOCUMENT_MAX_UPLOAD_SIZE)}.`
+  }
+
+  return null
+}
+
+export const deriveDocumentTitleFromFile = (fileName: string) => {
+  return fileName
+    .replace(/\.[^.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180)
 }

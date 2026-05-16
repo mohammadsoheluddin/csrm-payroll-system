@@ -14,8 +14,9 @@ import {
   getEmployeeDocumentConfidentialityVariant,
   getEmployeeDocumentId,
   getEmployeeDocumentStatusLabel,
+  getEmployeeDocumentExpiryLabel,
+  getEmployeeDocumentExpiryVariant,
   getEmployeeDocumentStatusVariant,
-  hasEmployeeDocumentExpired,
 } from '@/features/employees/employee-documents/utils/employeeDocument.utils'
 import { getEmployeeReferenceLabel } from '@/features/employees/utils/employee.utils'
 
@@ -31,14 +32,6 @@ type EmployeeDocumentTableProps = {
   onReject: (document: EmployeeDocumentRecord) => void
   onDelete: (document: EmployeeDocumentRecord) => void
   onRestore: (document: EmployeeDocumentRecord) => void
-}
-
-const formatDate = (value?: string | Date | null) => {
-  if (!value) {
-    return '—'
-  }
-
-  return String(value).slice(0, 10)
 }
 
 export const EmployeeDocumentTable = ({
@@ -59,7 +52,7 @@ export const EmployeeDocumentTable = ({
       records={records}
       getRowKey={getEmployeeDocumentId}
       emptyMessage={mode === 'deleted' ? 'No deleted employee documents found.' : 'No employee documents found.'}
-      actionsColumnClassName="min-w-[26rem] lg:min-w-[30rem]"
+      actionsColumnClassName="min-w-[24rem] lg:min-w-[28rem]"
       columns={[
         {
           key: 'title',
@@ -112,10 +105,9 @@ export const EmployeeDocumentTable = ({
           label: 'Expiry',
           render: (document) => (
             <div>
-              <span>{formatDate(document.expiryDate)}</span>
-              {hasEmployeeDocumentExpired(document.expiryDate) && (
-                <p className="mt-1 text-xs font-semibold text-destructive">Expired</p>
-              )}
+              <Badge variant={getEmployeeDocumentExpiryVariant(document.expiryDate)}>
+                {getEmployeeDocumentExpiryLabel(document.expiryDate)}
+              </Badge>
             </div>
           ),
         },
@@ -187,10 +179,10 @@ export const EmployeeDocumentTable = ({
             </Button>
           )}
 
-          {canManage && mode === 'active' && (
+          {canManage && mode === 'active' && document.status === 'archived' && (
             <Button type="button" variant="ghost" size="sm" className="shrink-0" disabled>
               <RefreshCcw className="h-4 w-4" />
-              Edit later
+              Archived
             </Button>
           )}
         </div>

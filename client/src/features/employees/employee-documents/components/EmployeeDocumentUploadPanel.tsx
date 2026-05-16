@@ -1,4 +1,4 @@
-import { UploadCloud } from 'lucide-react'
+import { CheckCircle2, FileText, UploadCloud, X } from 'lucide-react'
 import type { FormEvent } from 'react'
 import { useState } from 'react'
 
@@ -11,28 +11,17 @@ import type {
   EmployeeDocumentUploadPayload,
 } from '@/features/employees/employee-documents/types/employeeDocument.types'
 import {
+  deriveDocumentTitleFromFile,
+  employeeDocumentAcceptedFileTypes,
   employeeDocumentCategoryOptions,
   employeeDocumentConfidentialityOptions,
+  formatFileSize,
+  isEmployeeDocumentFileAllowed,
   parseTagsInput,
 } from '@/features/employees/employee-documents/utils/employeeDocument.utils'
 import type { EmployeeRecord } from '@/features/employees/types/employee.types'
 import { getEmployeeDisplayName } from '@/features/employees/utils/employee.utils'
-
-const acceptedFileTypes = [
-  '.pdf',
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.csv',
-  '.txt',
-  '.ppt',
-  '.pptx',
-].join(',')
+import { cn } from '@/lib/utils/cn'
 
 type UploadPanelState = {
   category: EmployeeDocumentCategory
@@ -75,8 +64,36 @@ export const EmployeeDocumentUploadPanel = ({
   const [formState, setFormState] = useState<UploadPanelState>(initialFormState)
   const [clientError, setClientError] = useState<string | null>(null)
 
+  const resetForm = () => {
+    setFile(null)
+    setFormState(initialFormState)
+    setClientError(null)
+  }
+
   const updateField = <TKey extends keyof UploadPanelState>(field: TKey, value: UploadPanelState[TKey]) => {
     setFormState((current) => ({ ...current, [field]: value }))
+  }
+
+  const handleFileChange = (selectedFile?: File) => {
+    setClientError(null)
+
+    if (!selectedFile) {
+      setFile(null)
+      return
+    }
+
+    const validationError = isEmployeeDocumentFileAllowed(selectedFile)
+    if (validationError) {
+      setFile(null)
+      setClientError(validationError)
+      return
+    }
+
+    setFile(selectedFile)
+    setFormState((current) => ({
+      ...current,
+      title: current.title.trim() ? current.title : deriveDocumentTitleFromFile(selectedFile.name),
+    }))
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -92,6 +109,12 @@ export const EmployeeDocumentUploadPanel = ({
 
     if (!file) {
       setClientError('Select a document file first.')
+      return
+    }
+
+    const validationError = isEmployeeDocumentFileAllowed(file)
+    if (validationError) {
+      setClientError(validationError)
       return
     }
 
@@ -127,14 +150,14 @@ export const EmployeeDocumentUploadPanel = ({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="success">Part-F18</Badge>
+              <Badge variant="success">Part-F18.1</Badge>
               <Badge variant="default">Actual Upload</Badge>
-              <Badge variant="muted">API: /employee-documents/upload</Badge>
+              <Badge variant="muted">Profile linked</Badge>
             </div>
             <h3 className="mt-3 text-lg font-bold text-foreground">Upload employee document</h3>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Upload HR documents into the employee digital vault. Files are saved through the backend storage abstraction;
-              payroll calculation is not affected.
+              Upload HR documents into the employee digital vault. Files are validated before upload and remain separate
+              from native payroll calculation.
             </p>
           </div>
           <div className="rounded-2xl bg-card px-4 py-3 text-sm shadow-sm ring-1 ring-border">
@@ -157,20 +180,52 @@ export const EmployeeDocumentUploadPanel = ({
           </div>
         )}
 
-        <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-muted/30 px-5 py-6 text-center transition hover:border-primary/40 hover:bg-primary/5">
+        <label
+          className={cn(
+            'flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-muted/30 px-5 py-6 text-center transition hover:border-primary/40 hover:bg-primary/5',
+            file && 'border-primary/40 bg-primary/5',
+          )}
+        >
           <UploadCloud className="h-10 w-10 text-primary" />
           <span className="mt-3 text-sm font-semibold text-foreground">{file ? file.name : 'Choose document file'}</span>
           <span className="mt-1 text-xs leading-5 text-muted-foreground">
-            Allowed: PDF, image, Word, Excel, CSV, text, PowerPoint. Max limit follows backend storage limit.
+            Allowed: PDF, image, Word, Excel, CSV, text, PowerPoint. Maximum file size: 25 MB.
           </span>
           <input
             type="file"
             className="sr-only"
-            accept={acceptedFileTypes}
+            accept={employeeDocumentAcceptedFileTypes}
             disabled={!canUpload || isUploading || !employee}
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            onChange={(event) => handleFileChange(event.target.files?.[0])}
           />
         </label>
+
+        {file && (
+          <div className="rounded-3xl border border-border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="rounded-2xl bg-primary/10 p-3 text-primary">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{file.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatFileSize(file.size)} • {file.type || 'application/octet-stream'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <Badge variant="success">
+                  <CheckCircle2 className="mr-1 h-3 w-3" /> Ready
+                </Badge>
+                <Button type="button" variant="ghost" size="sm" onClick={() => handleFileChange(undefined)} disabled={isUploading}>
+                  <X className="h-4 w-4" />
+                  Remove
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="space-y-2 text-sm font-medium text-foreground">
@@ -284,16 +339,7 @@ export const EmployeeDocumentUploadPanel = ({
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!canUpload || isUploading}
-            onClick={() => {
-              setFile(null)
-              setFormState(initialFormState)
-              setClientError(null)
-            }}
-          >
+          <Button type="button" variant="outline" disabled={!canUpload || isUploading} onClick={resetForm}>
             Reset
           </Button>
           <Button type="submit" disabled={!canUpload || isUploading || !employee}>
