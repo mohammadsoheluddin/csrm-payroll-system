@@ -147,6 +147,41 @@ const updateEmployeeDocumentBodySchema = z
   })
   .refine(hasValidIssueExpiryOrder, issueExpiryValidationMessage);
 
+
+const uploadEmployeeDocumentFileValidationSchema = z.object({
+  query: z
+    .object({
+      employee: objectIdSchema("employee id"),
+      company: objectIdSchema("company id"),
+      category: employeeDocumentCategorySchema,
+      title: titleSchema,
+      documentNo: optionalTrimmedStringSchema("Document no", {
+        max: 80,
+      }),
+      issuingAuthority: optionalTrimmedStringSchema("Issuing authority", {
+        max: 180,
+      }),
+      issueDate: optionalDateStringSchema("Issue date"),
+      expiryDate: optionalDateStringSchema("Expiry date"),
+      confidentiality: employeeDocumentConfidentialitySchema.optional(),
+      status: z.enum(["pending", "archived"]).optional(),
+      remarks: optionalTrimmedStringSchema("Remarks", {
+        max: VALIDATION_LIMITS.NOTE,
+      }),
+      tags: optionalTrimmedStringSchema("Tags", {
+        max: 500,
+      }),
+    })
+    .strict()
+    .refine(hasValidIssueExpiryOrder, issueExpiryValidationMessage),
+});
+
+const downloadEmployeeDocumentFileValidationSchema = z.object({
+  params: z.object({
+    id: objectIdSchema("employee document id"),
+  }),
+});
+
 const createEmployeeDocumentValidationSchema = z.object({
   body: createEmployeeDocumentBodySchema,
 });
@@ -257,4 +292,6 @@ export const EmployeeDocumentValidations = {
   deleteEmployeeDocumentValidationSchema,
   restoreEmployeeDocumentValidationSchema,
   expiringEmployeeDocumentsValidationSchema,
+  uploadEmployeeDocumentFileValidationSchema,
+  downloadEmployeeDocumentFileValidationSchema,
 };

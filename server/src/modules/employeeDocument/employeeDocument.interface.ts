@@ -94,3 +94,25 @@ export type TEmployeeDocumentQuery = {
   fromDate?: string;
   toDate?: string;
 };
+
+export type TEmployeeDocumentRawUploadMetadata = {
+  employee: string;
+  company: string;
+  category: TEmployeeDocumentCategory;
+  title: string;
+  documentNo?: string;
+  issuingAuthority?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  confidentiality?: TEmployeeDocumentConfidentiality;
+  status?: Extract<TEmployeeDocumentStatus, "pending" | "archived">;
+  remarks?: string;
+  tags?: string[];
+};
+
+export type TEmployeeDocumentRawUploadInput = {
+  fileBuffer: Buffer;
+  originalFileName: string;
+  mimeType?: string;
+  metadata: TEmployeeDocumentRawUploadMetadata;
+};

@@ -10,6 +10,122 @@ import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import { EmployeeDocumentServices } from "./employeeDocument.service";
 
+
+const getSingleQueryValue = (value: unknown): string | undefined => {
+  if (Array.isArray(value)) {
+    return typeof value[0] === "string" ? value[0] : undefined;
+  }
+
+  return typeof value === "string" ? value : undefined;
+};
+
+const getHeaderValue = (value: unknown): string | undefined => {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return typeof value === "string" ? value : undefined;
+};
+
+const getTagsFromQuery = (value: unknown): string[] | undefined => {
+  const rawValue = getSingleQueryValue(value);
+
+  if (!rawValue) {
+    return undefined;
+  }
+
+  return rawValue
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+};
+
+const uploadEmployeeDocumentFile = catchAsync(
+  async (req: Request, res: Response) => {
+    const fileBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    const originalFileName =
+      getHeaderValue(req.headers["x-file-name"]) ||
+      getSingleQueryValue(req.query.fileName) ||
+      "employee-document.bin";
+
+    const result =
+      await EmployeeDocumentServices.uploadEmployeeDocumentFileIntoDB(
+        {
+          fileBuffer,
+          originalFileName,
+          mimeType: getHeaderValue(req.headers["content-type"]),
+          metadata: {
+            employee: getSingleQueryValue(req.query.employee) as string,
+            company: getSingleQueryValue(req.query.company) as string,
+            category: getSingleQueryValue(req.query.category) as any,
+            title: getSingleQueryValue(req.query.title) as string,
+            documentNo: getSingleQueryValue(req.query.documentNo),
+            issuingAuthority: getSingleQueryValue(req.query.issuingAuthority),
+            issueDate: getSingleQueryValue(req.query.issueDate),
+            expiryDate: getSingleQueryValue(req.query.expiryDate),
+            confidentiality: getSingleQueryValue(req.query.confidentiality) as any,
+            status: getSingleQueryValue(req.query.status) as any,
+            remarks: getSingleQueryValue(req.query.remarks),
+            tags: getTagsFromQuery(req.query.tags),
+          },
+        },
+        {
+          userId: getRequestUserId(req),
+        },
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_document",
+      action: "create",
+      entityId: getAuditEntityId(result),
+      entityName: getAuditEntityName(result, ["title", "documentNo", "fileName"]),
+      description: "Employee document file uploaded and registered",
+      newData: toAuditData(result),
+      metadata: {
+        originalFileName,
+        fileSize: fileBuffer.length,
+      },
+    });
+
+    sendResponse(res, {
+      statusCode: 201,
+      success: true,
+      message: "Employee document file uploaded successfully",
+      data: result,
+    });
+  },
+);
+
+const downloadEmployeeDocumentFile = catchAsync(
+  async (req: Request, res: Response) => {
+    const result =
+      await EmployeeDocumentServices.getEmployeeDocumentFileForDownloadFromDB(
+        req.params.id as string,
+      );
+
+    await createAuditLogFromRequest(req, {
+      module: "employee_document",
+      action: "download",
+      entityId: getAuditEntityId(result.employeeDocument, req.params.id as string),
+      entityName: getAuditEntityName(result.employeeDocument, [
+        "title",
+        "documentNo",
+        "fileName",
+      ]),
+      description: "Employee document file downloaded",
+      metadata: {
+        fileName: result.file.fileName,
+        fileSize: result.file.fileSize,
+      },
+    });
+
+    res.setHeader("Content-Type", result.file.mimeType);
+    res.setHeader("Content-Length", String(result.file.fileSize));
+
+    res.download(result.file.absolutePath, result.file.fileName);
+  },
+);
+
 const createEmployeeDocument = catchAsync(
   async (req: Request, res: Response) => {
     const result = await EmployeeDocumentServices.createEmployeeDocumentIntoDB(
@@ -327,6 +443,8 @@ const restoreEmployeeDocument = catchAsync(
 );
 
 export const EmployeeDocumentControllers = {
+  uploadEmployeeDocumentFile,
+  downloadEmployeeDocumentFile,
   createEmployeeDocument,
   getAllEmployeeDocuments,
   getDeletedEmployeeDocuments,

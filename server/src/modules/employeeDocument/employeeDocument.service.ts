@@ -12,8 +12,10 @@ import Employee from "../employee/employee.model";
 import {
   TEmployeeDocument,
   TEmployeeDocumentQuery,
+  TEmployeeDocumentRawUploadInput,
 } from "./employeeDocument.interface";
 import EmployeeDocument from "./employeeDocument.model";
+import { FileStorageServices } from "../fileStorage/fileStorage.service";
 
 const HTTP_STATUS = {
   BAD_REQUEST: 400,
@@ -236,6 +238,80 @@ const ensureNoDuplicateDocument = async (
   }
 };
 
+
+const normalizeTags = (tags?: string[]) =>
+  Array.isArray(tags)
+    ? tags
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 20)
+    : [];
+
+const uploadEmployeeDocumentFileIntoDB = async (
+  payload: TEmployeeDocumentRawUploadInput,
+  actorOptions: TActorOptions = {},
+) => {
+  await checkEmployeeAndCompany(payload.metadata);
+
+  const storedFile = await FileStorageServices.saveRawFile({
+    buffer: payload.fileBuffer,
+    originalFileName: payload.originalFileName,
+    mimeType: payload.mimeType,
+    moduleName: "employee-documents",
+    ownerId: payload.metadata.employee,
+  });
+
+  const actorObjectId = toObjectIdOrNull(actorOptions.userId);
+
+  const documentPayload: TEmployeeDocument = {
+    employee: new mongoose.Types.ObjectId(payload.metadata.employee),
+    company: new mongoose.Types.ObjectId(payload.metadata.company),
+    category: payload.metadata.category,
+    title: payload.metadata.title,
+    documentNo: payload.metadata.documentNo?.toUpperCase(),
+    issuingAuthority: payload.metadata.issuingAuthority,
+    issueDate: payload.metadata.issueDate,
+    expiryDate: payload.metadata.expiryDate,
+    fileName: storedFile.fileName,
+    originalFileName: storedFile.originalFileName,
+    fileExtension: storedFile.fileExtension,
+    mimeType: storedFile.mimeType,
+    fileSize: storedFile.fileSize,
+    fileUrl: "",
+    storageProvider: storedFile.provider,
+    storagePath: storedFile.storagePath,
+    checksum: storedFile.checksum,
+    confidentiality: payload.metadata.confidentiality || "confidential",
+    status: payload.metadata.status || "pending",
+    uploadedBy: actorObjectId,
+    remarks: payload.metadata.remarks,
+    tags: normalizeTags(payload.metadata.tags),
+    isDeleted: false,
+    verifiedAt: null,
+    verifiedBy: null,
+  };
+
+  await ensureNoDuplicateDocument(documentPayload);
+
+  const createdDocument = await EmployeeDocument.create(documentPayload);
+  const fileUrl = `/api/v1/employee-documents/${String(createdDocument._id)}/download`;
+
+  const result = await EmployeeDocument.findByIdAndUpdate(
+    createdDocument._id,
+    {
+      $set: {
+        fileUrl,
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate(populateEmployeeDocumentQuery());
+
+  return result || createdDocument;
+};
+
 const createEmployeeDocumentIntoDB = async (
   payload: TEmployeeDocument,
   actorOptions: TActorOptions = {},
@@ -276,6 +352,37 @@ const getDeletedEmployeeDocumentsFromDB = async (
     .sort({ deletedAt: -1, createdAt: -1 });
 
   return result;
+};
+
+
+const getEmployeeDocumentFileForDownloadFromDB = async (id: string) => {
+  const employeeDocument = await EmployeeDocument.findOne({
+    _id: id,
+    isDeleted: { $ne: true },
+  });
+
+  if (!employeeDocument) {
+    throw new AppError(HTTP_STATUS.NOT_FOUND, "Employee document not found");
+  }
+
+  if (employeeDocument.storageProvider !== "local") {
+    throw new AppError(
+      HTTP_STATUS.BAD_REQUEST,
+      "Only local employee document files can be downloaded from this endpoint",
+    );
+  }
+
+  const file = await FileStorageServices.getStoredFileForRead({
+    storagePath: employeeDocument.storagePath,
+    fileName: employeeDocument.originalFileName || employeeDocument.fileName,
+    mimeType: employeeDocument.mimeType,
+    fileSize: employeeDocument.fileSize,
+  });
+
+  return {
+    employeeDocument,
+    file,
+  };
 };
 
 const getSingleEmployeeDocumentFromDB = async (id: string) => {
@@ -606,10 +713,12 @@ const getEmployeeDocumentSummaryFromDB = async (employeeId: string) => {
 };
 
 export const EmployeeDocumentServices = {
+  uploadEmployeeDocumentFileIntoDB,
   createEmployeeDocumentIntoDB,
   getAllEmployeeDocumentsFromDB,
   getDeletedEmployeeDocumentsFromDB,
   getSingleEmployeeDocumentFromDB,
+  getEmployeeDocumentFileForDownloadFromDB,
   getSingleDeletedEmployeeDocumentFromDB,
   getEmployeeDocumentsByEmployeeFromDB,
   updateEmployeeDocumentIntoDB,

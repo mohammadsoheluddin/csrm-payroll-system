@@ -1,4 +1,4 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import auth from "../../middleware/auth";
 import requirePermission from "../../middleware/requirePermission";
 import validateRequest from "../../middleware/validateRequest";
@@ -7,6 +7,31 @@ import { EmployeeDocumentControllers } from "./employeeDocument.controller";
 import { EmployeeDocumentValidations } from "./employeeDocument.validation";
 
 const router = Router();
+
+
+router.post(
+  "/upload",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_DOCUMENT_MANAGE),
+  validateRequest(
+    EmployeeDocumentValidations.uploadEmployeeDocumentFileValidationSchema,
+  ),
+  express.raw({
+    type: () => true,
+    limit: "25mb",
+  }),
+  EmployeeDocumentControllers.uploadEmployeeDocumentFile,
+);
+
+router.get(
+  "/:id/download",
+  auth(),
+  requirePermission(PERMISSIONS.EMPLOYEE_DOCUMENT_READ),
+  validateRequest(
+    EmployeeDocumentValidations.downloadEmployeeDocumentFileValidationSchema,
+  ),
+  EmployeeDocumentControllers.downloadEmployeeDocumentFile,
+);
 
 router.post(
   "/",
