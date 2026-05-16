@@ -40,6 +40,8 @@ export const managementControlledLeaveTypes: LeaveType[] = ['paid', 'unpaid', 'o
 
 export const attendanceFilterDefaults: AttendanceQueryParams = {
   employee: '',
+  company: '',
+  department: '',
   status: '',
   source: '',
   attendanceDate: '',

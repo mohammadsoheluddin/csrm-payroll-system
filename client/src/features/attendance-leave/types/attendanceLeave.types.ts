@@ -34,6 +34,8 @@ export type AttendanceRecord = Record<string, unknown> & {
 
 export type AttendanceQueryParams = {
   employee?: string
+  company?: string
+  department?: string
   status?: AttendanceStatus | ''
   source?: AttendanceSource | ''
   attendanceDate?: string

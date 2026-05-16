@@ -19,6 +19,7 @@ import {
   updateAttendanceRecord,
 } from '@/features/attendance-leave/api/attendanceLeave.api'
 import { AttendanceFormPanel } from '@/features/attendance-leave/components/AttendanceFormPanel'
+import { AttendanceFinalizationFoundationPanel } from '@/features/attendance-leave/components/AttendanceFinalizationFoundationPanel'
 import { AttendanceLeaveStatCards } from '@/features/attendance-leave/components/AttendanceLeaveStatCards'
 import { AttendanceToolbar } from '@/features/attendance-leave/components/AttendanceToolbar'
 import { attendanceFilterDefaults } from '@/features/attendance-leave/config/attendanceLeave.constants'
@@ -37,6 +38,8 @@ import {
   statusBadgeVariant,
 } from '@/features/attendance-leave/utils/attendanceLeave.utils'
 import { getEmployees } from '@/features/employees/api/employee.api'
+import { useEmployeeLookups } from '@/features/employees/hooks/useEmployeeLookups'
+import { getEmployeeId, getEmployeeReferenceId } from '@/features/employees/utils/employee.utils'
 import { normalizeApiError } from '@/lib/api/apiError'
 import { toTitleCase } from '@/lib/format/record.utils'
 import { queryKeys } from '@/lib/query/queryKeys'
@@ -51,9 +54,14 @@ export const AttendanceRegisterPage = () => {
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(null)
   const [serverFormError, setServerFormError] = useState<string | null>(null)
   const [serverFieldErrors, setServerFieldErrors] = useState<Record<string, string>>({})
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7))
 
   const canReadAttendance = canAccess([PERMISSIONS.ATTENDANCE_READ])
   const canManageAttendance = canAccess([PERMISSIONS.ATTENDANCE_MANAGE])
+  const canReadFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_READ])
+  const canProcessFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_PROCESS])
+  const canApproveFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_APPROVE])
+  const canLockFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_LOCK])
   const queryKey = queryKeys.attendance.list(mode, filters)
 
   const attendanceQuery = useQuery({
@@ -67,13 +75,34 @@ export const AttendanceRegisterPage = () => {
     queryFn: () => getEmployees({ mode: 'active', params: { status: 'active' } }),
     enabled: canReadAttendance,
   })
+  const employeeLookups = useEmployeeLookups({ enabled: canReadAttendance })
 
   const employeeOptions = useMemo(
     () => employeesToSelectOptions(employeeOptionsQuery.data ?? []),
     [employeeOptionsQuery.data],
   )
 
-  const records = attendanceQuery.data ?? []
+  const records = useMemo(() => attendanceQuery.data ?? [], [attendanceQuery.data])
+  const employeesById = useMemo(() => {
+    return new Map((employeeOptionsQuery.data ?? []).map((employee) => [getEmployeeId(employee), employee]))
+  }, [employeeOptionsQuery.data])
+  const visibleRecords = useMemo(() => {
+    return records.filter((record) => {
+      const employee =
+        typeof record.employee === 'object' && record.employee !== null
+          ? record.employee
+          : employeesById.get(String(record.employee))
+
+      const matchesCompany = filters.company
+        ? getEmployeeReferenceId(employee?.company) === filters.company
+        : true
+      const matchesDepartment = filters.department
+        ? getEmployeeReferenceId(employee?.department) === filters.department
+        : true
+
+      return matchesCompany && matchesDepartment
+    })
+  }, [employeesById, filters.company, filters.department, records])
 
   const clearFormErrors = () => {
     setServerFormError(null)
@@ -176,10 +205,10 @@ export const AttendanceRegisterPage = () => {
       <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <Badge variant="default">Part-F9</Badge>
+            <Badge variant="default">Part-F20</Badge>
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground">Attendance Register</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-              Backend-connected attendance list, manual entry/correction, soft delete, restore, and payroll lock-aware error handling foundation.
+              Attendance register foundation with filters, manual entry review, and monthly finalization preparation for payroll-safe workflows.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -207,12 +236,14 @@ export const AttendanceRegisterPage = () => {
         </div>
       </section>
 
-      <AttendanceLeaveStatCards type="attendance" records={records} />
+      <AttendanceLeaveStatCards type="attendance" records={visibleRecords} />
 
       <AttendanceToolbar
         mode={mode}
         filters={filters}
         employees={employeeOptions}
+        companies={employeeLookups.companyOptions}
+        departments={employeeLookups.getDepartmentOptions(filters.company)}
         onModeChange={(nextMode) => {
           setMode(nextMode)
           closeForm()
@@ -245,7 +276,7 @@ export const AttendanceRegisterPage = () => {
           <div>
             <h2 className="text-base font-semibold text-foreground">Attendance Records</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Showing {records.length} {mode} records from backend attendance API.
+              Showing {visibleRecords.length} of {records.length} {mode} records after the current UI filters.
             </p>
           </div>
         </div>
@@ -256,7 +287,7 @@ export const AttendanceRegisterPage = () => {
           <ApiErrorState error={attendanceQuery.error} onRetry={() => void attendanceQuery.refetch()} />
         ) : (
           <SimpleDataTable<AttendanceRecord>
-            records={records}
+            records={visibleRecords}
             getRowKey={(record) => getRecordId(record)}
             emptyMessage="No attendance records found for selected filters."
             columns={[
@@ -330,6 +361,15 @@ export const AttendanceRegisterPage = () => {
           />
         )}
       </Card>
+
+      <AttendanceFinalizationFoundationPanel
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        canReadFinalization={canReadFinalization}
+        canProcessFinalization={canProcessFinalization}
+        canApproveFinalization={canApproveFinalization}
+        canLockFinalization={canLockFinalization}
+      />
     </div>
   )
 }

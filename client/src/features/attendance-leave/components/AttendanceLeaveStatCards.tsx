@@ -1,4 +1,4 @@
-import { CalendarCheck, ClipboardList, Clock3, ShieldCheck } from 'lucide-react'
+import { CalendarCheck, ClipboardList, Clock3, FilePenLine, ShieldCheck, UserMinus } from 'lucide-react'
 
 import { Card } from '@/components/ui/Card'
 import type { AttendanceRecord, LeaveRecord } from '@/features/attendance-leave/types/attendanceLeave.types'
@@ -20,28 +20,34 @@ export const AttendanceLeaveStatCards = ({ type, records }: AttendanceLeaveStatC
     type === 'attendance'
       ? [
           {
-            label: 'Total Records',
-            value: total,
+            label: 'Present',
+            value: countBy(records as AttendanceRecord[], (record) => record.status === 'present'),
             icon: CalendarCheck,
-            description: 'Current filtered attendance rows',
+            description: 'Filtered present entries',
           },
           {
-            label: 'Present / Late',
-            value: countBy(records as AttendanceRecord[], (record) => record.status === 'present' || record.status === 'late'),
-            icon: ShieldCheck,
-            description: 'Payroll-attendance counted statuses',
+            label: 'Absent',
+            value: countBy(records as AttendanceRecord[], (record) => record.status === 'absent'),
+            icon: UserMinus,
+            description: 'Filtered absent entries',
           },
           {
-            label: 'Absent / Leave',
-            value: countBy(records as AttendanceRecord[], (record) => record.status === 'absent' || record.status === 'leave'),
+            label: 'Leave',
+            value: countBy(records as AttendanceRecord[], (record) => record.status === 'leave'),
             icon: ClipboardList,
-            description: 'Exception statuses for review',
+            description: 'Filtered leave entries',
           },
           {
-            label: 'Manual Source',
-            value: countBy(records as AttendanceRecord[], (record) => record.source === 'manual'),
+            label: 'Late',
+            value: countBy(records as AttendanceRecord[], (record) => record.status === 'late'),
             icon: Clock3,
-            description: 'Manual corrections / entries',
+            description: 'Filtered late entries',
+          },
+          {
+            label: 'Manual Entries',
+            value: countBy(records as AttendanceRecord[], (record) => record.source === 'manual'),
+            icon: FilePenLine,
+            description: `${total} loaded records`,
           },
         ]
       : [
@@ -72,7 +78,7 @@ export const AttendanceLeaveStatCards = ({ type, records }: AttendanceLeaveStatC
         ]
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
       {stats.map((stat) => {
         const Icon = stat.icon
 
