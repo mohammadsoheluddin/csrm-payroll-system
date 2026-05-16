@@ -114,6 +114,12 @@ export const sidebarGroups: SidebarGroup[] = [
             requiredPermissions: [PERMISSIONS.EMPLOYEE_READ],
           },
           {
+            label: 'Documents',
+            href: routePaths.employeeDocuments,
+            requiredPermissions: [PERMISSIONS.EMPLOYEE_DOCUMENT_READ],
+            badge: 'F18',
+          },
+          {
             label: 'Bulk Import',
             href: routePaths.employeeBulkImport,
             requiredPermissions: [PERMISSIONS.EMPLOYEE_BULK_IMPORT_READ],

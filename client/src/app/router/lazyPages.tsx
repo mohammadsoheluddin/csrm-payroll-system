@@ -12,6 +12,11 @@ export const ThemeSettingsPage = lazy(() =>
 export const EmployeeDirectoryPage = lazy(() =>
   import('@/features/employees/pages/EmployeeDirectoryPage').then((module) => ({ default: module.EmployeeDirectoryPage })),
 )
+export const EmployeeDocumentUploadPage = lazy(() =>
+  import('@/features/employees/employee-documents/pages/EmployeeDocumentUploadPage').then((module) => ({
+    default: module.EmployeeDocumentUploadPage,
+  })),
+)
 export const AttendanceRegisterPage = lazy(() =>
   import('@/features/attendance-leave/pages/AttendanceRegisterPage').then((module) => ({ default: module.AttendanceRegisterPage })),
 )

@@ -11,6 +11,7 @@ import { PublicOnlyRoute } from './PublicOnlyRoute'
 import { RouteLoadingFallback } from './RouteLoadingFallback'
 import { appRouteConfig, type AppRouteConfigItem } from './routeConfig'
 import { withRouteSuspense } from './lazyRoute'
+import { DashboardPrefixRedirect } from './DashboardPrefixRedirect'
 
 import {
   AttendanceRegisterPage,
@@ -18,6 +19,7 @@ import {
   BankSheetsPage,
   DashboardPage,
   EmployeeDirectoryPage,
+  EmployeeDocumentUploadPage,
   ForbiddenPage,
   LeaveApplicationsPage,
   LegacySalaryImportPage,
@@ -69,6 +71,13 @@ const appRoutes = appRouteConfig.map((route) => {
     return {
       path: route.path,
       element: protectedElement(route, <EmployeeDirectoryPage />),
+    }
+  }
+
+  if (route.path === routePaths.employeeDocuments) {
+    return {
+      path: route.path,
+      element: protectedElement(route, <EmployeeDocumentUploadPage />),
     }
   }
 
@@ -212,6 +221,10 @@ export const router = createBrowserRouter([
   {
     path: routePaths.forbidden,
     element: withRouteSuspense(<ForbiddenPage />, routeFallback('Forbidden')),
+  },
+  {
+    path: `${routePaths.dashboard}/:firstSegment/*`,
+    element: <DashboardPrefixRedirect />,
   },
   {
     element: <AppLayout />,

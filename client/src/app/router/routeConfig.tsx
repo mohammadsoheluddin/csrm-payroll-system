@@ -113,6 +113,16 @@ export const appRouteConfig: AppRouteConfigItem[] = [
     status: 'ready',
   },
   {
+    path: routePaths.employeeDocuments,
+    title: 'Employee Document Upload',
+    shortTitle: 'Documents',
+    description: 'Upload, download, verify, reject, soft-delete, and restore employee document vault records.',
+    section: 'Employee Lifecycle',
+    breadcrumbs: ['Employees', 'Documents'],
+    requiredPermissions: [PERMISSIONS.EMPLOYEE_DOCUMENT_READ],
+    status: 'ready',
+  },
+  {
     path: routePaths.employeeBulkImport,
     title: 'Employee Bulk Import',
     shortTitle: 'Bulk Import',

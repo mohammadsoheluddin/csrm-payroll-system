@@ -19,6 +19,7 @@ export const routePaths = {
   employees: '/employees',
   employeeBulkImport: '/employees/bulk-import',
   employeeMovements: '/employees/movements',
+  employeeDocuments: '/employees/documents',
 
   attendance: '/attendance',
   attendanceImports: '/attendance/imports',

@@ -4,12 +4,14 @@ import {
   ArchiveRestore,
   Edit3,
   Eye,
+  FileText,
   Plus,
   RefreshCcw,
   ShieldCheck,
   Trash2,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { SimpleDataTable } from '@/components/data-table/SimpleDataTable'
@@ -20,6 +22,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { PERMISSIONS } from '@/config/permissions'
+import { routePaths } from '@/config/routePaths'
 import {
   changeEmployeeLifecycle,
   createEmployee,
@@ -97,6 +100,7 @@ const toServerFieldErrors = (error: unknown) => {
 
 export const EmployeeDirectoryPage = () => {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const canAccess = useAuthStore((state) => state.canAccess)
   const [mode, setMode] = useState<EmployeeListMode>('active')
   const [searchText, setSearchText] = useState('')
@@ -110,6 +114,7 @@ export const EmployeeDirectoryPage = () => {
 
   const lookups = useEmployeeLookups()
   const canManageEmployee = canAccess([PERMISSIONS.EMPLOYEE_MANAGE])
+  const canReadEmployeeDocuments = canAccess([PERMISSIONS.EMPLOYEE_DOCUMENT_READ])
   const queryKey = queryKeys.employees.list(mode, filters)
 
   const employeesQuery = useQuery({
@@ -342,7 +347,7 @@ export const EmployeeDirectoryPage = () => {
           records={employees}
           getRowKey={getEmployeeId}
           emptyMessage={mode === 'deleted' ? 'No deleted employees found.' : 'No employees found.'}
-          actionsColumnClassName="min-w-[25rem] lg:min-w-[27rem]"
+          actionsColumnClassName="min-w-[31rem] lg:min-w-[34rem]"
           columns={[
             {
               key: 'employeeId',
@@ -373,6 +378,19 @@ export const EmployeeDirectoryPage = () => {
                 <Eye className="h-4 w-4" />
                 View
               </Button>
+
+              {canReadEmployeeDocuments && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => navigate(`${routePaths.employeeDocuments}?employee=${getEmployeeId(employee)}`)}
+                >
+                  <FileText className="h-4 w-4" />
+                  Docs
+                </Button>
+              )}
 
               {canManageEmployee && mode === 'active' && (
                 <>
