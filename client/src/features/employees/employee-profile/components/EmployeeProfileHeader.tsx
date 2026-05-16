@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarDays, FileText, RefreshCcw, UserRound } from 'lucide-react'
+import { ArrowLeft, CalendarDays, FileText, Printer, RefreshCcw, UserRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { Badge } from '@/components/ui/Badge'
@@ -26,6 +26,7 @@ const getInitials = (name: string) => {
 export const EmployeeProfileHeader = ({ profile, isRefreshing, onRefresh }: EmployeeProfileHeaderProps) => {
   const navigate = useNavigate()
   const { summary } = profile
+  const selectedMonthLabel = profile.selectedPayrollMonth || 'All payroll months'
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
@@ -39,6 +40,7 @@ export const EmployeeProfileHeader = ({ profile, isRefreshing, onRefresh }: Empl
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="success">Part-F19 digital service book</Badge>
                 <Badge variant="muted">Generated {new Date(profile.profileGeneratedAt).toLocaleString('en-GB')}</Badge>
+                <Badge variant="default">{selectedMonthLabel}</Badge>
               </div>
               <h2 className="mt-2 truncate text-2xl font-black tracking-tight text-foreground">{summary.employeeName}</h2>
             </div>
@@ -48,6 +50,10 @@ export const EmployeeProfileHeader = ({ profile, isRefreshing, onRefresh }: Empl
             <Button type="button" variant="outline" onClick={onRefresh} disabled={isRefreshing}>
               <RefreshCcw className="h-4 w-4" />
               Refresh
+            </Button>
+            <Button type="button" variant="outline" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" />
+              Print
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate(buildEmployeeDocumentsPath(summary.employeeDbId))}>
               <FileText className="h-4 w-4" />

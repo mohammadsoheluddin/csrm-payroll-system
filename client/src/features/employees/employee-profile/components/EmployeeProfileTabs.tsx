@@ -18,14 +18,12 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { buildEmployeeDocumentsPath } from '@/config/routePaths'
 import type {
-  EmployeeProfileDataGap,
   EmployeeProfileResponse,
   EmployeeProfileTimelineEvent,
 } from '@/features/employees/employee-profile/types/employeeProfile.types'
 import {
   formatCompactNumber,
   formatCurrency,
-  getGapVariant,
   getNumberValue,
   getProfileReferenceLabel,
   getRecordDisplayId,
@@ -35,6 +33,8 @@ import {
 import { formatDateTime, getReferenceLabel, toTitleCase } from '@/lib/format/record.utils'
 import { cn } from '@/lib/utils/cn'
 
+import { EmployeeProfileEmptyState } from './EmployeeProfileEmptyState'
+import { EmployeeProfileReadinessPanel } from './EmployeeProfileReadinessPanel'
 import { ProfileField, ProfileInfoCard } from './ProfileInfoCard'
 
 const tabs = [
@@ -61,7 +61,13 @@ const compactDate = (value: unknown) => {
 
 const RowList = ({ records, emptyMessage }: { records: Record<string, unknown>[]; emptyMessage: string }) => {
   if (!records.length) {
-    return <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">{emptyMessage}</p>
+    return (
+      <EmployeeProfileEmptyState
+        icon={<FileText className="h-5 w-5" />}
+        title="No records yet"
+        message={emptyMessage}
+      />
+    )
   }
 
   return (
@@ -90,33 +96,15 @@ const RowList = ({ records, emptyMessage }: { records: Record<string, unknown>[]
   )
 }
 
-const DataGapList = ({ gaps }: { gaps: EmployeeProfileDataGap[] }) => {
-  if (!gaps.length) {
-    return (
-      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-700 dark:text-emerald-300">
-        No major profile readiness gap found for this employee.
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-3">
-      {gaps.map((gap) => (
-        <div key={gap.key} className="rounded-2xl border border-border bg-background p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getGapVariant(gap.severity)}>{gap.severity}</Badge>
-            <p className="font-semibold text-foreground">{gap.label}</p>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">{gap.message}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 const TimelineList = ({ timeline }: { timeline: EmployeeProfileTimelineEvent[] }) => {
   if (!timeline.length) {
-    return <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">No employee timeline event found yet.</p>
+    return (
+      <EmployeeProfileEmptyState
+        icon={<History className="h-5 w-5" />}
+        title="No timeline yet"
+        message="No joining, movement, document, salary, payroll, or legacy archive timeline event was found for this employee yet."
+      />
+    )
   }
 
   return (
@@ -162,6 +150,17 @@ export const EmployeeProfileTabs = ({ profile }: EmployeeProfileTabsProps) => {
     [latestPayroll, leaveTotals.remainingDays, leaveTotals.availableDays, sections.legacySalaryArchive.count],
   )
 
+  const tabCounters: Record<TabKey, number> = {
+    overview: sections.dataGaps.length,
+    payroll:
+      (sections.payrollHistory.nativePayroll?.length ?? 0) +
+      (sections.payrollHistory.salarySheets?.length ?? 0) +
+      sections.legacySalaryArchive.count,
+    attendance: (sections.attendance.history?.length ?? 0) + (sections.leave.balances?.length ?? 0),
+    documents: sections.documents.count,
+    timeline: sections.timeline.length + sections.movements.count,
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2 overflow-x-auto rounded-3xl border border-border bg-card p-2 shadow-sm">
@@ -183,6 +182,16 @@ export const EmployeeProfileTabs = ({ profile }: EmployeeProfileTabsProps) => {
             >
               <Icon className="h-4 w-4" />
               {tab.label}
+              {tabCounters[tab.key] > 0 && (
+                <span
+                  className={cn(
+                    'ml-1 rounded-full px-2 py-0.5 text-[10px] font-black',
+                    isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground',
+                  )}
+                >
+                  {tabCounters[tab.key]}
+                </span>
+              )}
             </button>
           )
         })}
@@ -226,7 +235,7 @@ export const EmployeeProfileTabs = ({ profile }: EmployeeProfileTabsProps) => {
           </ProfileInfoCard>
 
           <ProfileInfoCard title="Profile Readiness Gaps" description="Safety gaps from backend digital service book aggregation." icon={<AlertTriangle className="h-5 w-5" />} badge={`${sections.dataGaps.length} gaps`}>
-            <DataGapList gaps={sections.dataGaps} />
+            <EmployeeProfileReadinessPanel gaps={sections.dataGaps} />
           </ProfileInfoCard>
         </div>
       )}

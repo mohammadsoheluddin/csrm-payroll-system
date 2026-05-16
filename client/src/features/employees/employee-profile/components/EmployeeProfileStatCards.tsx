@@ -2,7 +2,11 @@ import { AlertTriangle, Banknote, FileText, GitBranch, ShieldCheck, WalletCards 
 
 import { Card } from '@/components/ui/Card'
 import type { EmployeeProfileResponse } from '@/features/employees/employee-profile/types/employeeProfile.types'
-import { formatCompactNumber, formatCurrency } from '@/features/employees/employee-profile/utils/employeeProfile.utils'
+import {
+  calculateProfileReadinessScore,
+  formatCompactNumber,
+  formatCurrency,
+} from '@/features/employees/employee-profile/utils/employeeProfile.utils'
 
 export type EmployeeProfileStatCardsProps = {
   profile: EmployeeProfileResponse
@@ -40,6 +44,7 @@ export const EmployeeProfileStatCards = ({ profile }: EmployeeProfileStatCardsPr
   const activeSalary = sections.salary.activeSalaryStructure ?? {}
   const primaryBankInfo = sections.payment.primaryBankInfo ?? {}
   const leaveTotals = sections.leave.totals ?? {}
+  const readinessScore = calculateProfileReadinessScore(sections.dataGaps)
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -74,9 +79,9 @@ export const EmployeeProfileStatCards = ({ profile }: EmployeeProfileStatCardsPr
         icon={GitBranch}
       />
       <StatCard
-        label="Data gaps"
-        value={sections.dataGaps.length}
-        helper="Critical/warning profile readiness gaps"
+        label="Readiness"
+        value={`${readinessScore}%`}
+        helper={`${sections.dataGaps.length} profile readiness gaps`}
         icon={AlertTriangle}
       />
     </div>

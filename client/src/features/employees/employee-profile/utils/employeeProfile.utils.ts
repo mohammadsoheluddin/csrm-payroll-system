@@ -59,3 +59,19 @@ export const getTimelineEventId = (event: { referenceId?: string; title: string;
 export const getRecordDisplayId = (record: Record<string, unknown>) => {
   return getRecordId(record) || String(record.employeeId ?? record.payrollMonth ?? record.title ?? '—')
 }
+
+export const calculateProfileReadinessScore = (gaps: { severity: EmployeeProfileDataGapSeverity }[]) => {
+  const penalty = gaps.reduce((total, gap) => {
+    if (gap.severity === 'critical') {
+      return total + 30
+    }
+
+    if (gap.severity === 'warning') {
+      return total + 15
+    }
+
+    return total + 5
+  }, 0)
+
+  return Math.max(0, Math.min(100, 100 - penalty))
+}
