@@ -40,8 +40,8 @@ export const AttendanceToolbar = ({
 
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="grid flex-1 gap-3 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+      <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
+        <div className="grid flex-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
           <EmployeeSelect
             value={filters.employee ?? ''}
             onChange={(value) => updateFilter('employee', value)}
@@ -144,7 +144,7 @@ export const AttendanceToolbar = ({
           </label>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 md:justify-end">
           <Button
             type="button"
             variant={mode === 'active' ? 'primary' : 'outline'}
@@ -168,7 +168,7 @@ export const AttendanceToolbar = ({
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="mt-3 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
         <Filter className="h-4 w-4" />
         Backend filters: employee, status, source, exact date, and date range. Company and department narrow the loaded result set in the UI.
       </div>

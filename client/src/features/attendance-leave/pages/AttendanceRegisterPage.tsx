@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { SimpleDataTable } from '@/components/data-table/SimpleDataTable'
 import { ApiErrorState } from '@/components/feedback/ApiErrorState'
+import { EmptyState } from '@/components/feedback/EmptyState'
 import { LoadingState } from '@/components/feedback/LoadingState'
 import { PermissionDeniedInline } from '@/components/feedback/PermissionDeniedInline'
 import { Badge } from '@/components/ui/Badge'
@@ -202,8 +203,8 @@ export const AttendanceRegisterPage = () => {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section className="rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
             <Badge variant="default">Part-F20</Badge>
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground">Attendance Register</h1>
@@ -211,7 +212,7 @@ export const AttendanceRegisterPage = () => {
               Attendance register foundation with filters, manual entry review, and monthly finalization preparation for payroll-safe workflows.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button
               type="button"
               variant="outline"
@@ -257,6 +258,12 @@ export const AttendanceRegisterPage = () => {
         <ApiErrorState error={employeeOptionsQuery.error} onRetry={() => void employeeOptionsQuery.refetch()} />
       )}
 
+      {employeeLookups.isError && (
+        <Card className="border-amber-500/30 bg-amber-500/10 p-4 text-sm text-foreground">
+          Company and department lookup options could not be loaded. Attendance records are still available through the backend-supported filters.
+        </Card>
+      )}
+
       {formMode !== 'closed' && (
         <AttendanceFormPanel
           key={`${formMode}-${selectedRecord?._id ?? selectedRecord?.id ?? 'new'}`}
@@ -285,6 +292,11 @@ export const AttendanceRegisterPage = () => {
           <LoadingState title="Loading attendance records..." />
         ) : attendanceQuery.isError ? (
           <ApiErrorState error={attendanceQuery.error} onRetry={() => void attendanceQuery.refetch()} />
+        ) : visibleRecords.length === 0 ? (
+          <EmptyState
+            title="No attendance records match these filters"
+            message="Try clearing one or more filters, or create a new attendance entry if your role allows it."
+          />
         ) : (
           <SimpleDataTable<AttendanceRecord>
             records={visibleRecords}
@@ -324,9 +336,9 @@ export const AttendanceRegisterPage = () => {
               },
               { key: 'remarks', label: 'Remarks' },
             ]}
-            actions={(record) => (
+            actions={canManageAttendance ? (record) => (
               <div className="flex justify-end gap-2">
-                {canManageAttendance && mode === 'active' && (
+                {mode === 'active' && (
                   <>
                     <Button
                       type="button"
@@ -345,7 +357,7 @@ export const AttendanceRegisterPage = () => {
                     </Button>
                   </>
                 )}
-                {canManageAttendance && mode === 'deleted' && (
+                {mode === 'deleted' && (
                   <Button
                     type="button"
                     variant="outline"
@@ -357,7 +369,7 @@ export const AttendanceRegisterPage = () => {
                   </Button>
                 )}
               </div>
-            )}
+            ) : undefined}
           />
         )}
       </Card>

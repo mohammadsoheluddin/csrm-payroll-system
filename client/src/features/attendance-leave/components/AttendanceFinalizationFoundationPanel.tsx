@@ -1,5 +1,6 @@
 import { CalendarRange, CircleAlert, ClipboardCheck, LockKeyhole, ShieldCheck } from 'lucide-react'
 
+import { EmptyState } from '@/components/feedback/EmptyState'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 
@@ -28,7 +29,7 @@ export const AttendanceFinalizationFoundationPanel = ({
   canLockFinalization,
 }: AttendanceFinalizationFoundationPanelProps) => {
   return (
-    <Card className="p-5">
+    <Card className="p-5 sm:p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
@@ -109,9 +110,10 @@ export const AttendanceFinalizationFoundationPanel = ({
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Attendance finalization permissions are not available for this role.
-            </p>
+            <EmptyState
+              title="Finalization actions are unavailable"
+              message="This role can review attendance records but does not currently have attendance finalization access."
+            />
           )}
         </div>
       </div>
@@ -123,6 +125,12 @@ export const AttendanceFinalizationFoundationPanel = ({
           foundation only and does not introduce risky backend calculation logic.
         </p>
       </div>
+
+      {canReadFinalization && !canProcessFinalization && !canApproveFinalization && !canLockFinalization && (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-background/70 p-4 text-sm leading-6 text-muted-foreground">
+          Finalization is visible for this role, but live validate/finalize/lock actions are not assigned yet.
+        </div>
+      )}
     </Card>
   )
 }
