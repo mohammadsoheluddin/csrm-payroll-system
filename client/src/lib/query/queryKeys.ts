@@ -41,6 +41,11 @@ export const queryKeys = {
     root: ['attendance'] as const,
     list: (mode: string, params?: Record<string, unknown>) => ['attendance', 'list', mode, params ?? {}] as const,
   },
+  attendanceFinalization: {
+    root: ['attendance-finalization'] as const,
+    list: (params?: Record<string, unknown>) => ['attendance-finalization', 'list', params ?? {}] as const,
+    summary: (params?: Record<string, unknown>) => ['attendance-finalization', 'summary', params ?? {}] as const,
+  },
   leave: {
     root: ['leave'] as const,
     list: (mode: string, params?: Record<string, unknown>) => ['leave', 'list', mode, params ?? {}] as const,

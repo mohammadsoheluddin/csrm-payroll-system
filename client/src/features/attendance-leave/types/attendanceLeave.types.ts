@@ -54,6 +54,89 @@ export type AttendancePayload = {
   deviceId?: string
 }
 
+export type AttendanceFinalizationStatus = 'draft' | 'finalized' | 'approved' | 'locked'
+
+export type AttendanceFinalizationQueryParams = {
+  payrollMonth?: string
+  company?: string
+  majorDepartment?: string
+  department?: string
+  branch?: string
+  employee?: string
+  status?: AttendanceFinalizationStatus | ''
+  isLocked?: '' | 'true' | 'false'
+}
+
+export type AttendanceFinalizationActionScope = {
+  payrollMonth: string
+  company: string
+  majorDepartment?: string
+  department?: string
+  branch?: string
+  employee?: string
+  note?: string
+  strict?: boolean
+}
+
+export type AttendanceFinalizationGeneratePayload = {
+  month: number
+  year: number
+  company: string
+  majorDepartment?: string
+  department?: string
+  branch?: string
+  employee?: string
+  overwrite?: boolean
+  remarks?: string
+}
+
+export type AttendanceFinalizationRecord = Record<string, unknown> & {
+  _id?: string
+  id?: string
+  payrollMonth?: string
+  month?: number
+  year?: number
+  status?: AttendanceFinalizationStatus
+  isLocked?: boolean
+  totalPayableDays?: number
+  totalDeductionDays?: number
+  totalAbsentDays?: number
+  totalLeaveDays?: number
+  employeeSnapshot?: {
+    employeeId?: string
+    employeeName?: string
+  } | null
+}
+
+export type AttendanceFinalizationReadiness = {
+  totalRecords: number
+  isGenerated: boolean
+  isFullyFinalized: boolean
+  isFullyApproved: boolean
+  isFullyLocked: boolean
+  canProcessSalarySheet: boolean
+  canProcessTimeBill: boolean
+  blockers: string[]
+}
+
+export type AttendanceFinalizationSummary = {
+  payrollMonth: string
+  readiness: AttendanceFinalizationReadiness
+  statusSummary: Record<AttendanceFinalizationStatus, number>
+  lockSummary: {
+    locked: number
+    unlocked: number
+  }
+  totals: {
+    totalPresentDays?: number
+    totalLateDays?: number
+    totalAbsentDays?: number
+    totalLeaveDays?: number
+    totalPayableDays?: number
+    totalDeductionDays?: number
+  }
+}
+
 export type LeaveType =
   | 'casual'
   | 'sick'

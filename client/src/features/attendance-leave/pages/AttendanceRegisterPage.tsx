@@ -63,6 +63,7 @@ export const AttendanceRegisterPage = () => {
   const canProcessFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_PROCESS])
   const canApproveFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_APPROVE])
   const canLockFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_LOCK])
+  const canUnlockFinalization = canAccess([PERMISSIONS.ATTENDANCE_FINALIZATION_UNLOCK])
   const queryKey = queryKeys.attendance.list(mode, filters)
 
   const attendanceQuery = useQuery({
@@ -377,10 +378,14 @@ export const AttendanceRegisterPage = () => {
       <AttendanceFinalizationFoundationPanel
         selectedMonth={selectedMonth}
         onMonthChange={setSelectedMonth}
+        company={filters.company}
+        department={filters.department}
+        employee={filters.employee}
         canReadFinalization={canReadFinalization}
         canProcessFinalization={canProcessFinalization}
         canApproveFinalization={canApproveFinalization}
         canLockFinalization={canLockFinalization}
+        canUnlockFinalization={canUnlockFinalization}
       />
     </div>
   )
